@@ -1,0 +1,30 @@
+﻿@use "variables";
+
+.main-layout {
+  height: 100vh;
+  padding-top: 60px;
+  padding-left: 250px;
+  
+  &__header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 60px;
+    width: 100%;
+    background-color: variables.$accent-color;
+  }
+
+  &__nav {
+    position: absolute;
+    left: 0;
+    width: 250px;
+    height: calc(100% - 60px);
+    background-color: variables.$card-bg-color;
+    border-right: 1px solid variables.$card-border-color;
+  }
+
+  &__page-container {
+    height: 100%;
+    background-color: variables.$bg-color;
+  }
+}

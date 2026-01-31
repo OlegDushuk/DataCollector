@@ -1,0 +1,13 @@
+﻿@code
+{
+  [CascadingParameter] public DataTableAccessor TableAccessor { get; set; } = null!;
+  
+  [Parameter] public RenderFragment<dynamic> ChildContent { get; set; } = null!;
+  
+  protected override void OnInitialized()
+  {
+    var config = new ColumnConfig(ChildContent);
+    
+    TableAccessor.InitializeColumn(config);
+  }
+}

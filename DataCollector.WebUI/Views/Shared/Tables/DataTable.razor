@@ -1,0 +1,19 @@
+﻿@typeparam TItem
+
+<div class="@CssClass">
+  @foreach (var item in Items)
+  {
+    <div class="@RowCssClass">
+      @foreach (var columnConfig in _columnConfigs)
+      {
+        <div class="@ColumnCssClass">
+          @columnConfig.Template(item)
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<CascadingValue Value="_dataTableAccessor">
+  @RowTemplate
+</CascadingValue>
