@@ -1,9 +1,0 @@
-﻿CREATE TABLE Events (
-    Id UNIQUEIDENTIFIER PRIMARY KEY,
-    EventConfigId UNIQUEIDENTIFIER NOT NULL,
-    CreatedAt DATE NOT NULL
-
-    CONSTRAINT FK_Events_EventConfigs
-    FOREIGN KEY (EventConfigId)
-    REFERENCES EventConfigs (Id)
-)

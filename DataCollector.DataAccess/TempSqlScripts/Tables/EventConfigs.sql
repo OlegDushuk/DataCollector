@@ -1,4 +1,0 @@
-﻿CREATE TABLE EventConfigs (
-    Id UNIQUEIDENTIFIER PRIMARY KEY,
-    CreatedAt DATE NOT NULL
-)

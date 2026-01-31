@@ -8,6 +8,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataCollector.DataAccess", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataCollector.WebUI", "DataCollector.WebUI\DataCollector.WebUI.csproj", "{8C7B763F-EA14-4352-91CB-9A51AE880067}"
 EndProject
+Project("{42EA0DBD-9CF1-443E-919E-BE9C484E4577}") = "DataCollector.DataBase", "DataCollector.DataBase\DataCollector.DataBase.sqlproj", "{D18DEAE1-B969-41C8-91FA-FCED25B1F25E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{8C7B763F-EA14-4352-91CB-9A51AE880067}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8C7B763F-EA14-4352-91CB-9A51AE880067}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8C7B763F-EA14-4352-91CB-9A51AE880067}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D18DEAE1-B969-41C8-91FA-FCED25B1F25E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D18DEAE1-B969-41C8-91FA-FCED25B1F25E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D18DEAE1-B969-41C8-91FA-FCED25B1F25E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D18DEAE1-B969-41C8-91FA-FCED25B1F25E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
