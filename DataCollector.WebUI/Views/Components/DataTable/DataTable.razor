@@ -1,0 +1,40 @@
+﻿<div class="">
+  <div class="">
+    <div class="">
+      @foreach (var columnConfig in _columnConfigs)
+      {
+        <div class="">
+          @columnConfig.Name
+        </div>
+      }
+    </div>
+  </div>
+  
+  <div class="">
+    @foreach (var item in Items)
+    {
+      <div class="">
+        @foreach (var columnConfig in _columnConfigs)
+        {
+          <div class="">
+            @columnConfig.Template(item)
+          </div>
+        }
+      </div>
+    }
+  </div>
+  
+  <div class="">
+    <div>
+      
+    </div>
+    
+    <div>
+      
+    </div>
+  </div>
+</div>
+
+<CascadingValue Value="this">
+  @RowTemplate
+</CascadingValue>

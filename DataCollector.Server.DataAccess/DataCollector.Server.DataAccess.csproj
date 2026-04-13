@@ -4,12 +4,11 @@
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <RootNamespace>DataCollector.DataAccess</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
       <Folder Include="Implementations\" />
-      <Folder Include="Interfaces\" />
-      <Folder Include="TempSqlScripts\StoredProcedures\" />
     </ItemGroup>
 
     <ItemGroup>

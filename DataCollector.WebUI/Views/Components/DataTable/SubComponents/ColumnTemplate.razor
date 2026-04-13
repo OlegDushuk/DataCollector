@@ -1,0 +1,24 @@
+﻿@using DataCollector.WebUI.Views.Components.DataTable.Enums
+@using DataCollector.WebUI.Views.Components.DataTable.Models
+
+@typeparam TItem
+
+@code
+{
+  [CascadingParameter] public DataTable DataTable { get; set; } = null!;
+  
+  [Parameter] public RenderFragment<RowData> ChildContent { get; set; } = null!;
+  [Parameter] public string Name { get; set; } = string.Empty;
+  [Parameter] public DataTableColumnDataType DataType { get; set; }
+  [Parameter] public bool IsSortable { get; set; }
+  
+  protected override void OnInitialized()
+  {
+    var config = new ColumnConfig(
+      ChildContent,
+      DataType,
+      Name);
+    
+    DataTable.InitializeColumn(config);
+  }
+}

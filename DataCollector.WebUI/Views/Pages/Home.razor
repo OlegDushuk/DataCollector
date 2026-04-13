@@ -1,6 +1,21 @@
 ﻿@page "/"
 
-<PageTitle>Home</PageTitle>
-
-<h3>Home</h3>
-
+<PageTemplate Title="Home">
+    <MainContent>
+        <DataTable>
+            <RowTemplate>
+                <ColumnTemplate Context="item">
+                    <span>@item.GetFieldByName<int>("Price")</span>
+                </ColumnTemplate>
+                
+                <ColumnTemplate>
+                    
+                </ColumnTemplate>
+                
+                <ColumnTemplate>
+                    
+                </ColumnTemplate>
+            </RowTemplate>
+        </DataTable>
+    </MainContent>
+</PageTemplate>
