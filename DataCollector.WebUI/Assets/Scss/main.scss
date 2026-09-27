@@ -17,6 +17,52 @@ svg {
   color: variables.$button-text-color;
   font-size: 12px;
   line-height: 12px;
+
+  &--strong {
+    color: variables.$title-text-color;
+    font-weight: 500;
+  }
+
+  &--multiline {
+    line-height: 18px;
+    font-size: 13px;
+  }
+}
+
+.code {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+  line-height: 12px;
+  color: variables.$accent-color;
+  background: variables.$accent-light-color;
+  border-radius: 6px;
+  padding: 3px 6px;
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  line-height: 11px;
+  font-weight: 500;
+  color: variables.$accent-color;
+  background: variables.$accent-transparent-color;
+  border-radius: 20px;
+  padding: 5px 10px;
+  white-space: nowrap;
+
+  &--method {
+    min-width: 58px;
+    text-align: center;
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  width: 100%;
+  padding-right: variables.$pad-sm;
 }
 
 .nav-button {
@@ -40,7 +86,7 @@ svg {
   }
    
   &.active {
-    background: #EEEDFE;
+    background: variables.$accent-light-color;
     color: variables.$accent-color;
     cursor: default;
 
@@ -50,7 +96,7 @@ svg {
   }
   
   &:hover {
-    background: #EEEDFE;
+    background: variables.$accent-light-color;
     color: variables.$accent-color;
 
     .nav-button__icon {

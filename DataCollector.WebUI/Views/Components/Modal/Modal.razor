@@ -1,0 +1,42 @@
+@namespace DataCollector.WebUI.Views.Components
+
+@if (IsOpen)
+{
+    <div class="modal" @onkeydown="OnKeyDown">
+        <div class="modal__backdrop" @onclick="Close"></div>
+
+        <div class="modal__window" style="@(Width != null ? $"width: {Width};" : "")">
+            <div class="modal__header">
+                <div class="modal__title">@Title</div>
+                <button type="button" class="modal__close" title="Закрити" @onclick="Close">
+                    <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                </button>
+            </div>
+
+            <div class="modal__body">
+                @ChildContent
+            </div>
+
+            @if (Footer != null)
+            {
+                <div class="modal__footer">
+                    @Footer
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+  [Parameter] public bool IsOpen { get; set; }
+  [Parameter] public string Title { get; set; } = string.Empty;
+  [Parameter] public string? Width { get; set; }
+  [Parameter] public RenderFragment? ChildContent { get; set; }
+  [Parameter] public RenderFragment? Footer { get; set; }
+  [Parameter] public EventCallback OnClose { get; set; }
+
+  private Task Close() => OnClose.InvokeAsync();
+
+  private Task OnKeyDown(KeyboardEventArgs args)
+    => args.Key == "Escape" ? Close() : Task.CompletedTask;
+}

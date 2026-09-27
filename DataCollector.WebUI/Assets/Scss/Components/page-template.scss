@@ -1,5 +1,165 @@
 ﻿@use "../variables";
 
-.page-template {
-  //margin: variables.$padding-lg;
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: variables.$pad-md;
+  height: 100%;
+  min-height: 0;
+
+  &--scroll {
+    height: auto;
+  }
+
+  &__header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: variables.$pad-md;
+
+    &-left {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    &-right {
+      display: flex;
+      gap: variables.$pad-sm;
+    }
+  }
+
+  &__title {
+    font-size: 24px;
+    line-height: 28px;
+    font-weight: 600;
+    color: variables.$title-text-color;
+  }
+
+  &__subtitle {
+    font-size: 13px;
+    line-height: 18px;
+    color: variables.$button-text-color;
+  }
+
+  &__back {
+    font-size: 13px;
+    color: variables.$subtitle-text-color;
+    text-decoration: none;
+    transition: 0.25s;
+
+    &:hover {
+      color: variables.$accent-color;
+    }
+  }
+
+  &__main {
+    flex: 1;
+    min-height: 260px;
+  }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 60px variables.$pad-md;
+  background: variables.$surface-color;
+  border: 1px dashed variables.$accent-inactive-color;
+  border-radius: variables.$radius-lg;
+  text-align: center;
+
+  &__title {
+    font-size: 18px;
+    font-weight: 600;
+    color: variables.$title-text-color;
+  }
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: variables.$pad-md;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: variables.$pad-md;
+  background: variables.$surface-color;
+  border: 1px solid variables.$border-color;
+  border-radius: variables.$radius-lg;
+
+  &__value {
+    font-size: 30px;
+    line-height: 30px;
+    font-weight: 600;
+    color: variables.$accent-color;
+  }
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: variables.$pad-md;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: variables.$pad-md;
+  background: variables.$surface-color;
+  border: 1px solid variables.$border-color;
+  border-radius: variables.$radius-lg;
+
+  &--hoverable {
+    cursor: pointer;
+    transition: 0.25s;
+
+    &:hover {
+      border-color: variables.$accent-color;
+      box-shadow: 0 8px 24px variables.$accent-transparent-color;
+    }
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  &__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: variables.$title-text-color;
+  }
+
+  &__stats {
+    display: flex;
+    gap: 40px;
+
+    > div {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+  }
+
+  &__number {
+    font-size: 22px;
+    font-weight: 600;
+    color: variables.$title-text-color;
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 12px;
+    border-top: 1px solid variables.$border-color;
+  }
 }

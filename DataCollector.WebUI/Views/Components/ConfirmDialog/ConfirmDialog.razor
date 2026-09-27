@@ -1,0 +1,22 @@
+@namespace DataCollector.WebUI.Views.Components
+
+<Modal IsOpen="IsOpen" Title="@Title" Width="420px" OnClose="OnCancel">
+    <ChildContent>
+        <p class="default-text default-text--multiline">@Text</p>
+        <Alert Message="@Error" />
+    </ChildContent>
+    <Footer>
+        <Button Text="Скасувати" Variant="ButtonVariant.Secondary" OnClick="OnCancel" />
+        <Button Text="@ConfirmText" Variant="ButtonVariant.Danger" OnClick="OnConfirm" />
+    </Footer>
+</Modal>
+
+@code {
+  [Parameter] public bool IsOpen { get; set; }
+  [Parameter] public string Title { get; set; } = "Підтвердження";
+  [Parameter] public string Text { get; set; } = string.Empty;
+  [Parameter] public string ConfirmText { get; set; } = "Видалити";
+  [Parameter] public string? Error { get; set; }
+  [Parameter] public EventCallback OnConfirm { get; set; }
+  [Parameter] public EventCallback OnCancel { get; set; }
+}

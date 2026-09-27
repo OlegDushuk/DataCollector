@@ -10,6 +10,7 @@ public static class DependencyInjection
   {
     services.AddTransient<IEntityConfigRepository, EntityConfigRepository>();
     services.AddTransient<IEntityPropertyConfigRepository, EntityPropertyConfigRepository>();
+    services.AddTransient<IEntityInstanceRepository, EntityInstanceRepository>();
     
     return services;
   }

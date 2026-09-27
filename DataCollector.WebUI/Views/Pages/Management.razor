@@ -2,43 +2,103 @@
 
 @inherits PageBase
 
-<div class="page__header">
-    <div class="page__headr-left">
+<div class="page">
+    <div class="page__header">
+        <div class="page__header-left">
+            <h1 class="page__title">Моделі даних</h1>
+            <div class="page__subtitle">Структура даних, які збирає система: назва, ключ для API та набір полів</div>
+        </div>
         
+        <div class="page__header-right">
+            <Button Text="Нова модель" OnClick="OpenCreate" />
+        </div>
     </div>
-    
-    <div class="page__headr-right">
-        
+
+    <Alert Message="@Error" OnClose="@(() => Error = null)" />
+
+    <div class="page__main">
+        <DataTable @ref="_table"
+                   TItem="EntityConfigListItem"
+                   Items="_page"
+                   TotalCount="_all.Count"
+                   IsLoading="_isLoading"
+                   InitialSortKey="createdAt"
+                   EmptyText="Ще немає жодної моделі. Створіть першу!"
+                   OnReload="OnReload"
+                   OnRowClick="@(item => Navigation.NavigateTo($"/management/{item.Id}"))">
+            <RowTemplate>
+                <ColumnTemplate TItem="EntityConfigListItem" Context="item"
+                                Key="name" Title="Назва" IsSortable="true">
+                    <span class="default-text default-text--strong">@item.Name</span>
+                </ColumnTemplate>
+            
+                <ColumnTemplate TItem="EntityConfigListItem" Context="item"
+                                Key="key" Title="Ключ" IsSortable="true">
+                    <span class="code">@item.Key</span>
+                </ColumnTemplate>
+            
+                <ColumnTemplate TItem="EntityConfigListItem" Context="item"
+                                Key="properties" Title="Полів" IsSortable="true" Width="120px">
+                    <span class="default-text">@item.PropertyCount</span>
+                </ColumnTemplate>
+
+                <ColumnTemplate TItem="EntityConfigListItem" Context="item"
+                                Key="records" Title="Записів" IsSortable="true" Width="120px">
+                    <span class="default-text">@item.RecordCount</span>
+                </ColumnTemplate>
+            
+                <ColumnTemplate TItem="EntityConfigListItem" Context="item"
+                                Key="createdAt" Title="Створено" IsSortable="true" Width="170px">
+                    <span class="default-text">@Format.Date(item.CreatedAt)</span>
+                </ColumnTemplate>
+
+                <ColumnTemplate TItem="EntityConfigListItem" Context="item" Width="110px">
+                    <div class="actions">
+                        <IconButton Icon="open" Title="Записи" OnClick="@(() => Navigation.NavigateTo($"/records/{item.Key}"))" />
+                        <IconButton Icon="edit" Title="Налаштувати" OnClick="@(() => Navigation.NavigateTo($"/management/{item.Id}"))" />
+                        <IconButton Icon="delete" Title="Видалити" Danger="true" OnClick="@(() => AskDelete(item))" />
+                    </div>
+                </ColumnTemplate>
+            </RowTemplate>
+        </DataTable>
     </div>
 </div>
 
-<div class="page__main">
-    <DataTable TItem="EntityConfig"
-               Items="_entityConfigs">
-        <RowTemplate>
-            <ColumnTemplate TItem="EntityConfig" Context="item"
-                            Title="Name"
-                            IsSortable="true">
-                <span class="default-text">@item.Name</span>
-            </ColumnTemplate>
-        
-            <ColumnTemplate TItem="EntityConfig" Context="item"
-                            Title="Key"
-                            IsSortable="true">
-                <span class="default-text">@item.Key</span>
-            </ColumnTemplate>
-        
-            <ColumnTemplate TItem="EntityConfig" Context="item"
-                            Title="Amount of props"
-                            IsSortable="true">
-                <span class="default-text">@item.Properties.Count</span>
-            </ColumnTemplate>
-        
-            <ColumnTemplate TItem="EntityConfig" Context="item"
-                            Title="Created at"
-                            IsSortable="true">
-                <span class="default-text">@item.CreatedAt</span>
-            </ColumnTemplate>
-        </RowTemplate>
-    </DataTable>
-</div>
+<Modal IsOpen="_isCreateOpen" Title="Нова модель" Width="720px" OnClose="@(() => _isCreateOpen = false)">
+    <ChildContent>
+        <div class="form">
+            <div class="form__row">
+                <label class="form__field">
+                    <span class="form__label">Назва</span>
+                    <input class="input" placeholder="Наприклад, Замовлення"
+                           value="@_newName" @oninput="OnNewNameInput" />
+                </label>
+
+                <label class="form__field">
+                    <span class="form__label">Ключ (для API)</span>
+                    <input class="input input--code" placeholder="orders"
+                           value="@_newKey" @oninput="@(e => { _newKey = e.Value?.ToString() ?? ""; _newKeyTouched = true; })" />
+                </label>
+            </div>
+
+            <div class="form__section-title subtitle">Поля</div>
+
+            <PropertyRowsEditor Properties="_newProperties"
+                                EmptyHint="Поля можна додати зараз або пізніше в налаштуваннях моделі."
+                                OnChanged="StateHasChanged" />
+        </div>
+
+        <Alert Message="@_createError" />
+    </ChildContent>
+    <Footer>
+        <Button Text="Скасувати" Variant="ButtonVariant.Secondary" OnClick="@(() => _isCreateOpen = false)" />
+        <Button Text="Створити" OnClick="Create" />
+    </Footer>
+</Modal>
+
+<ConfirmDialog IsOpen="_toDelete != null"
+               Title="Видалити модель?"
+               Text="@($"Модель «{_toDelete?.Name}» буде видалено разом з усіма полями та {_toDelete?.RecordCount} записами. Цю дію не можна скасувати.")"
+               Error="@_deleteError"
+               OnConfirm="Delete"
+               OnCancel="@(() => _toDelete = null)" />

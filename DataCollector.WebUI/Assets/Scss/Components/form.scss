@@ -1,0 +1,125 @@
+@use "../variables";
+
+.input,
+.select {
+  height: 36px;
+  width: 100%;
+  padding: 0 12px;
+  border: 1px solid variables.$border-color;
+  border-radius: variables.$radius-md;
+  background: variables.$surface-color;
+  color: variables.$title-text-color;
+  font-size: 14px;
+  outline: none;
+  transition: 0.25s;
+
+  &::placeholder {
+    color: variables.$subtitle-text-color;
+  }
+
+  &:hover {
+    border-color: variables.$accent-inactive-color;
+  }
+
+  &:focus {
+    border-color: variables.$accent-color;
+    box-shadow: 0 0 0 3px variables.$accent-transparent-color;
+  }
+}
+
+.input--code {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 13px;
+}
+
+.select {
+  cursor: pointer;
+
+  &--small {
+    height: 28px;
+    width: auto;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  &__row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+
+    &--action {
+      flex: 0 0 auto;
+    }
+  }
+
+  &__label {
+    font-size: 12px;
+    line-height: 12px;
+    font-weight: 500;
+    color: variables.$button-text-color;
+  }
+
+  &__label-hint {
+    font-weight: 400;
+    color: variables.$subtitle-text-color;
+    margin-left: 4px;
+  }
+
+  &__section-title {
+    margin-top: 8px;
+  }
+
+  &__hint {
+    line-height: 18px;
+  }
+}
+
+.toolbar-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .select {
+    min-width: 220px;
+  }
+}
+
+.property-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__header,
+  &__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 140px 28px;
+    gap: 8px;
+    align-items: center;
+  }
+}
+
+.endpoints {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+}

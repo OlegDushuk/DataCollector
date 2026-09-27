@@ -1,4 +1,13 @@
-﻿<button class="button" @onclick="@(args => { _ = HandleClick(args); })">
+﻿@namespace DataCollector.WebUI.Views.Components
+
+<button type="@Type"
+        class="button button--@Variant.ToString().ToLowerInvariant() @(Small ? "button--small" : "") @Class"
+        disabled="@(Disabled || _isBusy)"
+        @onclick="HandleClick">
+    @if (Icon != null)
+    {
+        <span class="button__icon">@Icon</span>
+    }
     <span class="button__text">
         @Text
     </span>

@@ -1,17 +1,49 @@
-﻿namespace DataCollector.WebUI.Entities;
+﻿using System.Globalization;
+using System.Text.Json;
+using DataCollector.WebUI.Enums;
 
+namespace DataCollector.WebUI.Entities;
+
+/// <summary>
+/// Запис моделі. Значення приходять з API як JSON (рядок / число / bool / null).
+/// </summary>
 public class EntityInstance
 {
+  public Guid Id { get; set; }
   public DateTime CreatedAt { get; set; }
-  public EntityConfig Config { get; set; }
-  public readonly List<EntityProperty> Properties = [];
+  public DateTime? UpdatedAt { get; set; }
+  public Dictionary<string, JsonElement> Values { get; set; } = [];
 
-  public void SetProperty(string key, string value)
+  /// <summary>
+  /// Значення у вигляді рядка для полів форми (число в інваріантній культурі, bool як "true"/"false").
+  /// </summary>
+  public string? GetRawValue(string key)
   {
-    Properties.Add(new EntityProperty()
+    if (!Values.TryGetValue(key, out var value))
+      return null;
+
+    return value.ValueKind switch
     {
-      Config = Config.Properties.FirstOrDefault(x => x.Key == key),
-      Value = value
-    });
+      JsonValueKind.String => value.GetString(),
+      JsonValueKind.Number => value.GetRawText(),
+      JsonValueKind.True => "true",
+      JsonValueKind.False => "false",
+      _ => null
+    };
+  }
+
+  public string GetDisplayValue(EntityPropertyConfig property)
+  {
+    var raw = GetRawValue(property.Key);
+    if (raw is null)
+      return "—";
+
+    return property.DataType switch
+    {
+      PropertyDataType.Boolean => raw == "true" ? "Так" : "Ні",
+      PropertyDataType.Number when decimal.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var n)
+        => n.ToString("#,0.##########", CultureInfo.GetCultureInfo("uk-UA")),
+      _ => raw
+    };
   }
 }

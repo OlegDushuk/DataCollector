@@ -27,7 +27,9 @@ $logo-container-height: 80px;
   }
 
   &__content {
-    height: 100%;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
     background-color: variables.$bg-color;
     padding: variables.$pad-lg;
   }
@@ -40,6 +42,9 @@ $logo-container-height: 80px;
   &__top {
     height: $logo-container-height;
     border-bottom: 1px solid variables.$border-color;
+    display: flex;
+    align-items: center;
+    padding: 0 variables.$pad-md;
   }
   
   &__main {
@@ -52,5 +57,30 @@ $logo-container-height: 80px;
   
   &__list-item {
     margin-bottom: variables.$pad-sm;
+  }
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+
+  &__mark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: variables.$radius-md;
+    background: variables.$accent-color;
+    color: variables.$surface-color;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  &__text {
+    font-size: 17px;
+    font-weight: 600;
+    color: variables.$title-text-color;
   }
 }

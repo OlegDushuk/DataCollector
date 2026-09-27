@@ -1,0 +1,72 @@
+@namespace DataCollector.WebUI.Views.Components
+
+@* Редактор списку нових полів: назва, ключ (генерується з назви), тип. *@
+
+@if (Properties.Count == 0 && EmptyHint != null)
+{
+    <div class="default-text form__hint">@EmptyHint</div>
+}
+
+@if (Properties.Count > 0)
+{
+    <div class="property-rows">
+        <div class="property-rows__header">
+            <span class="subtitle">Назва</span>
+            <span class="subtitle">Ключ</span>
+            <span class="subtitle">Тип</span>
+            <span></span>
+        </div>
+
+        @foreach (var prop in Properties)
+        {
+            <div class="property-rows__row">
+                <input class="input" placeholder="Назва поля" value="@prop.Name"
+                       @oninput="@(e => OnNameInput(prop, e))" />
+
+                <input class="input input--code" placeholder="key" value="@prop.Key"
+                       @oninput="@(e => { prop.Key = e.Value?.ToString() ?? ""; prop.KeyTouched = true; })" />
+
+                <select class="select" value="@prop.DataType"
+                        @onchange="@(e => prop.DataType = Enum.Parse<PropertyDataType>(e.Value!.ToString()!))">
+                    @foreach (var type in Enum.GetValues<PropertyDataType>())
+                    {
+                        <option value="@type">@Format.DataType(type)</option>
+                    }
+                </select>
+
+                <IconButton Icon="delete" Title="Прибрати" Danger="true" OnClick="@(() => Remove(prop))" />
+            </div>
+        }
+    </div>
+}
+
+<Button Text="+ Додати поле" Variant="ButtonVariant.Ghost" Small="true"
+        OnClick="Add" />
+
+@code {
+  [Parameter, EditorRequired] public List<EntityConfigApiService.NewProperty> Properties { get; set; } = [];
+  [Parameter] public string? EmptyHint { get; set; }
+
+  /// <summary>Викликається після додавання/видалення рядка, щоб батьківська форма перемалювалась.</summary>
+  [Parameter] public EventCallback OnChanged { get; set; }
+
+  private Task Add()
+  {
+    Properties.Add(new EntityConfigApiService.NewProperty());
+    return OnChanged.InvokeAsync();
+  }
+
+  private Task Remove(EntityConfigApiService.NewProperty prop)
+  {
+    Properties.Remove(prop);
+    return OnChanged.InvokeAsync();
+  }
+
+  private static void OnNameInput(EntityConfigApiService.NewProperty prop, ChangeEventArgs e)
+  {
+    prop.Name = e.Value?.ToString() ?? string.Empty;
+
+    if (!prop.KeyTouched)
+      prop.Key = KeyGenerator.FromName(prop.Name);
+  }
+}

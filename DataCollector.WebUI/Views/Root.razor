@@ -3,5 +3,14 @@
     <Found Context="routeData">
       <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)"/>
     </Found>
+    <NotFound>
+      <LayoutView Layout="typeof(MainLayout)">
+        <div class="page">
+          <div class="page__header">
+            <h1 class="page__title">Сторінку не знайдено</h1>
+          </div>
+        </div>
+      </LayoutView>
+    </NotFound>
   </Router>
 </div>

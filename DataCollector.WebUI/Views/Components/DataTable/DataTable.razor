@@ -1,31 +1,35 @@
 ﻿@typeparam TItem
 
 <div class="data-table">
-  <div class="data-table__toolbar">
-    <div class="data-table__toolbar-left">
-      
+  @if (ToolbarLeft != null || ToolbarRight != null)
+  {
+    <div class="data-table__toolbar">
+      <div class="data-table__toolbar-left">
+        @ToolbarLeft
+      </div>
+
+      <div class="data-table__toolbar-right">
+        @ToolbarRight
+      </div>
     </div>
-    
-    <div class="data-table__toolbar-right">
-      
-    </div>
-  </div>
+  }
   
   <div class="data-table__header">
     @foreach (var column in _columns)
     {
-      <div class="data-table__header-cell">
-        <button style="@(column.IsSortable ? "" : "cursor: default;")"
+      <div class="data-table__header-cell" style="@column.Style">
+        <button type="button"
+                style="@(column.CanSort ? "" : "cursor: default;")"
                 class="data-table__header-cell-left"
-                @onclick="@(() => { OnSortClick(column); })">
+                @onclick="@(() => OnSortClick(column))">
           <div class="data-table__column-title">
             <div class="subtitle">@column.Title</div>
           </div>
           
-          @if (column.IsSortable && _sortedColumnKey == column.Key)
+          @if (column.CanSort && _sortedColumnKey == column.Key)
           {
             <div class="data-table__sort-button">
-              <svg style="@(_isSortDescending ? "transform: rotate(180deg);" : "")" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="M169.4 502.6c12.5 12.5 32.8 12.5 45.3 0l160-160c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L224 402.7 224 32c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 370.7-105.4-105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l160 160z"/></svg>          
+              <svg style="@(_isSortDescending ? "" : "transform: rotate(180deg);")" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="M169.4 502.6c12.5 12.5 32.8 12.5 45.3 0l160-160c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L224 402.7 224 32c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 370.7-105.4-105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l160 160z"/></svg>          
             </div>
           }
         </button>
@@ -33,7 +37,7 @@
         <div class="data-table__header-cell-right">
           @if (column.IsFilterable)
           {
-            <button class="data-table__filter-button">
+            <button type="button" class="data-table__filter-button" title="Фільтри ще в розробці">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 50 512 512"><path d="M32 64C19.1 64 7.4 71.8 2.4 83.8S.2 109.5 9.4 118.6L192 301.3 192 416c0 8.5 3.4 16.6 9.4 22.6l64 64c9.2 9.2 22.9 11.9 34.9 6.9S320 492.9 320 480l0-178.7 182.6-182.6c9.2-9.2 11.9-22.9 6.9-34.9S492.9 64 480 64L32 64z"/></svg>
             </button>
           }
@@ -42,13 +46,21 @@
     }
   </div>
   
-  <div class="data-table__body">
+  <div class="data-table__body @(IsLoading ? "data-table__body--loading" : "")">
+    @if (Items.Count == 0)
+    {
+      <div class="data-table__empty">
+        <span class="default-text">@(IsLoading ? "Завантаження…" : EmptyText)</span>
+      </div>
+    }
+
     @foreach (var item in Items)
     {
-      <div class="data-table__row">
+      <div class="data-table__row @(OnRowClick.HasDelegate ? "data-table__row--clickable" : "")"
+           @onclick="@(() => OnRowClick.InvokeAsync(item))">
         @foreach (var column in _columns)
         {
-          <div class="data-table__row-cell">
+          <div class="data-table__row-cell" style="@column.Style">
             @column.Template(item)
           </div>
         }
@@ -56,21 +68,41 @@
     }
   </div>
   
-  <div class="data-table__footer">
-    <div class="data-table__footer-left">
+  @if (ShowPagination)
+  {
+    <div class="data-table__footer">
+      <div class="data-table__footer-left">
+        <span class="default-text">Всього: @TotalCount</span>
+      </div>
       
-    </div>
-    
-    <div class="data-table__footer-center">
+      <div class="data-table__footer-center">
+        <button type="button" class="data-table__page-button" disabled="@(_pageNumber <= 1)"
+                title="Попередня сторінка" @onclick="@(() => OnPageNumberClick(_pageNumber - 1))">‹</button>
+
+        @foreach (var pageNo in VisiblePages())
+        {
+          <button type="button"
+                  class="data-table__page-button @(pageNo == _pageNumber ? "data-table__page-button--active" : "")"
+                  @onclick="@(() => OnPageNumberClick(pageNo))">@pageNo</button>
+        }
+
+        <button type="button" class="data-table__page-button" disabled="@(_pageNumber >= PageCount)"
+                title="Наступна сторінка" @onclick="@(() => OnPageNumberClick(_pageNumber + 1))">›</button>
+      </div>
       
+      <div class="data-table__footer-right">
+        <span class="default-text">Рядків на сторінці</span>
+        <select class="select select--small" value="@_pageSize" @onchange="OnPageSizeChange">
+          @foreach (var size in PageSizes)
+          {
+            <option value="@size">@size</option>
+          }
+        </select>
+      </div>
     </div>
-    
-    <div class="data-table__footer-rigth">
-      
-    </div>
-  </div>
+  }
 </div>
 
-<CascadingValue Value="this">
+<CascadingValue Value="this" IsFixed="true">
   @RowTemplate
 </CascadingValue>

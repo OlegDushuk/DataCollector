@@ -2,25 +2,80 @@
 
 @inherits PageBase
 
-<DataTable TItem="EntityInstance"
-           Items="_items">
-    <RowTemplate>
-        @foreach (var prop in _entityConfig.Properties)
+<div class="page page--scroll">
+    <div class="page__header">
+        <div class="page__header-left">
+            <h1 class="page__title">Головна</h1>
+            <div class="page__subtitle">Огляд моделей даних і зібраних записів</div>
+        </div>
+
+        <div class="page__header-right">
+            <Button Text="Керувати моделями" Variant="ButtonVariant.Secondary"
+                    OnClick="@(() => Navigation.NavigateTo("/management"))" />
+        </div>
+    </div>
+
+    <Alert Message="@Error" OnClose="@(() => Error = null)" />
+
+    @if (_configs != null)
+    {
+        <div class="stats">
+            <div class="stat">
+                <div class="subtitle">Моделей</div>
+                <div class="stat__value">@_configs.Count</div>
+            </div>
+            <div class="stat">
+                <div class="subtitle">Полів</div>
+                <div class="stat__value">@_configs.Sum(c => c.PropertyCount)</div>
+            </div>
+            <div class="stat">
+                <div class="subtitle">Записів</div>
+                <div class="stat__value">@_configs.Sum(c => c.RecordCount)</div>
+            </div>
+        </div>
+
+        @if (_configs.Count == 0)
         {
-            <ColumnTemplate TItem="EntityInstance" Context="item"
-                            Key="@prop.Key"
-                            Title="@prop.Name"
-                            IsSortable="true"
-                            FilterType="DataTableFilterType.NumberRange">
-                <span class="default-text">@item.Properties.First(p => p.Config.Key == prop.Key).Value</span>
-            </ColumnTemplate>
+            <div class="empty-state">
+                <div class="empty-state__title">Почніть з опису даних</div>
+                <div class="default-text">Створіть модель - наприклад, «Замовлення» з полями «Номер», «Ціна», «Оплачено».</div>
+                <Button Text="Створити модель" OnClick="@(() => Navigation.NavigateTo("/management"))" />
+            </div>
         }
-        
-        <ColumnTemplate TItem="EntityInstance" Context="item"
-                        Title="Created at"
-                        IsSortable="true"
-                        FilterType="DataTableFilterType.NumberRange">
-            <span class="default-text">@item.CreatedAt</span>
-        </ColumnTemplate>
-    </RowTemplate>
-</DataTable>
+        else
+        {
+            <div class="cards">
+                @foreach (var config in _configs)
+                {
+                    <div class="card card--hoverable" @onclick="@(() => Navigation.NavigateTo($"/records/{config.Key}"))">
+                        <div class="card__header">
+                            <div class="card__title">@config.Name</div>
+                            <span class="code">@config.Key</span>
+                        </div>
+
+                        <div class="card__stats">
+                            <div>
+                                <div class="subtitle">Полів</div>
+                                <div class="card__number">@config.PropertyCount</div>
+                            </div>
+                            <div>
+                                <div class="subtitle">Записів</div>
+                                <div class="card__number">@config.RecordCount</div>
+                            </div>
+                        </div>
+
+                        <div class="card__footer">
+                            <span class="default-text">Створено @Format.Date(config.CreatedAt)</span>
+                            <IconButton Icon="edit" Title="Налаштувати"
+                                        OnClick="@(() => Navigation.NavigateTo($"/management/{config.Id}"))" />
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+    else if (Error is null)
+    {
+        <div class="default-text">Завантаження…</div>
+    }
+</div>

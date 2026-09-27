@@ -1,0 +1,110 @@
+@use "../variables";
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: variables.$radius-md;
+  cursor: pointer;
+  transition: 0.25s;
+  white-space: nowrap;
+
+  &__text {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 14px;
+  }
+
+  &__icon svg {
+    fill: currentColor;
+  }
+
+  &--primary {
+    background: variables.$accent-color;
+    color: variables.$surface-color;
+
+    &:hover:not(:disabled) {
+      background: variables.$accent-hover-color;
+    }
+  }
+
+  &--secondary {
+    background: variables.$surface-color;
+    color: variables.$button-text-color;
+    border: 1px solid variables.$border-color;
+
+    &:hover:not(:disabled) {
+      background: variables.$accent-light-color;
+      color: variables.$accent-color;
+    }
+  }
+
+  &--danger {
+    background: variables.$danger-light-color;
+    color: variables.$danger-color;
+
+    &:hover:not(:disabled) {
+      background: variables.$danger-color;
+      color: variables.$surface-color;
+    }
+  }
+
+  &--ghost {
+    background: transparent;
+    color: variables.$accent-color;
+
+    &:hover:not(:disabled) {
+      background: variables.$accent-light-color;
+    }
+  }
+
+  &--small {
+    height: 30px;
+    padding: 0 12px;
+
+    .button__text {
+      font-size: 13px;
+    }
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: variables.$radius-sm;
+  cursor: pointer;
+  transition: 0.25s;
+
+  svg {
+    height: 16px;
+    fill: variables.$subtitle-text-color;
+    transition: 0.25s;
+  }
+
+  &:hover {
+    background: variables.$accent-light-color;
+
+    svg {
+      fill: variables.$accent-color;
+    }
+  }
+
+  &--danger:hover {
+    background: variables.$danger-light-color;
+
+    svg {
+      fill: variables.$danger-color;
+    }
+  }
+}

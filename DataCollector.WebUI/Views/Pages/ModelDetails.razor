@@ -1,0 +1,163 @@
+@page "/management/{Id:guid}"
+
+@inherits PageBase
+
+<div class="page">
+    <div class="page__header">
+        <div class="page__header-left">
+            <a class="page__back" href="/management">← Моделі даних</a>
+            <h1 class="page__title">@(_config?.Name ?? "Модель")</h1>
+            @if (_config != null)
+            {
+                <div class="page__subtitle">
+                    Ключ <span class="code">@_config.Key</span> · створено @Format.Date(_config.CreatedAt)
+                </div>
+            }
+        </div>
+
+        @if (_config != null)
+        {
+            <div class="page__header-right">
+                <Button Text="Записи" Variant="ButtonVariant.Secondary"
+                        OnClick="@(() => Navigation.NavigateTo($"/records/{_config.Key}"))" />
+                <Button Text="Видалити модель" Variant="ButtonVariant.Danger" OnClick="@(() => { _deleteError = null; _isDeleteOpen = true; })" />
+            </div>
+        }
+    </div>
+
+    <Alert Message="@Error" OnClose="@(() => Error = null)" />
+    <Alert Message="@_success" Success="true" OnClose="@(() => _success = null)" />
+
+    @if (_config != null)
+    {
+        <div class="card">
+            <div class="card__header">
+                <div class="card__title">Загальні налаштування</div>
+            </div>
+
+            <div class="form">
+                <div class="form__row">
+                    <label class="form__field">
+                        <span class="form__label">Назва</span>
+                        <input class="input" @bind="_name" @bind:event="oninput" />
+                    </label>
+
+                    <label class="form__field">
+                        <span class="form__label">Ключ (для API)</span>
+                        <input class="input input--code" @bind="_key" @bind:event="oninput" />
+                    </label>
+
+                    <div class="form__field form__field--action">
+                        <Button Text="Зберегти" OnClick="Save"
+                                Disabled="@(_name == _config.Name && _key == _config.Key)" />
+                    </div>
+                </div>
+
+                <div class="form__hint default-text">
+                    Зовнішні системи звертаються до моделі за ключем:
+                    <span class="code">POST api/data-configs/@_config.Key/records</span>.
+                    Після зміни ключа інтеграції потрібно оновити.
+                </div>
+            </div>
+        </div>
+
+        <div class="page__main">
+            <DataTable TItem="EntityPropertyConfig"
+                       Items="_config.Properties"
+                       TotalCount="_config.Properties.Count"
+                       ShowPagination="false"
+                       EmptyText="У моделі ще немає полів"
+                       OnRowClick="OpenEdit">
+                <ToolbarLeft>
+                    <div class="card__title">Поля</div>
+                </ToolbarLeft>
+                <ToolbarRight>
+                    <Button Text="Додати поля" Small="true" OnClick="OpenAdd" />
+                </ToolbarRight>
+                <RowTemplate>
+                    <ColumnTemplate TItem="EntityPropertyConfig" Context="prop" Title="Назва">
+                        <span class="default-text default-text--strong">@prop.Name</span>
+                    </ColumnTemplate>
+
+                    <ColumnTemplate TItem="EntityPropertyConfig" Context="prop" Title="Ключ">
+                        <span class="code">@prop.Key</span>
+                    </ColumnTemplate>
+
+                    <ColumnTemplate TItem="EntityPropertyConfig" Context="prop" Title="Тип" Width="160px">
+                        <span class="badge">@Format.DataType(prop.DataType)</span>
+                    </ColumnTemplate>
+
+                    <ColumnTemplate TItem="EntityPropertyConfig" Context="prop" Title="Створено" Width="170px">
+                        <span class="default-text">@Format.Date(prop.CreatedAt)</span>
+                    </ColumnTemplate>
+
+                    <ColumnTemplate TItem="EntityPropertyConfig" Context="prop" Width="90px">
+                        <div class="actions">
+                            <IconButton Icon="edit" Title="Змінити" OnClick="@(() => OpenEdit(prop))" />
+                            <IconButton Icon="delete" Title="Видалити" Danger="true"
+                                        OnClick="@(() => { _deletePropertyError = null; _propertyToDelete = prop; })" />
+                        </div>
+                    </ColumnTemplate>
+                </RowTemplate>
+            </DataTable>
+        </div>
+    }
+    else if (_isLoading)
+    {
+        <div class="default-text">Завантаження…</div>
+    }
+</div>
+
+<Modal IsOpen="_isAddOpen" Title="Додати поля" Width="720px" OnClose="@(() => _isAddOpen = false)">
+    <ChildContent>
+        <div class="form">
+            <PropertyRowsEditor Properties="_newProperties" OnChanged="StateHasChanged" />
+        </div>
+        <Alert Message="@_addError" />
+    </ChildContent>
+    <Footer>
+        <Button Text="Скасувати" Variant="ButtonVariant.Secondary" OnClick="@(() => _isAddOpen = false)" />
+        <Button Text="Додати" OnClick="AddProperties" Disabled="@(_newProperties.Count == 0)" />
+    </Footer>
+</Modal>
+
+<Modal IsOpen="_propertyToEdit != null" Title="Змінити поле" Width="480px" OnClose="@(() => _propertyToEdit = null)">
+    <ChildContent>
+        <div class="form">
+            <label class="form__field">
+                <span class="form__label">Назва</span>
+                <input class="input" @bind="_editName" @bind:event="oninput" />
+            </label>
+
+            <label class="form__field">
+                <span class="form__label">Ключ</span>
+                <input class="input input--code" @bind="_editKey" @bind:event="oninput" />
+            </label>
+
+            <div class="form__field">
+                <span class="form__label">Тип</span>
+                <span class="badge">@(_propertyToEdit is null ? "" : Format.DataType(_propertyToEdit.DataType))</span>
+                <span class="form__hint default-text">Тип поля після створення змінити не можна.</span>
+            </div>
+        </div>
+        <Alert Message="@_editError" />
+    </ChildContent>
+    <Footer>
+        <Button Text="Скасувати" Variant="ButtonVariant.Secondary" OnClick="@(() => _propertyToEdit = null)" />
+        <Button Text="Зберегти" OnClick="SaveProperty" />
+    </Footer>
+</Modal>
+
+<ConfirmDialog IsOpen="_propertyToDelete != null"
+               Title="Видалити поле?"
+               Text="@($"Поле «{_propertyToDelete?.Name}» буде видалено разом з його значеннями в усіх записах моделі.")"
+               Error="@_deletePropertyError"
+               OnConfirm="DeleteProperty"
+               OnCancel="@(() => _propertyToDelete = null)" />
+
+<ConfirmDialog IsOpen="_isDeleteOpen"
+               Title="Видалити модель?"
+               Text="@($"Модель «{_config?.Name}» буде видалено разом з усіма полями та записами. Цю дію не можна скасувати.")"
+               Error="@_deleteError"
+               OnConfirm="DeleteModel"
+               OnCancel="@(() => _isDeleteOpen = false)" />

@@ -1,0 +1,40 @@
+@use "../variables";
+
+.alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: variables.$radius-md;
+  font-size: 13px;
+  line-height: 18px;
+
+  &--error {
+    background: variables.$danger-light-color;
+    color: variables.$danger-color;
+
+    svg {
+      fill: variables.$danger-color;
+    }
+  }
+
+  &--success {
+    background: variables.$success-light-color;
+    color: variables.$success-color;
+
+    svg {
+      fill: variables.$success-color;
+    }
+  }
+
+  &__close {
+    display: flex;
+    cursor: pointer;
+    opacity: 0.7;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}

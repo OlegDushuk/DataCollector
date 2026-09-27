@@ -1,3 +1,45 @@
 ﻿@page "/settings"
 
 @inherits PageBase
+
+<div class="page page--scroll">
+    <div class="page__header">
+        <div class="page__header-left">
+            <h1 class="page__title">Налаштування</h1>
+            <div class="page__subtitle">Підключення та інтеграція з іншими системами</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card__header">
+            <div class="card__title">API для інтеграцій</div>
+        </div>
+
+        <div class="form">
+            <div class="form__field">
+                <span class="form__label">Адреса сервера API</span>
+                <span class="code">@ApiBaseUrl</span>
+            </div>
+
+            <div class="form__field">
+                <span class="form__label">Основні запити</span>
+                <div class="endpoints">
+                    @foreach (var (method, path, description) in Endpoints)
+                    {
+                        <div class="endpoints__row">
+                            <span class="badge badge--method">@method</span>
+                            <span class="code">@path</span>
+                            <span class="default-text">@description</span>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="form__hint default-text">
+                <span class="code">{config}</span> - Id або ключ моделі. Значення записів передаються як JSON:
+                <span class="code">{ "values": { "price": 120.5, "paid": true } }</span>.
+                Специфікація OpenAPI (у режимі Development): <span class="code">@(ApiBaseUrl)openapi/v1.json</span>
+            </div>
+        </div>
+    </div>
+</div>

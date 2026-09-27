@@ -1,30 +1,18 @@
 ﻿using DataCollector.WebUI.Entities;
-using DataCollector.WebUI.Enums;
+using DataCollector.WebUI.ServerApiServices;
 using DataCollector.WebUI.Views.Base;
+using Microsoft.AspNetCore.Components;
 
 namespace DataCollector.WebUI.Views.Pages;
 
 public partial class Home : PageBase
 {
-  private EntityConfig _entityConfig = new();
-  
-  private readonly List<EntityInstance> _items =[];
+  [Inject] private EntityConfigApiService ConfigApi { get; set; } = null!;
 
-  protected override void OnInitialized()
+  private List<EntityConfigListItem>? _configs;
+
+  protected override async Task OnInitializedAsync()
   {
-    _entityConfig.AddProperty("Number", "number", PropertyDataType.Number);
-    _entityConfig.AddProperty("Quantity", "quantity", PropertyDataType.Number);
-    _entityConfig.AddProperty("Price", "price", PropertyDataType.Number);
-    _entityConfig.AddProperty("Discount", "discount", PropertyDataType.Number);
-
-    for (var i = 0; i < 10; i++)
-    {
-      var item = _entityConfig.CreateInstance();
-      item.SetProperty("number", $"00000{i+1}");
-      item.SetProperty("quantity", $"{Random.Shared.Next(1, 10)}");
-      item.SetProperty("price", $"{Random.Shared.Next(100, 9999)}");
-      item.SetProperty("discount", $"{Random.Shared.Next(5, 70)}");
-      _items.Add(item);
-    }
+    await Try(async () => _configs = await ConfigApi.GetAll());
   }
 }

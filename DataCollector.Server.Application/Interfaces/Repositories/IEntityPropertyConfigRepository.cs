@@ -4,5 +4,7 @@ namespace DataCollector.Server.Application.Interfaces.Repositories;
 
 public interface IEntityPropertyConfigRepository
 {
-  Task CreateManyAsync(EntityConfig entityConfig);
+  Task CreateManyAsync(Guid entityConfigId, IEnumerable<EntityPropertyConfig> properties);
+  Task Update(EntityPropertyConfig property);
+  Task Delete(Guid propertyId);
 }

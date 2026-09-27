@@ -1,3 +1,148 @@
 ﻿@page "/records"
+@page "/records/{ConfigKey}"
 
 @inherits PageBase
+
+<div class="page">
+    <div class="page__header">
+        <div class="page__header-left">
+            <h1 class="page__title">Записи</h1>
+            <div class="page__subtitle">Дані, зібрані за моделями: вручну або через API</div>
+        </div>
+
+        @if (_config != null)
+        {
+            <div class="page__header-right">
+                <Button Text="Налаштувати модель" Variant="ButtonVariant.Secondary"
+                        OnClick="@(() => Navigation.NavigateTo($"/management/{_config.Id}"))" />
+                <Button Text="Новий запис" OnClick="OpenCreate" Disabled="@(_config.Properties.Count == 0)" />
+            </div>
+        }
+    </div>
+
+    <Alert Message="@Error" OnClose="@(() => Error = null)" />
+
+    @if (_configs is { Count: 0 })
+    {
+        <div class="empty-state">
+            <div class="empty-state__title">Ще немає жодної моделі</div>
+            <div class="default-text">Спочатку опишіть, які дані потрібно збирати.</div>
+            <Button Text="Створити модель" OnClick="@(() => Navigation.NavigateTo("/management"))" />
+        </div>
+    }
+    else if (_config != null)
+    {
+        <div class="page__main">
+            <DataTable @key="_config.Id"
+                       @ref="_table"
+                       TItem="EntityInstance"
+                       Items="_records"
+                       TotalCount="_totalCount"
+                       IsLoading="_isLoading"
+                       InitialSortKey="createdAt"
+                       EmptyText="@(_config.Properties.Count == 0 ? "У моделі немає полів - додайте їх у налаштуваннях моделі" : "Записів поки немає")"
+                       OnReload="OnReload"
+                       OnRowClick="OpenEdit">
+                <ToolbarLeft>
+                    <label class="toolbar-field">
+                        <span class="subtitle">Модель</span>
+                        <select class="select" value="@_config.Key" @onchange="OnConfigChange">
+                            @foreach (var c in _configs ?? [])
+                            {
+                                <option value="@c.Key">@c.Name</option>
+                            }
+                        </select>
+                    </label>
+                </ToolbarLeft>
+                <ToolbarRight>
+                    <span class="default-text">Ключ для API: <span class="code">@_config.Key</span></span>
+                </ToolbarRight>
+                <RowTemplate>
+                    @foreach (var prop in _config.Properties)
+                    {
+                        <ColumnTemplate TItem="EntityInstance" Context="item"
+                                        Key="@prop.Key"
+                                        Title="@prop.Name"
+                                        IsSortable="true">
+                            <span class="default-text">@item.GetDisplayValue(prop)</span>
+                        </ColumnTemplate>
+                    }
+
+                    <ColumnTemplate TItem="EntityInstance" Context="item"
+                                    Key="createdAt"
+                                    Title="Створено"
+                                    IsSortable="true"
+                                    Width="170px">
+                        <span class="default-text">@Format.Date(item.CreatedAt)</span>
+                    </ColumnTemplate>
+
+                    <ColumnTemplate TItem="EntityInstance" Context="item" Width="90px">
+                        <div class="actions">
+                            <IconButton Icon="edit" Title="Змінити" OnClick="@(() => OpenEdit(item))" />
+                            <IconButton Icon="delete" Title="Видалити" Danger="true"
+                                        OnClick="@(() => { _deleteError = null; _toDelete = item; })" />
+                        </div>
+                    </ColumnTemplate>
+                </RowTemplate>
+            </DataTable>
+        </div>
+    }
+</div>
+
+@if (_config != null)
+{
+    <Modal IsOpen="_isFormOpen" Title="@(_editing == null ? "Новий запис" : "Редагування запису")" Width="520px"
+           OnClose="@(() => _isFormOpen = false)">
+        <ChildContent>
+            <div class="form">
+                @foreach (var prop in _config.Properties)
+                {
+                    <label class="form__field">
+                        <span class="form__label">
+                            @prop.Name <span class="form__label-hint">@Format.DataType(prop.DataType)</span>
+                        </span>
+
+                        @switch (prop.DataType)
+                        {
+                            case PropertyDataType.Number:
+                                <input class="input" type="number" step="any"
+                                       value="@_form[prop.Key]" @oninput="@(e => _form[prop.Key] = e.Value?.ToString())" />
+                                break;
+                            case PropertyDataType.Boolean:
+                                <select class="select" value="@(_form[prop.Key] ?? "")"
+                                        @onchange="@(e => _form[prop.Key] = e.Value?.ToString())">
+                                    <option value="">—</option>
+                                    <option value="true">Так</option>
+                                    <option value="false">Ні</option>
+                                </select>
+                                break;
+                            default:
+                                <input class="input" value="@_form[prop.Key]"
+                                       @oninput="@(e => _form[prop.Key] = e.Value?.ToString())" />
+                                break;
+                        }
+                    </label>
+                }
+
+                @if (_editing != null)
+                {
+                    <div class="form__hint default-text">
+                        Створено @Format.Date(_editing.CreatedAt) · змінено @Format.Date(_editing.UpdatedAt)
+                    </div>
+                }
+            </div>
+            <Alert Message="@_formError" />
+        </ChildContent>
+        <Footer>
+            <Button Text="Скасувати" Variant="ButtonVariant.Secondary" OnClick="@(() => _isFormOpen = false)" />
+            <Button Text="Зберегти" OnClick="Save" />
+        </Footer>
+    </Modal>
+}
+
+<ConfirmDialog IsOpen="_toDelete != null"
+               Title="Видалити запис?"
+               Text="Запис буде видалено без можливості відновлення."
+               Error="@_deleteError"
+               OnConfirm="Delete"
+               OnCancel="@(() => _toDelete = null)" />
