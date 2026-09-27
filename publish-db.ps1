@@ -1,8 +1,8 @@
-﻿dotnet msbuild ".\DataCollector.DataBase\DataCollector.DataBase.sqlproj" /t:Build /p:Configuration=Debug
+﻿dotnet msbuild ".\DataCollector.Server.DataBase\DataCollector.Server.DataBase.sqlproj" /t:Build /p:Configuration=Debug
 if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 
 sqlpackage /Action:Publish `
-  /SourceFile:".\DataCollector.DataBase\bin\Debug\DataCollector.DataBase.dacpac" `
+  /SourceFile:".\DataCollector.Server.DataBase\bin\Debug\DataCollector.Server.DataBase.dacpac" `
   /TargetServerName:"localhost" `
   /TargetDatabaseName:"DataCollector_Dev" `
   /TargetTrustServerCertificate:True

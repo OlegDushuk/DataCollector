@@ -1,7 +1,60 @@
-﻿* {
-  box-sizing: border-box;
+﻿@use "variables";
+
+svg {
+  fill: variables.$button-text-color;
+  height: 12px;
+  display: block;
 }
 
-body, h1, h2, h3, h4, h5, h6, p {
-  margin: 0;
+.subtitle {
+  text-transform: uppercase;
+  color: variables.$subtitle-text-color;
+  font-size: 12px;
+  line-height: 12px;
+}
+
+.default-text {
+  color: variables.$button-text-color;
+  font-size: 12px;
+  line-height: 12px;
+}
+
+.nav-button {
+  text-decoration: none;
+  padding: variables.$pad-sm;
+  border-radius: 10px;
+  transition: 0.25s;
+  display: flex;
+  gap: 5px;
+  
+  &__text {
+    display: inline-block;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 12px;
+    transition: 0.25s;
+  }
+
+  &, &:active {
+    color: variables.$button-text-color;
+  }
+   
+  &.active {
+    background: #EEEDFE;
+    color: variables.$accent-color;
+    cursor: default;
+
+    .nav-button__icon {
+      fill: variables.$accent-color;
+    }
+  }
+  
+  &:hover {
+    background: #EEEDFE;
+    color: variables.$accent-color;
+
+    .nav-button__icon {
+      fill: variables.$accent-color;
+    }
+  }
 }

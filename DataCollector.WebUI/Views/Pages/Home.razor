@@ -1,21 +1,26 @@
 ﻿@page "/"
 
-<PageTemplate Title="Home">
-    <MainContent>
-        <DataTable>
-            <RowTemplate>
-                <ColumnTemplate Context="item">
-                    <span>@item.GetFieldByName<int>("Price")</span>
-                </ColumnTemplate>
-                
-                <ColumnTemplate>
-                    
-                </ColumnTemplate>
-                
-                <ColumnTemplate>
-                    
-                </ColumnTemplate>
-            </RowTemplate>
-        </DataTable>
-    </MainContent>
-</PageTemplate>
+@inherits PageBase
+
+<DataTable TItem="EntityInstance"
+           Items="_items">
+    <RowTemplate>
+        @foreach (var prop in _entityConfig.Properties)
+        {
+            <ColumnTemplate TItem="EntityInstance" Context="item"
+                            Key="@prop.Key"
+                            Title="@prop.Name"
+                            IsSortable="true"
+                            FilterType="DataTableFilterType.NumberRange">
+                <span class="default-text">@item.Properties.First(p => p.Config.Key == prop.Key).Value</span>
+            </ColumnTemplate>
+        }
+        
+        <ColumnTemplate TItem="EntityInstance" Context="item"
+                        Title="Created at"
+                        IsSortable="true"
+                        FilterType="DataTableFilterType.NumberRange">
+            <span class="default-text">@item.CreatedAt</span>
+        </ColumnTemplate>
+    </RowTemplate>
+</DataTable>

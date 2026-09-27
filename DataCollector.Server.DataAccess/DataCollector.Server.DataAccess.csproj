@@ -4,15 +4,17 @@
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <RootNamespace>DataCollector.DataAccess</RootNamespace>
+        <RootNamespace>DataCollector.Server.DataAccess</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="Implementations\" />
+      <PackageReference Include="Dapper" Version="2.1.66" />
+      <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="11.0.0-preview.2.26159.112" />
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Dapper" Version="2.1.66" />
+      <ProjectReference Include="..\DataCollector.Server.Application\DataCollector.Server.Application.csproj" />
     </ItemGroup>
 
 </Project>

@@ -1,5 +1,0 @@
-﻿CREATE TABLE [dbo].[DataConfigs]
-(
-    Id UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
-    CreatedAt DATE NOT NULL
-)

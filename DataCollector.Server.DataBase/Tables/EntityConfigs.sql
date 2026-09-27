@@ -1,0 +1,7 @@
+﻿CREATE TABLE [dbo].[EntityConfigs]
+(
+    [Id] UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    [CreatedAt] DATETIME2 NOT NULL,
+    [Key] NVARCHAR(32) UNIQUE,
+    [Name] NVARCHAR(32) UNIQUE
+)

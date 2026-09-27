@@ -1,0 +1,44 @@
+﻿@page "/management"
+
+@inherits PageBase
+
+<div class="page__header">
+    <div class="page__headr-left">
+        
+    </div>
+    
+    <div class="page__headr-right">
+        
+    </div>
+</div>
+
+<div class="page__main">
+    <DataTable TItem="EntityConfig"
+               Items="_entityConfigs">
+        <RowTemplate>
+            <ColumnTemplate TItem="EntityConfig" Context="item"
+                            Title="Name"
+                            IsSortable="true">
+                <span class="default-text">@item.Name</span>
+            </ColumnTemplate>
+        
+            <ColumnTemplate TItem="EntityConfig" Context="item"
+                            Title="Key"
+                            IsSortable="true">
+                <span class="default-text">@item.Key</span>
+            </ColumnTemplate>
+        
+            <ColumnTemplate TItem="EntityConfig" Context="item"
+                            Title="Amount of props"
+                            IsSortable="true">
+                <span class="default-text">@item.Properties.Count</span>
+            </ColumnTemplate>
+        
+            <ColumnTemplate TItem="EntityConfig" Context="item"
+                            Title="Created at"
+                            IsSortable="true">
+                <span class="default-text">@item.CreatedAt</span>
+            </ColumnTemplate>
+        </RowTemplate>
+    </DataTable>
+</div>

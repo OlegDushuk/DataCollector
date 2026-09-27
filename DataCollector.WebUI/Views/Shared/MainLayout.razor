@@ -1,0 +1,72 @@
+﻿@inherits LayoutComponentBase
+
+<div class="main-layout">
+  <aside class="main-layout__sidebar sidebar">
+    <div class="sidebar__top">
+
+    </div>
+
+    <div class="sidebar__main">
+      <div class="sidebar__section">
+        <div class="sidebar__header">
+          <div class="subtitle">
+            Навівгація
+          </div>
+        </div>
+
+        <ul class="sidebar__list">
+          <li class="sidebar__list-item">
+            <NavLink class="nav-button"
+                     href="/"
+                     Match="NavLinkMatch.All">
+              <svg class="nav-button__icon" xmlns="http://www.w3.org/2000/svg" viewBox="60 60 540 540"><!--!Font Awesome Free v7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path d="M341.8 72.6C329.5 61.2 310.5 61.2 298.3 72.6L74.3 280.6C64.7 289.6 61.5 303.5 66.3 315.7C71.1 327.9 82.8 336 96 336L112 336L112 512C112 547.3 140.7 576 176 576L464 576C499.3 576 528 547.3 528 512L528 336L544 336C557.2 336 569 327.9 573.8 315.7C578.6 303.5 575.4 289.5 565.8 280.6L341.8 72.6zM304 384L336 384C362.5 384 384 405.5 384 432L384 528L256 528L256 432C256 405.5 277.5 384 304 384z"/></svg>
+
+              <span class="nav-button__text">Головна</span>
+            </NavLink>
+          </li>
+
+          <li class="sidebar__list-item">
+            <NavLink class="nav-button"
+                     href="/management"
+                     Match="NavLinkMatch.Prefix">
+              <svg class="nav-button__icon" xmlns="http://www.w3.org/2000/svg" viewBox="60 60 540 540"><!--!Font Awesome Free v7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path d="M331.8 275.6C306.7 299.3 291 332.9 291 370.2C291 399.5 300.7 426.5 317 448.2L267.5 498C263.1 496.4 258.4 495.5 253.5 495.5C242.7 495.5 232.6 499.7 225 507.3C217.4 514.9 213.2 525.1 213.2 535.9C213.2 546.7 217.4 556.8 225 564.4C232.6 572 242.8 576 253.5 576C264.3 576 274.4 572.1 282.1 564.4C289.7 556.8 293.9 546.6 293.9 535.9C293.9 531.7 293.3 527.7 292 523.8L342 473.6C364 490.5 391.4 500.5 421.3 500.5C493.2 500.5 551.3 442.2 551.3 370.3C551.3 305.1 503.6 251.1 441.1 241.6L441.1 180C458.6 172.6 469.3 156.2 469.3 137.1C469.3 111 448.4 89.2 422.3 89.2C396.2 89.2 375.6 111 375.6 137.1C375.6 156.2 386.3 172.6 403.8 180L403.8 241.2C388.6 243.3 374.2 247.9 361.1 254.8C333.5 233.9 243.6 169.1 192.2 130C193.4 125.6 194.2 121 194.2 116.2C194.2 87.4 170.7 64 141.8 64C113 64 89.6 87.4 89.6 116.2C89.6 145.1 113 168.5 141.8 168.5C151.6 168.5 160.7 165.6 168.6 160.9L331.8 275.6zM421.3 301.2C459.4 301.2 490.3 332.1 490.3 370.2C490.3 408.3 459.4 439.2 421.3 439.2C383.2 439.2 352.3 408.3 352.3 370.2C352.3 332.1 383.2 301.2 421.3 301.2z"/></svg>
+
+              <span class="nav-button__text">Управління</span>
+            </NavLink>
+          </li>
+
+          <li class="sidebar__list-item">
+            <NavLink class="nav-button"
+                     href="/records"
+                     Match="NavLinkMatch.Prefix">
+              <svg class="nav-button__icon" xmlns="http://www.w3.org/2000/svg" viewBox="60 60 540 540"><!--!Font Awesome Free v7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path d="M64 160C64 142.3 78.3 128 96 128L480 128C497.7 128 512 142.3 512 160C512 177.7 497.7 192 480 192L96 192C78.3 192 64 177.7 64 160zM128 320C128 302.3 142.3 288 160 288L544 288C561.7 288 576 302.3 576 320C576 337.7 561.7 352 544 352L160 352C142.3 352 128 337.7 128 320zM512 480C512 497.7 497.7 512 480 512L96 512C78.3 512 64 497.7 64 480C64 462.3 78.3 448 96 448L480 448C497.7 448 512 462.3 512 480z"/></svg>
+
+              <span class="nav-button__text">Записи</span>
+            </NavLink>
+          </li>
+
+          <li class="sidebar__list-item">
+            <NavLink class="nav-button"
+                     href="/settings"
+                     Match="NavLinkMatch.Prefix">
+              <svg class="nav-button__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><!--!Font Awesome Free v7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path d="M259.1 73.5C262.1 58.7 275.2 48 290.4 48L350.2 48C365.4 48 378.5 58.7 381.5 73.5L396 143.5C410.1 149.5 423.3 157.2 435.3 166.3L503.1 143.8C517.5 139 533.3 145 540.9 158.2L570.8 210C578.4 223.2 575.7 239.8 564.3 249.9L511 297.3C511.9 304.7 512.3 312.3 512.3 320C512.3 327.7 511.8 335.3 511 342.7L564.4 390.2C575.8 400.3 578.4 417 570.9 430.1L541 481.9C533.4 495 517.6 501.1 503.2 496.3L435.4 473.8C423.3 482.9 410.1 490.5 396.1 496.6L381.7 566.5C378.6 581.4 365.5 592 350.4 592L290.6 592C275.4 592 262.3 581.3 259.3 566.5L244.9 496.6C230.8 490.6 217.7 482.9 205.6 473.8L137.5 496.3C123.1 501.1 107.3 495.1 99.7 481.9L69.8 430.1C62.2 416.9 64.9 400.3 76.3 390.2L129.7 342.7C128.8 335.3 128.4 327.7 128.4 320C128.4 312.3 128.9 304.7 129.7 297.3L76.3 249.8C64.9 239.7 62.3 223 69.8 209.9L99.7 158.1C107.3 144.9 123.1 138.9 137.5 143.7L205.3 166.2C217.4 157.1 230.6 149.5 244.6 143.4L259.1 73.5zM320.3 400C364.5 399.8 400.2 363.9 400 319.7C399.8 275.5 363.9 239.8 319.7 240C275.5 240.2 239.8 276.1 240 320.3C240.2 364.5 276.1 400.2 320.3 400z"/></svg>
+
+
+              <span class="nav-button__text">Налаштування</span>
+            </NavLink>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </aside>
+  
+  <div class="main-layout__mainbar">
+    <header class="main-layout__header">
+      
+    </header>
+
+    <main class="main-layout__content">
+      @Body
+    </main>
+  </div>
+</div>
