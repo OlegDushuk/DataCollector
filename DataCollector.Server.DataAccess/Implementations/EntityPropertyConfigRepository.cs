@@ -13,7 +13,7 @@ public class EntityPropertyConfigRepository : RepositoryBase, IEntityPropertyCon
   {
   }
 
-  public async Task CreateManyAsync(Guid entityConfigId, IEnumerable<EntityPropertyConfig> properties)
+  public async Task CreateMany(Guid entityConfigId, IEnumerable<EntityPropertyConfig> properties)
   {
     var parameters = new DynamicParameters();
     parameters.Add("Properties", TableValuedParameters.ToPropertyList(entityConfigId, properties));

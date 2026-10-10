@@ -64,7 +64,7 @@ public class DataConfigService(
     if (added.Count == 0)
       return [];
 
-    await entityPropertyConfigRepository.CreateManyAsync(entity.Id, added);
+    await entityPropertyConfigRepository.CreateMany(entity.Id, added);
     return added.Select(p => p.Id).ToList();
   }
 

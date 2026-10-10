@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace DataCollector.Server.API.Infrastructure;
 
 /// <summary>
-/// Перетворює винятки на відповіді у форматі ProblemDetails (RFC 7807).
+/// Перетворює винятки на відповіді у форматі Problem Details (RFC 9457).
 /// </summary>
 public class ApiExceptionHandler(
   IProblemDetailsService problemDetailsService,

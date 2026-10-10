@@ -1,9 +1,9 @@
 ﻿-- Створює модель разом з її полями в одній транзакції.
--- Помилки: 50409 - модель з таким ключем або назвою вже існує.
+-- Помилки: 50409 - модель з таким ключем вже існує.
 CREATE PROCEDURE [dbo].[sp_EntityConfigs_Create]
     @Id UNIQUEIDENTIFIER,
     @Key NVARCHAR(32),
-    @Name NVARCHAR(32),
+    @Name NVARCHAR(128),
     @CreatedAt DATETIME2,
     @Properties [dbo].[EntityPropertyList] READONLY
 AS
@@ -13,9 +13,6 @@ BEGIN
 
     IF EXISTS (SELECT 1 FROM [dbo].[EntityConfigs] WHERE [Key] = @Key)
         THROW 50409, N'Модель з таким ключем вже існує', 1;
-
-    IF EXISTS (SELECT 1 FROM [dbo].[EntityConfigs] WHERE [Name] = @Name)
-        THROW 50409, N'Модель з такою назвою вже існує', 1;
 
     BEGIN TRANSACTION;
 

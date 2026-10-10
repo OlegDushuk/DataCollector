@@ -8,5 +8,4 @@ namespace DataCollector.WebUI.ServerApiServices;
 public class ApiException(string message, HttpStatusCode? statusCode = null) : Exception(message)
 {
   public HttpStatusCode? StatusCode { get; } = statusCode;
-  public bool IsNotFound => StatusCode == HttpStatusCode.NotFound;
 }

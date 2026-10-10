@@ -17,7 +17,7 @@ SET XACT_ABORT ON;
 
 DECLARE @RecordCount INT = 10000;
 DECLARE @ConfigKey NVARCHAR(32) = N'shop_orders';
-DECLARE @ConfigName NVARCHAR(32) = N'Замовлення магазину';
+DECLARE @ConfigName NVARCHAR(128) = N'Замовлення магазину';
 DECLARE @Now DATETIME2 = SYSUTCDATETIME();
 
 -------------------------------------------------------------------------------

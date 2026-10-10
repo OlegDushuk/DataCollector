@@ -11,9 +11,9 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
+    -- Межі розміру сторінки перевіряє DataInstanceService (MaxPageSize), тут лише захист від некоректних значень.
     IF @PageNumber < 1 SET @PageNumber = 1;
     IF @PageSize < 1 SET @PageSize = 10;
-    IF @PageSize > 200 SET @PageSize = 200;
 
     -- 0 = Text, 1 = Number, 2 = Boolean
     DECLARE @SortDataType INT = (

@@ -6,7 +6,7 @@ namespace DataCollector.Server.Domain.Common;
 internal static partial class Guard
 {
   public const int MaxKeyLength = 32;
-  public const int MaxNameLength = 32;
+  public const int MaxNameLength = 128;
 
   [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]*$")]
   private static partial Regex KeyRegex();
@@ -39,7 +39,7 @@ internal static partial class Guard
       throw new DomainValidationException($"Назва {what} не може бути порожньою");
 
     if (value.Length > MaxNameLength)
-      throw new DomainValidationException($"Назва {what} не може бути довшою за {MaxNameLength} символи");
+      throw new DomainValidationException($"Назва {what} не може бути довшою за {MaxNameLength} символів");
 
     return value;
   }

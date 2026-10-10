@@ -20,13 +20,13 @@ public class EntityRecordApiService(HttpClient httpClient) : ApiServiceBase(http
     return GetAsync<PagedResult<EntityInstance>>(RecordsUrl(configId) + query);
   }
 
-  public async Task<Guid> Create(Guid configId, Dictionary<string, object?> values)
+  public async Task<Guid> Create(Guid configId, IReadOnlyDictionary<string, string?> values)
   {
     var result = await PostAsync<IdResponse>(RecordsUrl(configId), new { values });
     return result.Id;
   }
 
-  public Task Update(Guid configId, Guid recordId, Dictionary<string, object?> values)
+  public Task Update(Guid configId, Guid recordId, IReadOnlyDictionary<string, string?> values)
     => PatchAsync($"{RecordsUrl(configId)}/{recordId}", new { values });
 
   public Task Delete(Guid configId, Guid recordId)

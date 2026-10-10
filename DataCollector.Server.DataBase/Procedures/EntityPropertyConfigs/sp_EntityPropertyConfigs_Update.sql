@@ -3,7 +3,7 @@
 CREATE PROCEDURE [dbo].[sp_EntityPropertyConfigs_Update]
     @Id UNIQUEIDENTIFIER,
     @Key NVARCHAR(32),
-    @Name NVARCHAR(32)
+    @Name NVARCHAR(128)
 AS
 BEGIN
     SET NOCOUNT ON;

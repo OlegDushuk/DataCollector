@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DataCollector.Server.Application.Common.Exceptions;
 using DataCollector.Server.Application.ExternalContracts.Interfaces;
 using DataCollector.Server.Application.ExternalContracts.Models;
@@ -86,9 +87,17 @@ public class DataInstanceService(
            ?? throw new NotFoundException("Запис не знайдений");
   }
 
-  private static void ApplyValues(EntityInstance instance, Dictionary<string, System.Text.Json.JsonElement> values)
+  private static void ApplyValues(EntityInstance instance, Dictionary<string, JsonElement> values)
   {
+    // Ключі полів нечутливі до регістру, тож "Price" і "price" в одному запиті - це помилка, а не перезапис.
+    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
     foreach (var (key, value) in values)
+    {
+      if (!seen.Add(key))
+        throw new DomainValidationException($"Поле '{key}' передано кілька разів");
+
       instance.SetPropertyValue(key, value.ToRawValue(key));
+    }
   }
 }

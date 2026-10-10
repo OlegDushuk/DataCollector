@@ -1,6 +1,4 @@
-﻿using System.Globalization;
-using DataCollector.WebUI.Entities;
-using DataCollector.WebUI.Enums;
+﻿using DataCollector.WebUI.Entities;
 using DataCollector.WebUI.ServerApiServices;
 using DataCollector.WebUI.Views.Base;
 using DataCollector.WebUI.Views.Components.DataTable;
@@ -107,7 +105,11 @@ public partial class Records : PageBase
     if (_config is null)
       return;
 
-    var values = _config.Properties.ToDictionary(p => p.Key, p => ToJsonValue(p.DataType, _form[p.Key]));
+    // Значення надсилаємо рядками: сервер сам перевіряє і нормалізує їх відповідно до типу поля
+    // (числа з комою або крапкою, true/false), тож ця логіка не дублюється в інтерфейсі.
+    var values = _config.Properties.ToDictionary(
+      p => p.Key,
+      p => string.IsNullOrWhiteSpace(_form[p.Key]) ? null : _form[p.Key]);
 
     var ok = await Try(async () =>
     {
@@ -139,23 +141,5 @@ public partial class Records : PageBase
     _toDelete = null;
     if (_table != null)
       await _table.Reload();
-  }
-
-  /// <summary>
-  /// Надсилаємо значення типізованими (число / bool), як це робила б зовнішня система.
-  /// Некоректне значення відправляємо як є - сервер поверне зрозумілу помилку валідації.
-  /// </summary>
-  private static object? ToJsonValue(PropertyDataType type, string? raw)
-  {
-    if (string.IsNullOrWhiteSpace(raw))
-      return null;
-
-    return type switch
-    {
-      PropertyDataType.Number when decimal.TryParse(
-        raw.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) => number,
-      PropertyDataType.Boolean when bool.TryParse(raw, out var flag) => flag,
-      _ => raw
-    };
   }
 }
