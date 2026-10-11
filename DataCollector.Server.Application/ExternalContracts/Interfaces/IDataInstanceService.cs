@@ -11,6 +11,12 @@ public interface IDataInstanceService
     string config,
     GetDataInstancesQuery query,
     CancellationToken cancellationToken = default);
+
+  /// <summary>Сторінка записів з умовами фільтра, пошуком і сортуванням.</summary>
+  Task<PagedResult<DataInstanceDto>> Query(
+    string config,
+    QueryDataInstancesCommand command,
+    CancellationToken cancellationToken = default);
   Task<DataInstanceDto> Get(string config, Guid instanceId);
   Task<Guid> CreateInstance(string config, CreateDataInstanceCommand command);
   Task UpdateInstance(string config, Guid instanceId, UpdateDataInstanceCommand command);

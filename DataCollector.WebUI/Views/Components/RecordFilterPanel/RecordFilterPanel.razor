@@ -1,0 +1,199 @@
+@namespace DataCollector.WebUI.Views.Components
+
+@*
+    Редактор умов фільтра записів. Працює з копією умов: зміни потрапляють у таблицю лише після «Застосувати».
+    Усі умови поєднуються через «І».
+*@
+
+<div class="filter-panel">
+    <div class="filter-panel__header">
+        <div class="card__title">Фільтри</div>
+        <span class="default-text">Показуються записи, що відповідають усім умовам</span>
+    </div>
+
+    @if (_draft.Count == 0)
+    {
+        <div class="default-text filter-panel__empty">Умов ще немає. Додайте першу або натисніть на значок фільтра в заголовку колонки.</div>
+    }
+
+    @foreach (var filter in _draft)
+    {
+        var field = FindField(filter.Field);
+        if (field is null)
+            continue;
+
+        var op = field.FindOperator(filter.Operator) ?? field.Operators[0];
+
+        <div class="filter-panel__row">
+            <select class="select" value="@filter.Field" @onchange="@(e => ChangeField(filter, e.Value?.ToString()))">
+                @foreach (var f in Fields)
+                {
+                    <option value="@f.Key">@f.Name</option>
+                }
+            </select>
+
+            <select class="select" value="@op.Code" @onchange="@(e => ChangeOperator(filter, field, e.Value?.ToString()))">
+                @foreach (var o in field.Operators)
+                {
+                    <option value="@o.Code">@o.Label</option>
+                }
+            </select>
+
+            <div class="filter-panel__values">
+                @switch (op.Arity)
+                {
+                    case FilterArity.Single:
+                        <ValueInput DataType="field.DataType" Options="field.Options"
+                                    Value="@filter.Value" ValueChanged="@(v => filter.Value = v)"
+                                    Placeholder="Значення" />
+                        break;
+
+                    case FilterArity.Range:
+                        <ValueInput DataType="field.DataType" Value="@filter.Value" ValueChanged="@(v => filter.Value = v)"
+                                    Placeholder="від" />
+                        <span class="default-text">—</span>
+                        <ValueInput DataType="field.DataType" Value="@filter.ValueTo" ValueChanged="@(v => filter.ValueTo = v)"
+                                    Placeholder="до" />
+                        break;
+
+                    case FilterArity.Multiple:
+                        <div class="option-chips">
+                            @foreach (var option in field.Options)
+                            {
+                                var selected = filter.Values.Contains(option);
+                                <button type="button"
+                                        class="option-chips__item @(selected ? "option-chips__item--selected" : "")"
+                                        @onclick="@(() => ToggleOption(filter, option))">
+                                    @option
+                                </button>
+                            }
+                        </div>
+                        break;
+                }
+            </div>
+
+            <IconButton Icon="delete" Title="Прибрати умову" Danger="true" OnClick="@(() => _draft.Remove(filter))" />
+        </div>
+    }
+
+    <Alert Message="@_error" />
+
+    <div class="filter-panel__footer">
+        <Button Text="+ Додати умову" Variant="ButtonVariant.Ghost" Small="true" OnClick="AddEmpty" />
+
+        <div class="filter-panel__footer-right">
+            <Button Text="Скинути все" Variant="ButtonVariant.Secondary" Small="true" OnClick="Clear"
+                    Disabled="@(_draft.Count == 0)" />
+            <Button Text="Закрити" Variant="ButtonVariant.Secondary" Small="true" OnClick="@(() => OnClose.InvokeAsync())" />
+            <Button Text="Застосувати" Small="true" OnClick="Apply" />
+        </div>
+    </div>
+</div>
+
+@code {
+  [Parameter, EditorRequired] public IReadOnlyList<FilterField> Fields { get; set; } = [];
+
+  /// <summary>Застосовані зараз умови (компонент їх не змінює).</summary>
+  [Parameter, EditorRequired] public IReadOnlyList<RecordFilterForm> Filters { get; set; } = [];
+
+  /// <summary>Поле, для якого при відкритті треба додати умову (клік по значку в заголовку колонки).</summary>
+  [Parameter] public string? FocusField { get; set; }
+
+  [Parameter] public EventCallback<List<RecordFilterForm>> OnApply { get; set; }
+  [Parameter] public EventCallback OnClose { get; set; }
+
+  private List<RecordFilterForm> _draft = [];
+  private string? _error;
+  private IReadOnlyList<RecordFilterForm>? _loadedFrom;
+  private string? _loadedFocus;
+
+  protected override void OnParametersSet()
+  {
+    // Чернетка створюється заново лише тоді, коли змінились застосовані умови,
+    // а не при кожному перемальовуванні батьківської сторінки - інакше незастосовані зміни губилися б.
+    if (!ReferenceEquals(_loadedFrom, Filters))
+    {
+      _loadedFrom = Filters;
+      _draft = Filters.Select(f => f.Clone()).ToList();
+      _error = null;
+    }
+
+    // Клік по значку фільтра в колонці: додаємо умову для цього поля, якщо її ще немає.
+    if (FocusField != _loadedFocus)
+    {
+      _loadedFocus = FocusField;
+
+      if (FocusField != null && FindField(FocusField) is { } field && _draft.All(f => f.Field != field.Key))
+        _draft.Add(RecordFilterForm.For(field));
+    }
+  }
+
+  private FilterField? FindField(string key) => Fields.FirstOrDefault(f => f.Key == key);
+
+  private void AddEmpty()
+  {
+    // Наступне поле, за яким ще немає умови; якщо всі зайняті - перше.
+    var field = Fields.FirstOrDefault(f => _draft.All(d => d.Field != f.Key)) ?? Fields.FirstOrDefault();
+    if (field != null)
+      _draft.Add(RecordFilterForm.For(field));
+  }
+
+  private void ChangeField(RecordFilterForm filter, string? key)
+  {
+    if (key is null || FindField(key) is not { } field)
+      return;
+
+    var fresh = RecordFilterForm.For(field);
+    filter.Field = fresh.Field;
+    filter.Operator = fresh.Operator;
+    filter.Value = null;
+    filter.ValueTo = null;
+    filter.Values = [];
+  }
+
+  private static void ChangeOperator(RecordFilterForm filter, FilterField field, string? code)
+  {
+    var previous = field.FindOperator(filter.Operator)?.Arity;
+    var next = field.FindOperator(code);
+    if (next is null)
+      return;
+
+    filter.Operator = next.Code;
+
+    // Значення лишаються, якщо новий оператор приймає стільки ж значень ("між" -> "між" не буває, а "=" -> ">" - так).
+    if (previous != next.Arity)
+    {
+      if (next.Arity != FilterArity.Range)
+        filter.ValueTo = null;
+      if (next.Arity is FilterArity.None or FilterArity.Multiple)
+        filter.Value = null;
+      if (next.Arity != FilterArity.Multiple)
+        filter.Values = [];
+    }
+  }
+
+  private static void ToggleOption(RecordFilterForm filter, string option)
+  {
+    if (!filter.Values.Remove(option))
+      filter.Values.Add(option);
+  }
+
+  private void Clear()
+  {
+    _draft.Clear();
+    _error = null;
+  }
+
+  private async Task Apply()
+  {
+    var incomplete = _draft.FirstOrDefault(f => FindField(f.Field) is not { } field || !f.IsComplete(field));
+    if (incomplete != null)
+    {
+      _error = $"Заповніть значення умови для поля «{FindField(incomplete.Field)?.Name ?? incomplete.Field}»";
+      return;
+    }
+
+    _error = null;
+    await OnApply.InvokeAsync(_draft.Select(f => f.Clone()).ToList());
+  }
+}

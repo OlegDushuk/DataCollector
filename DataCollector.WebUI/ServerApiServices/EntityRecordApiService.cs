@@ -6,19 +6,31 @@ public class EntityRecordApiService(HttpClient httpClient) : ApiServiceBase(http
 {
   private static string RecordsUrl(Guid configId) => $"api/data-configs/{configId}/records";
 
-  public Task<PagedResult<EntityInstance>> GetPage(
+  /// <summary>
+  /// Сторінка записів з умовами фільтра (POST .../records/query).
+  /// </summary>
+  /// <param name="filters">Умови у форматі API (див. <see cref="RecordFilterForm.ToApi"/>).</param>
+  public Task<PagedResult<EntityInstance>> Query(
     Guid configId,
+    IEnumerable<object> filters,
+    string? search,
     int pageNumber,
     int pageSize,
     string? sortBy,
     bool sortDescending,
     CancellationToken cancellationToken = default)
   {
-    var query = $"?pageNumber={pageNumber}&pageSize={pageSize}&sortDescending={sortDescending.ToString().ToLowerInvariant()}";
-    if (!string.IsNullOrEmpty(sortBy))
-      query += $"&sortBy={Escape(sortBy)}";
+    var body = new
+    {
+      filters,
+      search,
+      sortBy,
+      sortDescending,
+      pageNumber,
+      pageSize
+    };
 
-    return GetAsync<PagedResult<EntityInstance>>(RecordsUrl(configId) + query, cancellationToken);
+    return PostAsync<PagedResult<EntityInstance>>($"{RecordsUrl(configId)}/query", body, cancellationToken);
   }
 
   public async Task<Guid> Create(Guid configId, IReadOnlyDictionary<string, string?> values)

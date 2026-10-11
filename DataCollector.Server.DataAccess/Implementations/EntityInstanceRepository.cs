@@ -1,8 +1,10 @@
 using Dapper;
 using DataCollector.Server.Application.Interfaces.Repositories;
 using DataCollector.Server.DataAccess.Common;
+using DataCollector.Server.DataAccess.Querying;
 using DataCollector.Server.DataAccess.Rows;
 using DataCollector.Server.Domain.Entities;
+using DataCollector.Server.Domain.Querying;
 using Microsoft.Extensions.Configuration;
 
 namespace DataCollector.Server.DataAccess.Implementations;
@@ -14,24 +16,19 @@ public class EntityInstanceRepository : RepositoryBase, IEntityInstanceRepositor
   {
   }
 
-  public Task<(List<EntityInstance> Items, int TotalCount)> GetPage(
+  public Task<(List<EntityInstance> Items, int TotalCount)> Query(
     EntityConfig config,
-    int pageNumber,
-    int pageSize,
-    Guid? sortPropertyId,
-    bool sortDescending,
+    RecordQuery query,
     CancellationToken cancellationToken = default)
   {
-    var parameters = new
-    {
-      EntityConfigId = config.Id,
-      PageNumber = pageNumber,
-      PageSize = pageSize,
-      SortPropertyId = sortPropertyId,
-      SortDescending = sortDescending
-    };
+    // Умови фільтра довільні, тому SQL збирається під запит (параметризовано), а не береться з процедури.
+    var command = RecordQuerySql.Build(config, query);
 
-    return QueryMultipleAsync("GetPage", parameters, async grid =>
+    var parameters = new DynamicParameters();
+    foreach (var parameter in command.Parameters)
+      parameters.Add(parameter.Name, parameter.Value, parameter.DbType);
+
+    return QueryMultipleSqlAsync(command.Sql, parameters, async grid =>
     {
       var totalCount = await grid.ReadSingleAsync<int>();
       var rows = (await grid.ReadAsync<EntityInstanceRow>()).ToList();

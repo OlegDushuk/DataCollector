@@ -2,6 +2,7 @@ using System.Text.Json;
 using DataCollector.Server.Application.ExternalContracts.Models;
 using DataCollector.Server.Domain.Entities;
 using DataCollector.Server.Domain.Exceptions;
+using DataCollector.Server.Domain.Querying;
 using ContractDataType = DataCollector.Server.Application.ExternalContracts.Enums.PropertyDataType;
 using DomainDataType = DataCollector.Server.Domain.Enums.PropertyDataType;
 
@@ -64,6 +65,35 @@ internal static class Mapping
     UpdatedAt = instance.UpdatedAt,
     Values = instance.Properties.ToDictionary(p => p.Config.Key, p => p.Value)
   };
+
+  /// <summary>Коди операторів фільтра в API (без урахування регістру).</summary>
+  private static readonly Dictionary<string, FilterOperator> FilterOperators = new(StringComparer.OrdinalIgnoreCase)
+  {
+    ["eq"] = FilterOperator.Equals,
+    ["neq"] = FilterOperator.NotEquals,
+    ["gt"] = FilterOperator.GreaterThan,
+    ["gte"] = FilterOperator.GreaterOrEqual,
+    ["lt"] = FilterOperator.LessThan,
+    ["lte"] = FilterOperator.LessOrEqual,
+    ["between"] = FilterOperator.Between,
+    ["contains"] = FilterOperator.Contains,
+    ["notContains"] = FilterOperator.NotContains,
+    ["startsWith"] = FilterOperator.StartsWith,
+    ["endsWith"] = FilterOperator.EndsWith,
+    ["in"] = FilterOperator.In,
+    ["notIn"] = FilterOperator.NotIn,
+    ["isEmpty"] = FilterOperator.IsEmpty,
+    ["isNotEmpty"] = FilterOperator.IsNotEmpty
+  };
+
+  public static FilterOperator ToFilterOperator(this string? code)
+  {
+    if (code != null && FilterOperators.TryGetValue(code.Trim(), out var op))
+      return op;
+
+    throw new DomainValidationException(
+      $"Невідомий оператор фільтра '{code}'. Доступні: {string.Join(", ", FilterOperators.Keys)}");
+  }
 
   /// <summary>
   /// Перетворює JSON-значення з запиту на рядок; доменна модель далі перевіряє відповідність типу поля.

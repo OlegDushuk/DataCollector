@@ -31,6 +31,21 @@ internal static partial class Guard
     return value;
   }
 
+  /// <summary>
+  /// Ключі системних полів запису: їх використовують фільтри й сортування, тому поле моделі не може так називатися.
+  /// </summary>
+  private static readonly string[] ReservedPropertyKeys = ["id", "createdAt", "updatedAt"];
+
+  public static string PropertyKey(string? key)
+  {
+    var value = Key(key, "поля");
+
+    if (ReservedPropertyKeys.Contains(value, StringComparer.OrdinalIgnoreCase))
+      throw new DomainValidationException($"Ключ '{value}' зарезервований для системних полів запису");
+
+    return value;
+  }
+
   public static string Name(string? name, string what)
   {
     var value = name?.Trim();

@@ -10,4 +10,7 @@ public class GetDataInstancesQuery
   /// </summary>
   public string? SortBy { get; set; }
   public bool SortDescending { get; set; } = true;
+
+  /// <summary>Підрядок для пошуку в текстових полях і полях-переліках. Умови фільтра - у POST .../records/query.</summary>
+  public string? Search { get; set; }
 }

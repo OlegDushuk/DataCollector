@@ -22,6 +22,15 @@ public partial class DataTable<TItem> : ComponentBase
   [Parameter] public bool IsLoading { get; set; }
   [Parameter] public string EmptyText { get; set; } = "Немає даних";
 
+  /// <summary>Підпис кількості записів у підвалі ("Всього", "Знайдено").</summary>
+  [Parameter] public string TotalLabel { get; set; } = "Всього";
+
+  /// <summary>Клік по значку фільтра в заголовку колонки (передається ключ колонки).</summary>
+  [Parameter] public EventCallback<string> OnFilterClick { get; set; }
+
+  /// <summary>Ключі колонок, за якими зараз є умови фільтра - їхній значок підсвічується.</summary>
+  [Parameter] public IReadOnlyCollection<string>? ActiveFilterKeys { get; set; }
+
   [Parameter] public string? InitialSortKey { get; set; }
   [Parameter] public bool InitialSortDescending { get; set; } = true;
   

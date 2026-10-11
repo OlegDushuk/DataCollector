@@ -6,6 +6,7 @@ using DataCollector.Server.Application.Interfaces.Repositories;
 using DataCollector.Server.Application.Services.Internal;
 using DataCollector.Server.Domain.Entities;
 using DataCollector.Server.Domain.Exceptions;
+using DataCollector.Server.Domain.Querying;
 
 namespace DataCollector.Server.Application.Services;
 
@@ -16,33 +17,54 @@ public class DataInstanceService(
 {
   public const int MaxPageSize = 200;
 
-  public async Task<PagedResult<DataInstanceDto>> GetPage(
+  public Task<PagedResult<DataInstanceDto>> GetPage(
     string config,
     GetDataInstancesQuery query,
     CancellationToken cancellationToken = default)
   {
+    // GET - той самий запит без умов фільтра.
+    return Query(config, new QueryDataInstancesCommand
+    {
+      Search = query.Search,
+      SortBy = query.SortBy,
+      SortDescending = query.SortDescending,
+      PageNumber = query.PageNumber,
+      PageSize = query.PageSize
+    }, cancellationToken);
+  }
+
+  public async Task<PagedResult<DataInstanceDto>> Query(
+    string config,
+    QueryDataInstancesCommand command,
+    CancellationToken cancellationToken = default)
+  {
     var entity = await entityConfigRepository.Load(config);
 
-    var pageNumber = Math.Max(1, query.PageNumber);
-    var pageSize = Math.Clamp(query.PageSize, 1, MaxPageSize);
+    var filters = (command.Filters ?? [])
+      .Select(f => RecordFilter.Create(
+        RecordField.Resolve(entity, f.Field),
+        f.Operator.ToFilterOperator(),
+        f.Value?.ToRawValue(f.Field),
+        f.ValueTo?.ToRawValue(f.Field),
+        f.Values?.Select(v => v.ToRawValue(f.Field)).ToList()))
+      .ToList();
 
-    Guid? sortPropertyId = null;
-    if (!string.IsNullOrWhiteSpace(query.SortBy) &&
-        !string.Equals(query.SortBy, "createdAt", StringComparison.OrdinalIgnoreCase))
-    {
-      sortPropertyId = entity.FindProperty(query.SortBy)?.Id
-                       ?? throw new DomainValidationException($"Модель не має поля '{query.SortBy}' для сортування");
-    }
+    var query = new RecordQuery(
+      filters,
+      command.Search,
+      RecordField.Resolve(entity, string.IsNullOrWhiteSpace(command.SortBy) ? RecordField.CreatedAtKey : command.SortBy),
+      command.SortDescending,
+      Math.Max(1, command.PageNumber),
+      Math.Clamp(command.PageSize, 1, MaxPageSize));
 
-    var (items, totalCount) = await entityInstanceRepository.GetPage(
-      entity, pageNumber, pageSize, sortPropertyId, query.SortDescending, cancellationToken);
+    var (items, totalCount) = await entityInstanceRepository.Query(entity, query, cancellationToken);
 
     return new PagedResult<DataInstanceDto>
     {
       Items = items.Select(i => i.ToDto()).ToList(),
       TotalCount = totalCount,
-      PageNumber = pageNumber,
-      PageSize = pageSize
+      PageNumber = query.PageNumber,
+      PageSize = query.PageSize
     };
   }
 

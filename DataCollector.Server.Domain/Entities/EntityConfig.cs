@@ -62,7 +62,7 @@ public class EntityConfig
 
     if (newKey != null)
     {
-      var key = Guard.Key(newKey, "поля");
+      var key = Guard.PropertyKey(newKey);
       EnsureKeyIsFree(key, prop.Id);
       prop.ChangeKey(key);
     }

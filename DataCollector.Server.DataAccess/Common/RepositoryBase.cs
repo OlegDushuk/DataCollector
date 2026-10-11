@@ -96,6 +96,28 @@ public abstract class RepositoryBase
     }, cancellationToken);
   }
 
+  /// <summary>
+  /// Довільний параметризований SQL з кількома наборами результатів - для запитів,
+  /// структура яких залежить від умов (див. Querying.RecordQuerySql). Значення - лише через параметри.
+  /// </summary>
+  protected Task<TResult> QueryMultipleSqlAsync<TResult>(
+    string sql,
+    DynamicParameters parameters,
+    Func<SqlMapper.GridReader, Task<TResult>> read,
+    CancellationToken cancellationToken = default)
+  {
+    return Run(async connection =>
+    {
+      using var grid = await connection.QueryMultipleAsync(new CommandDefinition(
+        commandText: sql,
+        parameters: parameters,
+        commandType: CommandType.Text,
+        cancellationToken: cancellationToken));
+
+      return await read(grid);
+    }, cancellationToken);
+  }
+
   private async Task<TResult> Run<TResult>(
     Func<SqlConnection, Task<TResult>> action,
     CancellationToken cancellationToken = default)

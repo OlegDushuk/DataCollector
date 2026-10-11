@@ -49,7 +49,7 @@ public class EntityPropertyConfig
 
     Id = id ?? Guid.NewGuid();
     CreatedAt = createdAt ?? DateTime.UtcNow;
-    Key = Guard.Key(key, "поля");
+    Key = Guard.PropertyKey(key);
     Name = Guard.Name(name, "поля");
     Type = type;
 
@@ -125,7 +125,7 @@ public class EntityPropertyConfig
 
   internal void ChangeKey(string newKey)
   {
-    Key = Guard.Key(newKey, "поля");
+    Key = Guard.PropertyKey(newKey);
   }
 
   internal void ChangeName(string newName)

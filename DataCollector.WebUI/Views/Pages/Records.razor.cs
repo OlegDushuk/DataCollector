@@ -28,6 +28,23 @@ public partial class Records : PageBase, IDisposable
   // не перезаписала свіжу і сервер не рахував сторінку, яка вже не потрібна.
   private CancellationTokenSource? _reloadCts;
 
+  // Фільтри: застосовані умови, текстовий пошук і стан панелі.
+  private List<FilterField> _filterFields = [];
+  private List<RecordFilterForm> _filters = [];
+  private string? _search;
+  private bool _isFilterPanelOpen;
+  private string? _filterFocus;
+  private CancellationTokenSource? _searchDebounce;
+
+  private const int SearchDebounceMs = 400;
+
+  private string EmptyText => _config?.Properties.Count == 0
+    ? "У моделі немає полів - додайте їх у налаштуваннях моделі"
+    : HasFilters ? "Немає записів, що відповідають умовам" : "Записів поки немає";
+
+  private HashSet<string> ActiveFilterKeys => _filters.Select(f => f.Field).ToHashSet();
+  private bool HasFilters => _filters.Count > 0 || !string.IsNullOrWhiteSpace(_search);
+
   private bool _isFormOpen;
   private EntityInstance? _editing;
   private Dictionary<string, string?> _form = [];
@@ -58,7 +75,11 @@ public partial class Records : PageBase, IDisposable
     _config = null;
     _records = [];
     _totalCount = 0;
+    ResetFilters();
     await Try(async () => _config = await ConfigApi.Get(ConfigKey));
+
+    if (_config != null)
+      _filterFields = FilterField.ForConfig(_config);
   }
 
   private async Task<List<EntityConfigListItem>?> LoadConfigs()
@@ -87,8 +108,15 @@ public partial class Records : PageBase, IDisposable
     {
       await Try(async () =>
       {
-        var page = await RecordApi.GetPage(
-          configId, args.PageNumber, args.PageSize, args.SortColumnKey, args.SortIsDescending, cts.Token);
+        var filters = _filters
+          .Select(f => (Filter: f, Field: FindFilterField(f.Field)))
+          .Where(x => x.Field != null)
+          .Select(x => x.Filter.ToApi(x.Field!))
+          .ToList();
+
+        var page = await RecordApi.Query(
+          configId, filters, _search,
+          args.PageNumber, args.PageSize, args.SortColumnKey, args.SortIsDescending, cts.Token);
 
         _records = page.Items;
         _totalCount = page.TotalCount;
@@ -111,6 +139,75 @@ public partial class Records : PageBase, IDisposable
     _isLoading = false;
   }
 
+  private FilterField? FindFilterField(string key) => _filterFields.FirstOrDefault(f => f.Key == key);
+
+  private void ResetFilters()
+  {
+    _filters = [];
+    _search = null;
+    _isFilterPanelOpen = false;
+    _filterFocus = null;
+    _searchDebounce?.Cancel();
+  }
+
+  private void ToggleFilterPanel()
+  {
+    _isFilterPanelOpen = !_isFilterPanelOpen;
+    _filterFocus = null;
+  }
+
+  /// <summary>Значок фільтра в заголовку колонки: відкрити панель з умовою для цього поля.</summary>
+  private void OnFilterColumnClick(string key)
+  {
+    _filterFocus = key;
+    _isFilterPanelOpen = true;
+  }
+
+  private Task ApplyFilters(List<RecordFilterForm> filters)
+  {
+    _filters = filters;
+    _isFilterPanelOpen = false;
+    _filterFocus = null;
+    return ReloadFromFirstPage();
+  }
+
+  private Task RemoveFilter(RecordFilterForm filter)
+  {
+    _filters = _filters.Where(f => f != filter).ToList();
+    return ReloadFromFirstPage();
+  }
+
+  private Task ClearFilters()
+  {
+    ResetFilters();
+    return ReloadFromFirstPage();
+  }
+
+  /// <summary>
+  /// Пошук запускається не на кожну літеру, а через паузу після введення (debounce):
+  /// менше запитів до сервера, а попередній незавершений запит скасовується в <see cref="OnReload"/>.
+  /// </summary>
+  private async Task OnSearchInput(ChangeEventArgs e)
+  {
+    _search = e.Value?.ToString();
+
+    _searchDebounce?.Cancel();
+    var debounce = _searchDebounce = new CancellationTokenSource();
+
+    try
+    {
+      await Task.Delay(SearchDebounceMs, debounce.Token);
+    }
+    catch (OperationCanceledException)
+    {
+      return;
+    }
+
+    await ReloadFromFirstPage();
+  }
+
+  private Task ReloadFromFirstPage() => _table?.Reload(toFirstPage: true) ?? Task.CompletedTask;
+
   private void CancelReload()
   {
     _reloadCts?.Cancel();
@@ -121,6 +218,7 @@ public partial class Records : PageBase, IDisposable
   {
     // Користувач пішов зі сторінки - незавершений запит більше нікому не потрібен.
     CancelReload();
+    _searchDebounce?.Cancel();
   }
 
   private void OpenCreate()

@@ -25,6 +25,18 @@ public class DataRecordsController(
     return await dataInstanceService.GetPage(config, query, cancellationToken);
   }
 
+  /// <summary>
+  /// Пошук записів з умовами фільтра. POST, бо умови - складна структура, яку незручно передавати в адресі.
+  /// </summary>
+  [HttpPost("query")]
+  public async Task<ActionResult<PagedResult<DataInstanceDto>>> Query(
+    string config,
+    [FromBody] QueryDataInstancesCommand command,
+    CancellationToken cancellationToken)
+  {
+    return await dataInstanceService.Query(config, command, cancellationToken);
+  }
+
   [HttpGet("{recordId:guid}")]
   public async Task<ActionResult<DataInstanceDto>> Get(string config, Guid recordId)
   {

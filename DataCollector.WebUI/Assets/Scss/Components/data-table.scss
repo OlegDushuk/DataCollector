@@ -67,10 +67,30 @@
   &__filter-button {
     display: flex;
     align-items: center;
+    padding: 4px;
+    border-radius: 6px;
     cursor: pointer;
+    transition: 0.2s;
 
     svg {
       height: 10px;
+      fill: variables.$subtitle-text-color;
+    }
+
+    &:hover {
+      background: variables.$accent-light-color;
+
+      svg {
+        fill: variables.$accent-color;
+      }
+    }
+
+    &--active {
+      background: variables.$accent-light-color;
+
+      svg {
+        fill: variables.$accent-color;
+      }
     }
   }
   

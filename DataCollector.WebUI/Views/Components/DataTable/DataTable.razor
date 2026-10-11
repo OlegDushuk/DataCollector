@@ -35,9 +35,12 @@
         </button>
         
         <div class="data-table__header-cell-right">
-          @if (column.IsFilterable)
+          @if (column.IsFilterable && OnFilterClick.HasDelegate && column.Key != null)
           {
-            <button type="button" class="data-table__filter-button" title="Фільтри ще в розробці">
+            <button type="button"
+                    class="data-table__filter-button @(ActiveFilterKeys?.Contains(column.Key) == true ? "data-table__filter-button--active" : "")"
+                    title="Фільтр за полем «@column.Title»"
+                    @onclick="@(() => OnFilterClick.InvokeAsync(column.Key))">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 50 512 512"><path d="M32 64C19.1 64 7.4 71.8 2.4 83.8S.2 109.5 9.4 118.6L192 301.3 192 416c0 8.5 3.4 16.6 9.4 22.6l64 64c9.2 9.2 22.9 11.9 34.9 6.9S320 492.9 320 480l0-178.7 182.6-182.6c9.2-9.2 11.9-22.9 6.9-34.9S492.9 64 480 64L32 64z"/></svg>
             </button>
           }
@@ -72,7 +75,7 @@
   {
     <div class="data-table__footer">
       <div class="data-table__footer-left">
-        <span class="default-text">Всього: @TotalCount</span>
+        <span class="default-text">@TotalLabel: @TotalCount.ToString("#,0", System.Globalization.CultureInfo.GetCultureInfo("uk-UA"))</span>
       </div>
       
       <div class="data-table__footer-center">

@@ -9,7 +9,7 @@
 |---|---|
 | `DataCollector.Server.Domain` | Сутності (`EntityConfig`, `EntityPropertyConfig`, `EntityInstance`, `EntityProperty`) і бізнес-правила |
 | `DataCollector.Server.Application` | Сервіси, контракти API (`ExternalContracts`), інтерфейси репозиторіїв |
-| `DataCollector.Server.DataAccess` | Репозиторії на Dapper, виклик збережених процедур `sp_{Table}_{Action}` |
+| `DataCollector.Server.DataAccess` | Репозиторії на Dapper: збережені процедури `sp_{Table}_{Action}`, для пошуку з фільтрами — параметризований SQL |
 | `DataCollector.Server.DataBase` | Схема БД (SQL Server, `.sqlproj` → dacpac) |
 | `DataCollector.Server.API` | REST API, помилки у форматі ProblemDetails, OpenAPI |
 | `DataCollector.WebUI` | Blazor Server інтерфейс |
@@ -35,7 +35,8 @@
 | POST | `api/data-configs/{config}/properties` | додати поля |
 | PATCH | `api/data-configs/{config}/properties/{id}` | змінити назву / ключ поля |
 | DELETE | `api/data-configs/{config}/properties/{id}` | видалити поле та його значення |
-| GET | `api/data-configs/{config}/records?pageNumber=1&pageSize=10&sortBy=price&sortDescending=false` | записи з пагінацією та сортуванням |
+| GET | `api/data-configs/{config}/records?pageNumber=1&pageSize=10&sortBy=price&sortDescending=false&search=текст` | записи з пагінацією, сортуванням і пошуком |
+| POST | `api/data-configs/{config}/records/query` | записи з умовами фільтра (див. «Фільтри») |
 | GET | `api/data-configs/{config}/records/{id}` | запис |
 | POST | `api/data-configs/{config}/records` | створити запис |
 | PATCH | `api/data-configs/{config}/records/{id}` | оновити передані поля запису |
@@ -51,6 +52,45 @@ Content-Type: application/json
 ```
 
 Помилки: `400` — невалідні дані, `404` — не знайдено, `409` — конфлікт (ключ зайнятий).
+
+## Фільтри
+
+`POST api/data-configs/{config}/records/query` — сторінка записів, що відповідають **усім** умовам:
+
+```http
+POST api/data-configs/orders/records/query
+Content-Type: application/json
+
+{
+  "filters": [
+    { "field": "price", "operator": "between", "value": 100, "valueTo": 5000 },
+    { "field": "status", "operator": "in", "values": ["Нове", "Оплачене"] },
+    { "field": "customer", "operator": "contains", "value": "ТОВ" },
+    { "field": "createdAt", "operator": "gte", "value": "2026-10-01T00:00:00Z" }
+  ],
+  "search": "Луцьк",
+  "sortBy": "price", "sortDescending": true,
+  "pageNumber": 1, "pageSize": 20
+}
+```
+
+| Оператор | Значення | Типи |
+|---|---|---|
+| `eq`, `neq` | `value` | усі поля моделі; `createdAt`, `updatedAt` |
+| `gt`, `gte`, `lt`, `lte` | `value` | Number, Date, DateTime, `createdAt`, `updatedAt` |
+| `between` | `value` (від), `valueTo` (до), включно | Number, Date, DateTime, `createdAt`, `updatedAt` |
+| `contains`, `notContains`, `startsWith`, `endsWith` | `value` | Text |
+| `in`, `notIn` | `values` (до 100) | Text, Enum |
+| `isEmpty`, `isNotEmpty` | — | усі поля моделі, `updatedAt` |
+
+- `field` — ключ поля або системне поле `createdAt` / `updatedAt` (ці ключі зарезервовані для полів моделі).
+- Заперечні оператори (`neq`, `notContains`, `notIn`) включають записи з порожнім значенням.
+- `search` — підрядок у будь-якому текстовому полі або полі-переліку; текст порівнюється без урахування регістру.
+- Поле-перелік сортується в порядку варіантів, а не за алфавітом.
+- Не більше 20 умов у запиті.
+
+SQL для запиту збирається динамічно (`DataAccess/Querying/RecordQuerySql.cs`): кожна умова — `EXISTS` по значеннях
+поля в колонці його типу, усі значення — лише параметрами, `OPTION (RECOMPILE)` будує план під конкретні умови.
 
 ## Типи полів і правила
 

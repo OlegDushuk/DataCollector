@@ -1,0 +1,158 @@
+@use "../variables";
+
+// Пошук у панелі інструментів таблиці записів.
+.search-input {
+  position: relative;
+  width: 260px;
+
+  svg {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 16px;
+    fill: variables.$subtitle-text-color;
+    pointer-events: none;
+  }
+
+  .input {
+    padding-left: 34px;
+  }
+}
+
+// Панель умов фільтра над таблицею.
+.filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: variables.$pad-md;
+  background: variables.$surface-color;
+  border: 1px solid variables.$border-color;
+  border-radius: variables.$radius-lg;
+
+  &__header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  &__empty {
+    line-height: 18px;
+  }
+
+  &__row {
+    display: grid;
+    grid-template-columns: 200px 150px 1fr 28px;
+    gap: 8px;
+    align-items: center;
+  }
+
+  &__values {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    &-right {
+      display: flex;
+      gap: 8px;
+    }
+  }
+}
+
+// Варіанти переліку, які можна вибрати кількома натисками.
+.option-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  &__item {
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid variables.$border-color;
+    border-radius: 14px;
+    background: variables.$surface-color;
+    color: variables.$button-text-color;
+    font-size: 12px;
+    cursor: pointer;
+    transition: 0.2s;
+
+    &:hover {
+      border-color: variables.$accent-color;
+      color: variables.$accent-color;
+    }
+
+    &--selected {
+      background: variables.$accent-color;
+      border-color: variables.$accent-color;
+      color: variables.$surface-color;
+
+      &:hover {
+        color: variables.$surface-color;
+      }
+    }
+  }
+}
+
+// Застосовані умови над таблицею.
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+
+  &__item {
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding-left: 12px;
+    border-radius: 14px;
+    background: variables.$accent-light-color;
+    color: variables.$accent-color;
+    font-size: 12px;
+  }
+
+  &__text {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  &__remove {
+    width: 26px;
+    height: 26px;
+    border: none;
+    background: none;
+    color: inherit;
+    font-size: 16px;
+    line-height: 16px;
+    cursor: pointer;
+    border-radius: 13px;
+
+    &:hover {
+      background: variables.$accent-transparent-color;
+    }
+  }
+
+  &__clear {
+    border: none;
+    background: none;
+    color: variables.$subtitle-text-color;
+    font-size: 12px;
+    cursor: pointer;
+
+    &:hover {
+      color: variables.$danger-color;
+    }
+  }
+}

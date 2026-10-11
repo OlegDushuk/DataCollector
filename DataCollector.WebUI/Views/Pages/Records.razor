@@ -22,6 +22,45 @@
 
     <Alert Message="@Error" OnClose="@(() => Error = null)" />
 
+    @if (_config != null && _isFilterPanelOpen)
+    {
+        <RecordFilterPanel Fields="_filterFields"
+                           Filters="_filters"
+                           FocusField="@_filterFocus"
+                           OnApply="ApplyFilters"
+                           OnClose="@(() => { _isFilterPanelOpen = false; _filterFocus = null; })" />
+    }
+
+    @if (_config != null && HasFilters)
+    {
+        <div class="filter-chips">
+            @if (!string.IsNullOrWhiteSpace(_search))
+            {
+                <span class="filter-chips__item">
+                    <span>Пошук: «@_search»</span>
+                    <button type="button" class="filter-chips__remove" title="Прибрати"
+                            @onclick="@(() => { _search = null; return ReloadFromFirstPage(); })">×</button>
+                </span>
+            }
+
+            @foreach (var filter in _filters)
+            {
+                var field = FindFilterField(filter.Field);
+                if (field is null)
+                    continue;
+
+                <span class="filter-chips__item">
+                    <button type="button" class="filter-chips__text" title="Змінити умову"
+                            @onclick="@(() => OnFilterColumnClick(filter.Field))">@filter.Describe(field)</button>
+                    <button type="button" class="filter-chips__remove" title="Прибрати умову"
+                            @onclick="@(() => RemoveFilter(filter))">×</button>
+                </span>
+            }
+
+            <button type="button" class="filter-chips__clear" @onclick="ClearFilters">Скинути все</button>
+        </div>
+    }
+
     @if (_configs is { Count: 0 })
     {
         <div class="empty-state">
@@ -40,8 +79,11 @@
                        TotalCount="_totalCount"
                        IsLoading="_isLoading"
                        InitialSortKey="createdAt"
-                       EmptyText="@(_config.Properties.Count == 0 ? "У моделі немає полів - додайте їх у налаштуваннях моделі" : "Записів поки немає")"
+                       EmptyText="@EmptyText"
+                       TotalLabel="@(HasFilters ? "Знайдено" : "Всього")"
                        OnReload="OnReload"
+                       OnFilterClick="OnFilterColumnClick"
+                       ActiveFilterKeys="ActiveFilterKeys"
                        OnRowClick="OpenEdit">
                 <ToolbarLeft>
                     <label class="toolbar-field">
@@ -53,6 +95,15 @@
                             }
                         </select>
                     </label>
+
+                    <div class="search-input">
+                        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        <input class="input" placeholder="Пошук у текстових полях" value="@_search" @oninput="OnSearchInput" />
+                    </div>
+
+                    <Button Text="@(_filters.Count > 0 ? $"Фільтри · {_filters.Count}" : "Фільтри")"
+                            Variant="@(_isFilterPanelOpen || _filters.Count > 0 ? ButtonVariant.Primary : ButtonVariant.Secondary)"
+                            OnClick="ToggleFilterPanel" />
                 </ToolbarLeft>
                 <ToolbarRight>
                     <span class="default-text">Ключ для API: <span class="code">@_config.Key</span></span>
@@ -63,7 +114,8 @@
                         <ColumnTemplate TItem="EntityInstance" Context="item"
                                         Key="@prop.Key"
                                         Title="@prop.Name"
-                                        IsSortable="true">
+                                        IsSortable="true"
+                                        IsFilterable="true">
                             <span class="default-text">@item.GetDisplayValue(prop)</span>
                         </ColumnTemplate>
                     }
@@ -72,6 +124,7 @@
                                     Key="createdAt"
                                     Title="Створено"
                                     IsSortable="true"
+                                    IsFilterable="true"
                                     Width="170px">
                         <span class="default-text">@Format.Date(item.CreatedAt)</span>
                     </ColumnTemplate>

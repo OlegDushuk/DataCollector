@@ -1,18 +1,16 @@
 using DataCollector.Server.Domain.Entities;
+using DataCollector.Server.Domain.Querying;
 
 namespace DataCollector.Server.Application.Interfaces.Repositories;
 
 public interface IEntityInstanceRepository
 {
   /// <summary>
-  /// Сторінка записів. <paramref name="sortPropertyId"/> = null - сортування за датою створення.
+  /// Сторінка записів, що задовольняють запит, і загальна кількість таких записів.
   /// </summary>
-  Task<(List<EntityInstance> Items, int TotalCount)> GetPage(
+  Task<(List<EntityInstance> Items, int TotalCount)> Query(
     EntityConfig config,
-    int pageNumber,
-    int pageSize,
-    Guid? sortPropertyId,
-    bool sortDescending,
+    RecordQuery query,
     CancellationToken cancellationToken = default);
 
   /// <summary>Повертає null, якщо запису немає або він належить іншій моделі.</summary>

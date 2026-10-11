@@ -21,10 +21,10 @@ public abstract class ApiServiceBase(HttpClient httpClient)
     return (await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken))!;
   }
 
-  protected async Task<TResult> PostAsync<TResult>(string url, object body)
+  protected async Task<TResult> PostAsync<TResult>(string url, object body, CancellationToken cancellationToken = default)
   {
-    var response = await Send(() => httpClient.PostAsJsonAsync(url, body, JsonOptions));
-    return (await response.Content.ReadFromJsonAsync<TResult>(JsonOptions))!;
+    var response = await Send(() => httpClient.PostAsJsonAsync(url, body, JsonOptions, cancellationToken), cancellationToken);
+    return (await response.Content.ReadFromJsonAsync<TResult>(JsonOptions, cancellationToken))!;
   }
 
   protected async Task PatchAsync(string url, object body)
