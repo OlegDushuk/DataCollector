@@ -60,6 +60,7 @@ public class DataInstanceService(
     var instance = entity.CreateInstance();
 
     ApplyValues(instance, command.Values);
+    instance.EnsureRequiredFilled();
 
     await entityInstanceRepository.Create(instance);
     return instance.Id;

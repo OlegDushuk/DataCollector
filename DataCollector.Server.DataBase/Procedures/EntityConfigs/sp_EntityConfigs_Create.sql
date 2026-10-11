@@ -21,8 +21,9 @@ BEGIN
 
     DECLARE @Pkey INT = SCOPE_IDENTITY();
 
-    INSERT INTO [dbo].[EntityPropertyConfigs] ([Id], [ConfigPkey], [Key], [Name], [DataType], [CreatedAt])
-    SELECT [Id], @Pkey, [Key], [Name], [DataType], [CreatedAt]
+    INSERT INTO [dbo].[EntityPropertyConfigs]
+        ([Id], [ConfigPkey], [Key], [Name], [DataType], [CreatedAt], [IsRequired], [DefaultValue], [Settings])
+    SELECT [Id], @Pkey, [Key], [Name], [DataType], [CreatedAt], ISNULL([IsRequired], 0), [DefaultValue], [Settings]
     FROM @Properties;
 
     COMMIT TRANSACTION;

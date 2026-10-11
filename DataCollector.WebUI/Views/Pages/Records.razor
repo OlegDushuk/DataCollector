@@ -99,28 +99,21 @@
                 {
                     <label class="form__field">
                         <span class="form__label">
-                            @prop.Name <span class="form__label-hint">@Format.DataType(prop.DataType)</span>
+                            @prop.Name
+                            @if (prop.Rules.IsRequired)
+                            {
+                                <span class="form__label-required" title="Обов'язкове поле">*</span>
+                            }
+                            <span class="form__label-hint">@Format.DataType(prop.DataType)</span>
                         </span>
 
-                        @switch (prop.DataType)
-                        {
-                            case PropertyDataType.Number:
-                                <input class="input" type="number" step="any"
-                                       value="@_form[prop.Key]" @oninput="@(e => _form[prop.Key] = e.Value?.ToString())" />
-                                break;
-                            case PropertyDataType.Boolean:
-                                <select class="select" value="@(_form[prop.Key] ?? "")"
-                                        @onchange="@(e => _form[prop.Key] = e.Value?.ToString())">
-                                    <option value="">—</option>
-                                    <option value="true">Так</option>
-                                    <option value="false">Ні</option>
-                                </select>
-                                break;
-                            default:
-                                <input class="input" value="@_form[prop.Key]"
-                                       @oninput="@(e => _form[prop.Key] = e.Value?.ToString())" />
-                                break;
-                        }
+                        <ValueInput DataType="prop.DataType"
+                                    Value="@_form[prop.Key]"
+                                    ValueChanged="@(v => _form[prop.Key] = v)"
+                                    Options="@(prop.Rules.Options ?? [])"
+                                    Min="@FieldValue.ToForm(prop.DataType, FieldValue.Raw(prop.Rules.Min))"
+                                    Max="@FieldValue.ToForm(prop.DataType, FieldValue.Raw(prop.Rules.Max))"
+                                    MaxLength="prop.Rules.MaxLength" />
                     </label>
                 }
 

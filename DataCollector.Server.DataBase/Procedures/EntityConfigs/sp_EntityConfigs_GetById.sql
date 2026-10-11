@@ -13,7 +13,8 @@ BEGIN
     FROM [dbo].[EntityConfigs] c
     WHERE c.[Id] = @Id;
 
-    SELECT p.[Id], c.[Id] AS [EntityConfigId], p.[Key], p.[Name], p.[DataType], p.[CreatedAt]
+    SELECT p.[Id], c.[Id] AS [EntityConfigId], p.[Key], p.[Name], p.[DataType], p.[CreatedAt],
+           p.[IsRequired], p.[DefaultValue], p.[Settings]
     FROM [dbo].[EntityPropertyConfigs] p
     INNER JOIN [dbo].[EntityConfigs] c ON c.[Pkey] = p.[ConfigPkey]
     WHERE c.[Id] = @Id

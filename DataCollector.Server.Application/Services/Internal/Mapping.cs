@@ -27,8 +27,35 @@ internal static class Mapping
     Key = property.Key,
     Name = property.Name,
     DataType = property.Type.ToContract(),
-    CreatedAt = property.CreatedAt
+    CreatedAt = property.CreatedAt,
+    Rules = new PropertyRulesDto
+    {
+      IsRequired = property.IsRequired,
+      DefaultValue = property.DefaultValue,
+      Min = property.Min,
+      Max = property.Max,
+      MinLength = property.MinLength,
+      MaxLength = property.MaxLength,
+      Options = property.Options.Count > 0 ? property.Options.ToList() : null
+    }
   };
+
+  public static PropertyRules ToDomain(this PropertyRulesCommand? rules)
+  {
+    if (rules is null)
+      return PropertyRules.None;
+
+    return new PropertyRules
+    {
+      IsRequired = rules.IsRequired,
+      DefaultValue = rules.DefaultValue?.ToRawValue("defaultValue"),
+      Min = rules.Min?.ToRawValue("min"),
+      Max = rules.Max?.ToRawValue("max"),
+      MinLength = rules.MinLength,
+      MaxLength = rules.MaxLength,
+      Options = rules.Options
+    };
+  }
 
   public static DataInstanceDto ToDto(this EntityInstance instance) => new()
   {

@@ -1,6 +1,6 @@
 @namespace DataCollector.WebUI.Views.Components
 
-@* Редактор списку нових полів: назва, ключ (генерується з назви), тип. *@
+@* Редактор списку нових полів: назва, ключ (генерується з назви), тип і правила (розгортаються кнопкою). *@
 
 @if (Properties.Count == 0 && EmptyHint != null)
 {
@@ -15,11 +15,12 @@
             <span class="subtitle">Ключ</span>
             <span class="subtitle">Тип</span>
             <span></span>
+            <span></span>
         </div>
 
         @foreach (var prop in Properties)
         {
-            <div class="property-rows__row">
+            <div class="property-rows__row @(prop.ShowRules ? "property-rows__row--open" : "")">
                 <input class="input" placeholder="Назва поля" value="@prop.Name"
                        @oninput="@(e => OnNameInput(prop, e))" />
 
@@ -34,8 +35,16 @@
                     }
                 </select>
 
+                <IconButton Icon="settings" Title="Правила поля" OnClick="@(() => prop.ShowRules = !prop.ShowRules)" />
                 <IconButton Icon="delete" Title="Прибрати" Danger="true" OnClick="@(() => Remove(prop))" />
             </div>
+
+            @if (prop.ShowRules)
+            {
+                <div class="property-rows__rules">
+                    <PropertyRulesEditor DataType="prop.DataType" Rules="prop.Rules" />
+                </div>
+            }
         }
     </div>
 }

@@ -1,7 +1,8 @@
 @use "../variables";
 
 .input,
-.select {
+.select,
+.textarea {
   height: 36px;
   width: 100%;
   padding: 0 12px;
@@ -25,6 +26,36 @@
     border-color: variables.$accent-color;
     box-shadow: 0 0 0 3px variables.$accent-transparent-color;
   }
+}
+
+.textarea {
+  height: auto;
+  min-height: 80px;
+  padding: 8px 12px;
+  line-height: 20px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+
+  input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: variables.$accent-color;
+    cursor: pointer;
+  }
+}
+
+.form__label-required {
+  color: variables.$danger-color;
+  margin-left: 2px;
 }
 
 .input--code {
@@ -106,10 +137,25 @@
   &__header,
   &__row {
     display: grid;
-    grid-template-columns: 1fr 1fr 140px 28px;
+    grid-template-columns: 1fr 1fr 140px 28px 28px;
     gap: 8px;
     align-items: center;
   }
+
+  // Панель правил під рядком поля.
+  &__rules {
+    padding: 12px;
+    margin-bottom: 4px;
+    border: 1px solid variables.$border-color;
+    border-radius: variables.$radius-md;
+    background: variables.$bg-color;
+  }
+}
+
+.rules-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .endpoints {

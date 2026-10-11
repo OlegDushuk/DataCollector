@@ -7,7 +7,8 @@ public class DataInstanceDto
   public DateTime? UpdatedAt { get; set; }
 
   /// <summary>
-  /// Ключ поля -> типізоване значення (string, decimal, bool або null).
+  /// Ключ поля -> типізоване значення: string (Text, Enum), decimal, bool, DateOnly (Date),
+  /// DateTime в UTC (DateTime) або null.
   /// </summary>
   public Dictionary<string, object?> Values { get; set; } = [];
 }

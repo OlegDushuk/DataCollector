@@ -23,7 +23,17 @@ public class EntityPropertyConfigRepository : RepositoryBase, IEntityPropertyCon
 
   public async Task Update(EntityPropertyConfig property)
   {
-    await ExecuteAsync("Update", new { property.Id, property.Key, property.Name });
+    var rules = property.GetRules();
+
+    await ExecuteAsync("Update", new
+    {
+      property.Id,
+      property.Key,
+      property.Name,
+      rules.IsRequired,
+      rules.DefaultValue,
+      Settings = PropertySettingsJson.Serialize(rules)
+    });
   }
 
   public async Task Delete(Guid propertyId)

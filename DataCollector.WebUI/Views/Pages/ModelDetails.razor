@@ -83,8 +83,12 @@
                         <span class="code">@prop.Key</span>
                     </ColumnTemplate>
 
-                    <ColumnTemplate TItem="EntityPropertyConfig" Context="prop" Title="Тип" Width="160px">
+                    <ColumnTemplate TItem="EntityPropertyConfig" Context="prop" Title="Тип" Width="140px">
                         <span class="badge">@Format.DataType(prop.DataType)</span>
+                    </ColumnTemplate>
+
+                    <ColumnTemplate TItem="EntityPropertyConfig" Context="prop" Title="Правила">
+                        <span class="default-text default-text--ellipsis" title="@Format.Rules(prop)">@Format.Rules(prop)</span>
                     </ColumnTemplate>
 
                     <ColumnTemplate TItem="EntityPropertyConfig" Context="prop" Title="Створено" Width="170px">
@@ -121,7 +125,7 @@
     </Footer>
 </Modal>
 
-<Modal IsOpen="_propertyToEdit != null" Title="Змінити поле" Width="480px" OnClose="@(() => _propertyToEdit = null)">
+<Modal IsOpen="_propertyToEdit != null" Title="Змінити поле" Width="560px" OnClose="@(() => _propertyToEdit = null)">
     <ChildContent>
         <div class="form">
             <label class="form__field">
@@ -139,6 +143,15 @@
                 <span class="badge">@(_propertyToEdit is null ? "" : Format.DataType(_propertyToEdit.DataType))</span>
                 <span class="form__hint default-text">Тип поля після створення змінити не можна.</span>
             </div>
+
+            @if (_propertyToEdit != null)
+            {
+                <div class="form__section-title subtitle">Правила</div>
+                <PropertyRulesEditor DataType="_propertyToEdit.DataType" Rules="_editRules" />
+                <div class="form__hint default-text">
+                    Нові правила діють для наступних змін записів; уже збережені значення не перевіряються.
+                </div>
+            }
         </div>
         <Alert Message="@_editError" />
     </ChildContent>

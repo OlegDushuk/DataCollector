@@ -1,4 +1,5 @@
 ﻿using DataCollector.WebUI.Entities;
+using DataCollector.WebUI.Helpers;
 using DataCollector.WebUI.ServerApiServices;
 using DataCollector.WebUI.Views.Base;
 using DataCollector.WebUI.Views.Components.DataTable;
@@ -125,7 +126,11 @@ public partial class Records : PageBase, IDisposable
   private void OpenCreate()
   {
     _editing = null;
-    _form = _config!.Properties.ToDictionary(p => p.Key, _ => (string?)null);
+
+    // Новий запис одразу показує значення за замовчуванням - користувач бачить, що буде збережено.
+    _form = _config!.Properties.ToDictionary(
+      p => p.Key,
+      p => FieldValue.ToForm(p.DataType, FieldValue.Raw(p.Rules.DefaultValue)));
     _formError = null;
     _isFormOpen = true;
   }
@@ -133,7 +138,7 @@ public partial class Records : PageBase, IDisposable
   private void OpenEdit(EntityInstance record)
   {
     _editing = record;
-    _form = _config!.Properties.ToDictionary(p => p.Key, p => record.GetRawValue(p.Key));
+    _form = _config!.Properties.ToDictionary(p => p.Key, p => record.GetFormValue(p));
     _formError = null;
     _isFormOpen = true;
   }
@@ -143,11 +148,12 @@ public partial class Records : PageBase, IDisposable
     if (_config is null)
       return;
 
-    // Значення надсилаємо рядками: сервер сам перевіряє і нормалізує їх відповідно до типу поля
-    // (числа з комою або крапкою, true/false), тож ця логіка не дублюється в інтерфейсі.
+    // Значення надсилаємо рядками: сервер сам перевіряє їх за типом і правилами поля
+    // (числа з комою або крапкою, межі, варіанти переліку), тож ця логіка не дублюється в інтерфейсі.
+    // Інтерфейс лише переводить дату й час з місцевого часу в UTC.
     var values = _config.Properties.ToDictionary(
       p => p.Key,
-      p => string.IsNullOrWhiteSpace(_form[p.Key]) ? null : _form[p.Key]);
+      p => FieldValue.ToApi(p.DataType, _form[p.Key]));
 
     var ok = await Try(async () =>
     {

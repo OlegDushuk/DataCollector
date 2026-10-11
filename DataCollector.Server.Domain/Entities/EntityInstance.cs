@@ -41,6 +41,26 @@ public class EntityInstance
     GetProperty(key).SetValue(value);
   }
 
+  /// <summary>
+  /// Новий запис: поля отримують значення за замовчуванням (передані значення потім їх перезапишуть).
+  /// </summary>
+  internal void ApplyDefaults()
+  {
+    foreach (var property in _properties)
+      property.ApplyDefault();
+  }
+
+  /// <summary>
+  /// Перевірка перед створенням запису: усі обов'язкові поля заповнені (передано значення або є значення за замовчуванням).
+  /// При оновленні це не перевіряється - змінюються лише передані поля, а очистити обов'язкове поле не дає <see cref="EntityProperty.SetValue"/>.
+  /// </summary>
+  public void EnsureRequiredFilled()
+  {
+    var missing = _properties.FirstOrDefault(p => p.Config.IsRequired && p.Value is null);
+    if (missing != null)
+      throw missing.RequiredError();
+  }
+
   public void MarkUpdated()
   {
     UpdatedAt = DateTime.UtcNow;

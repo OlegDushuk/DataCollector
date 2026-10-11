@@ -9,4 +9,5 @@ public class EntityPropertyConfig
   public string Name { get; set; } =  string.Empty;
   public PropertyDataType DataType { get; set; }
   public DateTime CreatedAt { get; set; }
+  public PropertyRules Rules { get; set; } = new();
 }

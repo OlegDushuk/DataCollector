@@ -1,0 +1,67 @@
+@namespace DataCollector.WebUI.Views.Components
+
+@* Поле введення значення відповідно до типу поля моделі. Значення - у форматі полів форми (див. FieldValue). *@
+
+@switch (DataType)
+{
+    case PropertyDataType.Number:
+        <input class="input" type="number" step="any" min="@Min" max="@Max" placeholder="@Placeholder"
+               value="@Value" @oninput="OnInput" />
+        break;
+
+    case PropertyDataType.Boolean:
+        <select class="select" value="@(Value ?? "")" @onchange="OnInput">
+            <option value="">—</option>
+            <option value="true">Так</option>
+            <option value="false">Ні</option>
+        </select>
+        break;
+
+    case PropertyDataType.Date:
+        <input class="input" type="date" min="@Min" max="@Max" value="@Value" @onchange="OnInput" />
+        break;
+
+    case PropertyDataType.DateTime:
+        <input class="input" type="datetime-local" min="@Min" max="@Max" value="@Value" @onchange="OnInput" />
+        break;
+
+    case PropertyDataType.Enum:
+        <select class="select" value="@(Value ?? "")" @onchange="OnInput">
+            <option value="">—</option>
+            @foreach (var option in Options)
+            {
+                <option value="@option">@option</option>
+            }
+            @if (!string.IsNullOrEmpty(Value) && !Options.Contains(Value))
+            {
+                @* Значення, якого вже немає серед варіантів (варіанти змінили після збереження запису). *@
+                <option value="@Value">@Value (застарілий варіант)</option>
+            }
+        </select>
+        break;
+
+    default:
+        <input class="input" maxlength="@MaxLength" placeholder="@Placeholder" value="@Value" @oninput="OnInput" />
+        break;
+}
+
+@code {
+  [Parameter, EditorRequired] public PropertyDataType DataType { get; set; }
+  [Parameter] public string? Value { get; set; }
+  [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+
+  /// <summary>Варіанти для переліку.</summary>
+  [Parameter] public IReadOnlyList<string> Options { get; set; } = [];
+
+  /// <summary>Межі для чисел і дат (у форматі полів форми) - підказка браузеру, остаточна перевірка на сервері.</summary>
+  [Parameter] public string? Min { get; set; }
+  [Parameter] public string? Max { get; set; }
+  [Parameter] public int? MaxLength { get; set; }
+  [Parameter] public string? Placeholder { get; set; }
+
+  private Task OnInput(ChangeEventArgs e)
+  {
+    var value = e.Value?.ToString();
+    return ValueChanged.InvokeAsync(string.IsNullOrEmpty(value) ? null : value);
+  }
+}

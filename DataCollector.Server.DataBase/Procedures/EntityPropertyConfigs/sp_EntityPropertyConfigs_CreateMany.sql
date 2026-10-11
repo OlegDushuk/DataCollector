@@ -17,8 +17,10 @@ BEGIN
         INNER JOIN [dbo].[EntityPropertyConfigs] e ON e.[ConfigPkey] = c.[Pkey] AND e.[Key] = p.[Key])
         THROW 50409, N'Поле з таким ключем вже існує', 1;
 
-    INSERT INTO [dbo].[EntityPropertyConfigs] ([Id], [ConfigPkey], [Key], [Name], [DataType], [CreatedAt])
-    SELECT p.[Id], c.[Pkey], p.[Key], p.[Name], p.[DataType], p.[CreatedAt]
+    INSERT INTO [dbo].[EntityPropertyConfigs]
+        ([Id], [ConfigPkey], [Key], [Name], [DataType], [CreatedAt], [IsRequired], [DefaultValue], [Settings])
+    SELECT p.[Id], c.[Pkey], p.[Key], p.[Name], p.[DataType], p.[CreatedAt],
+           ISNULL(p.[IsRequired], 0), p.[DefaultValue], p.[Settings]
     FROM @Properties p
     INNER JOIN [dbo].[EntityConfigs] c ON c.[Id] = p.[EntityConfigId];
 END

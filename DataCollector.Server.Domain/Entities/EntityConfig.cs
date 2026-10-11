@@ -33,9 +33,13 @@ public class EntityConfig
       _properties.AddRange(properties);
   }
 
-  public EntityPropertyConfig AddProperty(string key, string name, PropertyDataType dataType)
+  public EntityPropertyConfig AddProperty(
+    string key,
+    string name,
+    PropertyDataType dataType,
+    PropertyRules? rules = null)
   {
-    var prop = new EntityPropertyConfig(key, name, dataType);
+    var prop = new EntityPropertyConfig(key, name, dataType, rules: rules);
     EnsureKeyIsFree(prop.Key, exceptPropertyId: null);
 
     _properties.Add(prop);
@@ -48,7 +52,10 @@ public class EntityConfig
   public EntityPropertyConfig? FindProperty(string key)
     => _properties.FirstOrDefault(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase));
 
-  public EntityPropertyConfig ChangeProperty(Guid propertyId, string? newKey, string? newName)
+  /// <summary>
+  /// Змінює ключ, назву та/або правила поля; null - не змінювати. Тип поля не змінюється.
+  /// </summary>
+  public EntityPropertyConfig ChangeProperty(Guid propertyId, string? newKey, string? newName, PropertyRules? newRules = null)
   {
     var prop = FindProperty(propertyId)
                ?? throw new DomainValidationException("Поле не належить цій моделі");
@@ -62,6 +69,9 @@ public class EntityConfig
 
     if (newName != null)
       prop.ChangeName(newName);
+
+    if (newRules != null)
+      prop.ApplyRules(newRules);
 
     return prop;
   }
@@ -84,7 +94,13 @@ public class EntityConfig
     Key = Guard.Key(newKey, "моделі");
   }
 
-  public EntityInstance CreateInstance() => new(this);
+  /// <summary>Новий запис зі значеннями полів за замовчуванням.</summary>
+  public EntityInstance CreateInstance()
+  {
+    var instance = new EntityInstance(this);
+    instance.ApplyDefaults();
+    return instance;
+  }
 
   // У БД колація CI, тому ключі порівнюємо без урахування регістру.
   private void EnsureKeyIsFree(string key, Guid? exceptPropertyId)

@@ -20,7 +20,7 @@ public class EntityConfigApiService(HttpClient httpClient) : ApiServiceBase(http
     {
       name,
       key,
-      properties = properties.Select(p => new { p.Name, p.Key, p.DataType })
+      properties = properties.Select(ToApi)
     });
 
     return result.Id;
@@ -35,11 +35,23 @@ public class EntityConfigApiService(HttpClient httpClient) : ApiServiceBase(http
   public Task<List<Guid>> AddProperties(Guid configId, IEnumerable<NewProperty> properties)
     => PostAsync<List<Guid>>($"{BaseUrl}/{configId}/properties", new
     {
-      properties = properties.Select(p => new { p.Name, p.Key, p.DataType })
+      properties = properties.Select(ToApi)
     });
 
-  public Task EditProperty(Guid configId, Guid propertyId, string? name, string? key)
-    => PatchAsync($"{BaseUrl}/{configId}/properties/{propertyId}", new { name, key });
+  /// <param name="rules">Правила замінюють попередні повністю.</param>
+  public Task EditProperty(
+    Guid configId,
+    Guid propertyId,
+    string? name,
+    string? key,
+    PropertyDataType dataType,
+    PropertyRulesForm rules)
+    => PatchAsync($"{BaseUrl}/{configId}/properties/{propertyId}", new
+    {
+      name,
+      key,
+      rules = rules.ToApi(dataType)
+    });
 
   public Task DeleteProperty(Guid configId, Guid propertyId)
     => DeleteAsync($"{BaseUrl}/{configId}/properties/{propertyId}");
@@ -49,10 +61,22 @@ public class EntityConfigApiService(HttpClient httpClient) : ApiServiceBase(http
     public string Name { get; set; } = string.Empty;
     public string Key { get; set; } = string.Empty;
     public PropertyDataType DataType { get; set; }
+    public PropertyRulesForm Rules { get; set; } = new();
 
     /// <summary>Ключ змінювали вручну - більше не генеруємо його з назви.</summary>
     public bool KeyTouched { get; set; }
+
+    /// <summary>У редакторі розгорнуто панель правил.</summary>
+    public bool ShowRules { get; set; }
   }
+
+  private static object ToApi(NewProperty p) => new
+  {
+    p.Name,
+    p.Key,
+    p.DataType,
+    Rules = p.Rules.ToApi(p.DataType)
+  };
 
   private class IdResponse
   {

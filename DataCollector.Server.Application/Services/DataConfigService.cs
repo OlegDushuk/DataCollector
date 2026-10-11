@@ -28,7 +28,7 @@ public class DataConfigService(
     var config = new EntityConfig(command.Key, command.Name);
 
     foreach (var prop in command.Properties)
-      config.AddProperty(prop.Key, prop.Name, prop.DataType.ToDomain());
+      config.AddProperty(prop.Key, prop.Name, prop.DataType.ToDomain(), prop.Rules.ToDomain());
 
     await entityConfigRepository.Create(config);
     return config.Id;
@@ -58,7 +58,7 @@ public class DataConfigService(
     var entity = await entityConfigRepository.Load(config);
 
     var added = command.Properties
-      .Select(p => entity.AddProperty(p.Key, p.Name, p.DataType.ToDomain()))
+      .Select(p => entity.AddProperty(p.Key, p.Name, p.DataType.ToDomain(), p.Rules.ToDomain()))
       .ToList();
 
     if (added.Count == 0)
@@ -73,7 +73,8 @@ public class DataConfigService(
     var entity = await entityConfigRepository.Load(config);
     EnsurePropertyExists(entity, propertyId);
 
-    var property = entity.ChangeProperty(propertyId, command.Key, command.Name);
+    var property = entity.ChangeProperty(
+      propertyId, command.Key, command.Name, command.Rules is null ? null : command.Rules.ToDomain());
     await entityPropertyConfigRepository.Update(property);
   }
 

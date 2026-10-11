@@ -19,6 +19,12 @@ internal class EntityPropertyConfigRow
   public string Name { get; set; } = null!;
   public int DataType { get; set; }
   public DateTime CreatedAt { get; set; }
+
+  public bool IsRequired { get; set; }
+  public string? DefaultValue { get; set; }
+
+  /// <summary>Правила, специфічні для типу поля, у JSON (див. <see cref="Common.PropertySettingsJson"/>).</summary>
+  public string? Settings { get; set; }
 }
 
 internal class EntityInstanceRow

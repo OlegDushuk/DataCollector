@@ -70,12 +70,15 @@ public class EntityConfigRepository
     if (row is null)
       return null;
 
+    // Правила відновлюються через ту саму перевірку, що й при створенні поля:
+    // у БД вони лежать у текстовому інваріантному вигляді.
     var properties = propertyRows.Select(p => new EntityPropertyConfig(
       p.Key,
       p.Name,
       (PropertyDataType)p.DataType,
       p.Id,
-      AsUtc(p.CreatedAt)));
+      AsUtc(p.CreatedAt),
+      PropertySettingsJson.ToRules(p.IsRequired, p.DefaultValue, p.Settings)));
 
     return new EntityConfig(row.Key, row.Name, row.Id, AsUtc(row.CreatedAt), properties);
   }

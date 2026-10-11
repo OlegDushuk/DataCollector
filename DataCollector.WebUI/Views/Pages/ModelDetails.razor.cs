@@ -25,6 +25,7 @@ public partial class ModelDetails : PageBase
   private EntityPropertyConfig? _propertyToEdit;
   private string _editName = string.Empty;
   private string _editKey = string.Empty;
+  private PropertyRulesForm _editRules = new();
   private string? _editError;
 
   private EntityPropertyConfig? _propertyToDelete;
@@ -85,6 +86,7 @@ public partial class ModelDetails : PageBase
     _propertyToEdit = prop;
     _editName = prop.Name;
     _editKey = prop.Key;
+    _editRules = PropertyRulesForm.From(prop.DataType, prop.Rules);
     _editError = null;
   }
 
@@ -93,7 +95,9 @@ public partial class ModelDetails : PageBase
     if (_propertyToEdit is null)
       return;
 
-    var ok = await Try(() => ConfigApi.EditProperty(Id, _propertyToEdit.Id, _editName, _editKey), e => _editError = e);
+    var ok = await Try(
+      () => ConfigApi.EditProperty(Id, _propertyToEdit.Id, _editName, _editKey, _propertyToEdit.DataType, _editRules),
+      e => _editError = e);
     if (!ok)
       return;
 

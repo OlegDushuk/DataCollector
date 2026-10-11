@@ -1,9 +1,13 @@
--- Змінює ключ і назву поля. Тип поля не змінюється.
+-- Змінює ключ, назву та правила поля. Тип поля не змінюється.
+-- Правила вже перевірені доменною моделлю; збережені значення записів не перевіряються повторно.
 -- Помилки: 50404 - поле не знайдене, 50409 - ключ зайнятий іншим полем цієї моделі.
 CREATE PROCEDURE [dbo].[sp_EntityPropertyConfigs_Update]
     @Id UNIQUEIDENTIFIER,
     @Key NVARCHAR(32),
-    @Name NVARCHAR(128)
+    @Name NVARCHAR(128),
+    @IsRequired BIT,
+    @DefaultValue NVARCHAR(4000),
+    @Settings NVARCHAR(MAX)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -24,6 +28,9 @@ BEGIN
 
     UPDATE [dbo].[EntityPropertyConfigs]
     SET [Key] = @Key,
-        [Name] = @Name
+        [Name] = @Name,
+        [IsRequired] = @IsRequired,
+        [DefaultValue] = @DefaultValue,
+        [Settings] = @Settings
     WHERE [Pkey] = @Pkey;
 END

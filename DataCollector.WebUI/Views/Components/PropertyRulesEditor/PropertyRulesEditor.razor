@@ -1,0 +1,69 @@
+@namespace DataCollector.WebUI.Views.Components
+
+@* Редактор правил поля: обов'язковість, значення за замовчуванням і обмеження, доступні для типу. *@
+
+<div class="rules-editor">
+    <label class="checkbox">
+        <input type="checkbox" checked="@Rules.IsRequired"
+               @onchange="@(e => Rules.IsRequired = e.Value is true)" />
+        <span class="default-text">Обов'язкове поле</span>
+    </label>
+
+    @switch (DataType)
+    {
+        case PropertyDataType.Text:
+            <div class="form__row">
+                <label class="form__field">
+                    <span class="form__label">Мін. довжина</span>
+                    <input class="input" type="number" min="0" max="4000" value="@Rules.MinLength"
+                           @oninput="@(e => Rules.MinLength = e.Value?.ToString())" />
+                </label>
+                <label class="form__field">
+                    <span class="form__label">Макс. довжина</span>
+                    <input class="input" type="number" min="1" max="4000" placeholder="4000" value="@Rules.MaxLength"
+                           @oninput="@(e => Rules.MaxLength = e.Value?.ToString())" />
+                </label>
+            </div>
+            break;
+
+        case PropertyDataType.Number:
+        case PropertyDataType.Date:
+        case PropertyDataType.DateTime:
+            <div class="form__row">
+                <label class="form__field">
+                    <span class="form__label">Мінімум</span>
+                    <ValueInput DataType="DataType" @bind-Value="Rules.Min" />
+                </label>
+                <label class="form__field">
+                    <span class="form__label">Максимум</span>
+                    <ValueInput DataType="DataType" @bind-Value="Rules.Max" />
+                </label>
+            </div>
+            break;
+
+        case PropertyDataType.Enum:
+            <label class="form__field">
+                <span class="form__label">Варіанти <span class="form__label-hint">кожен з нового рядка</span></span>
+                <textarea class="textarea" rows="4" placeholder="Низький&#10;Середній&#10;Високий"
+                          value="@Rules.OptionsText"
+                          @oninput="@(e => Rules.OptionsText = e.Value?.ToString() ?? "")"></textarea>
+            </label>
+            break;
+    }
+
+    <label class="form__field">
+        <span class="form__label">Значення за замовчуванням <span class="form__label-hint">для нових записів</span></span>
+        <ValueInput DataType="DataType" @bind-Value="Rules.DefaultValue" Options="Rules.Options"
+                    Min="@Rules.Min" Max="@Rules.Max" />
+    </label>
+
+    @if (DataType == PropertyDataType.DateTime)
+    {
+        <div class="form__hint default-text">Дата й час вводяться в місцевому часі, в API зберігаються в UTC.</div>
+    }
+</div>
+
+@code {
+  [Parameter, EditorRequired] public PropertyDataType DataType { get; set; }
+  [Parameter, EditorRequired] public PropertyRulesForm Rules { get; set; } = new();
+}
