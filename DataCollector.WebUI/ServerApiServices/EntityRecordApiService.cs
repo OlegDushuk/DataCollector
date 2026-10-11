@@ -33,6 +33,33 @@ public class EntityRecordApiService(HttpClient httpClient) : ApiServiceBase(http
     return PostAsync<PagedResult<EntityInstance>>($"{RecordsUrl(configId)}/query", body, cancellationToken);
   }
 
+  /// <summary>
+  /// Групування записів і показники по групах (POST .../records/aggregate).
+  /// Межі днів і місяців рахуються в часовому поясі сервера інтерфейсу - так само, як показуються дати.
+  /// </summary>
+  public Task<AggregateResult> Aggregate(
+    Guid configId,
+    IEnumerable<object> filters,
+    string? search,
+    IEnumerable<object> groupBy,
+    IEnumerable<object> metrics,
+    string orderBy,
+    CancellationToken cancellationToken = default)
+  {
+    var body = new
+    {
+      filters,
+      search,
+      groupBy,
+      metrics,
+      orderBy,
+      limit = 500,
+      timeZone = TimeZoneInfo.Local.Id
+    };
+
+    return PostAsync<AggregateResult>($"{RecordsUrl(configId)}/aggregate", body, cancellationToken);
+  }
+
   public async Task<Guid> Create(Guid configId, IReadOnlyDictionary<string, string?> values)
   {
     var result = await PostAsync<IdResponse>(RecordsUrl(configId), new { values });

@@ -32,11 +32,24 @@ public partial class Records : PageBase, IDisposable
   private List<FilterField> _filterFields = [];
   private List<RecordFilterForm> _filters = [];
   private string? _search;
-  private bool _isFilterPanelOpen;
+  // Бічна панель з фільтрами (і параметрами зведення) - не забирає висоту в таблиці.
+  private bool _isPanelOpen;
   private string? _filterFocus;
   private CancellationTokenSource? _searchDebounce;
 
   private const int SearchDebounceMs = 400;
+
+  private enum RecordsView
+  {
+    Table,
+    Summary
+  }
+
+  private RecordsView _view = RecordsView.Table;
+  private readonly SummarySettings _summarySettings = new();
+
+  // Збільшується при кожній зміні фільтрів або пошуку - за ним зведення розуміє, що треба перерахувати.
+  private int _filtersVersion;
 
   private string EmptyText => _config?.Properties.Count == 0
     ? "У моделі немає полів - додайте їх у налаштуваннях моделі"
@@ -79,7 +92,10 @@ public partial class Records : PageBase, IDisposable
     await Try(async () => _config = await ConfigApi.Get(ConfigKey));
 
     if (_config != null)
+    {
       _filterFields = FilterField.ForConfig(_config);
+      _summarySettings.ResetFor(_config.Id);
+    }
   }
 
   private async Task<List<EntityConfigListItem>?> LoadConfigs()
@@ -108,14 +124,8 @@ public partial class Records : PageBase, IDisposable
     {
       await Try(async () =>
       {
-        var filters = _filters
-          .Select(f => (Filter: f, Field: FindFilterField(f.Field)))
-          .Where(x => x.Field != null)
-          .Select(x => x.Filter.ToApi(x.Field!))
-          .ToList();
-
         var page = await RecordApi.Query(
-          configId, filters, _search,
+          configId, ApiFilters(), _search,
           args.PageNumber, args.PageSize, args.SortColumnKey, args.SortIsDescending, cts.Token);
 
         _records = page.Items;
@@ -141,34 +151,60 @@ public partial class Records : PageBase, IDisposable
 
   private FilterField? FindFilterField(string key) => _filterFields.FirstOrDefault(f => f.Key == key);
 
+  /// <summary>Застосовані умови у форматі API - однакові для таблиці і зведення.</summary>
+  private List<object> ApiFilters() => _filters
+    .Select(f => (Filter: f, Field: FindFilterField(f.Field)))
+    .Where(x => x.Field != null)
+    .Select(x => x.Filter.ToApi(x.Field!))
+    .ToList();
+
   private void ResetFilters()
   {
     _filters = [];
     _search = null;
-    _isFilterPanelOpen = false;
     _filterFocus = null;
     _searchDebounce?.Cancel();
   }
 
-  private void ToggleFilterPanel()
+  private void TogglePanel()
   {
-    _isFilterPanelOpen = !_isFilterPanelOpen;
+    _isPanelOpen = !_isPanelOpen;
     _filterFocus = null;
+  }
+
+  /// <summary>
+  /// Перемикання "Таблиця / Зведення". Параметри зведення живуть у бічній панелі, тож при переході
+  /// до зведення панель відкривається.
+  /// </summary>
+  private void SwitchView(RecordsView view)
+  {
+    if (_view == view)
+      return;
+
+    _view = view;
+    if (view == RecordsView.Summary)
+      _isPanelOpen = true;
   }
 
   /// <summary>Значок фільтра в заголовку колонки: відкрити панель з умовою для цього поля.</summary>
   private void OnFilterColumnClick(string key)
   {
     _filterFocus = key;
-    _isFilterPanelOpen = true;
+    _isPanelOpen = true;
   }
 
+  /// <summary>Панель лишається відкритою: зручно уточнювати умови, бачачи результат.</summary>
   private Task ApplyFilters(List<RecordFilterForm> filters)
   {
     _filters = filters;
-    _isFilterPanelOpen = false;
     _filterFocus = null;
     return ReloadFromFirstPage();
+  }
+
+  private void OnSummarySettingsChanged()
+  {
+    // Той самий лічильник, що й для фільтрів: зведення перераховується при його зміні.
+    _filtersVersion++;
   }
 
   private Task RemoveFilter(RecordFilterForm filter)
@@ -206,7 +242,13 @@ public partial class Records : PageBase, IDisposable
     await ReloadFromFirstPage();
   }
 
-  private Task ReloadFromFirstPage() => _table?.Reload(toFirstPage: true) ?? Task.CompletedTask;
+  private Task ReloadFromFirstPage()
+  {
+    _filtersVersion++;
+
+    // У режимі зведення таблиці немає (воно перераховується саме за _filtersVersion).
+    return _view == RecordsView.Table && _table != null ? _table.Reload(toFirstPage: true) : Task.CompletedTask;
+  }
 
   private void CancelReload()
   {
@@ -267,8 +309,7 @@ public partial class Records : PageBase, IDisposable
     var isNew = _editing is null;
     _isFormOpen = false;
 
-    if (_table != null)
-      await _table.Reload(toFirstPage: isNew);
+    await RefreshData(toFirstPage: isNew);
   }
 
   private async Task Delete()
@@ -281,7 +322,18 @@ public partial class Records : PageBase, IDisposable
       return;
 
     _toDelete = null;
-    if (_table != null)
-      await _table.Reload();
+    await RefreshData(toFirstPage: false);
+  }
+
+  /// <summary>Дані змінились: перечитати таблицю або перерахувати зведення - залежно від того, що відкрито.</summary>
+  private Task RefreshData(bool toFirstPage)
+  {
+    if (_view == RecordsView.Summary || _table is null)
+    {
+      _filtersVersion++;
+      return Task.CompletedTask;
+    }
+
+    return _table.Reload(toFirstPage);
   }
 }

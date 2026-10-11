@@ -1,0 +1,146 @@
+@use "../variables";
+
+// Зведення записів: налаштування групування й показників і таблиця результатів.
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: variables.$pad-md;
+  flex: 1;
+  min-height: 0;
+
+  &__result {
+    flex: 1;
+    min-height: 120px;
+    overflow: auto;
+    background: variables.$surface-color;
+    border: 1px solid variables.$border-color;
+    border-radius: variables.$radius-lg;
+    transition: opacity 0.2s;
+
+    &--loading {
+      opacity: 0.5;
+    }
+  }
+
+  &__empty {
+    padding: 40px variables.$pad-md;
+    text-align: center;
+  }
+
+  &__note {
+    padding: 12px variables.$pad-md;
+    line-height: 18px;
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    color: variables.$title-text-color;
+
+    th,
+    td {
+      padding: 10px variables.$pad-md;
+      border-bottom: 1px solid variables.$border-color;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: variables.$bg-color;
+      color: variables.$subtitle-text-color;
+      font-size: 12px;
+      font-weight: 400;
+      text-transform: uppercase;
+    }
+
+    tbody tr:hover {
+      background: variables.$bg-color;
+    }
+  }
+
+  &__number {
+    position: relative;
+    text-align: right !important;
+    min-width: 140px;
+  }
+
+  // Смуга під значенням першого показника (від правого краю, як у стовпчиковій діаграмі).
+  &__bar {
+    position: absolute;
+    right: 0;
+    top: 6px;
+    bottom: 6px;
+    background: variables.$accent-light-color;
+    border-radius: 4px 0 0 4px;
+  }
+
+  &__value {
+    position: relative;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: variables.$pad-md;
+    padding: variables.$pad-md;
+  }
+
+  &__tile {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 200px;
+    padding: variables.$pad-md;
+    border: 1px solid variables.$border-color;
+    border-radius: variables.$radius-md;
+  }
+
+  &__tile-value {
+    font-size: 26px;
+    font-weight: 600;
+    color: variables.$title-text-color;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+// Параметри зведення в бічній панелі.
+.summary-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+
+  &__block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+
+    > .button {
+      align-self: flex-start;
+    }
+  }
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+    border: 1px solid variables.$border-color;
+    border-radius: variables.$radius-md;
+    background: variables.$bg-color;
+  }
+
+  &__line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__hint {
+    line-height: 18px;
+  }
+}

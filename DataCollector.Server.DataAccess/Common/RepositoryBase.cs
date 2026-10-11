@@ -118,6 +118,31 @@ public abstract class RepositoryBase
     }, cancellationToken);
   }
 
+  /// <summary>
+  /// Параметризований SQL з одним набором результатів довільної структури (колонки залежать від запиту):
+  /// кожен рядок - словник "колонка -> значення".
+  /// </summary>
+  protected Task<List<IReadOnlyDictionary<string, object?>>> QueryRowsSqlAsync(
+    string sql,
+    DynamicParameters parameters,
+    CancellationToken cancellationToken = default)
+  {
+    return Run(async connection =>
+    {
+      var rows = await connection.QueryAsync(new CommandDefinition(
+        commandText: sql,
+        parameters: parameters,
+        commandType: CommandType.Text,
+        cancellationToken: cancellationToken));
+
+      // Dapper повертає DapperRow, який реалізує IDictionary<string, object>.
+      return rows
+        .Select(row => (IReadOnlyDictionary<string, object?>)new Dictionary<string, object?>(
+          (IDictionary<string, object?>)row))
+        .ToList();
+    }, cancellationToken);
+  }
+
   private async Task<TResult> Run<TResult>(
     Func<SqlConnection, Task<TResult>> action,
     CancellationToken cancellationToken = default)

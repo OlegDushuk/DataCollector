@@ -20,50 +20,43 @@
   }
 }
 
-// Панель умов фільтра над таблицею.
+// Умови фільтра в бічній панелі: кожна умова - окремий блок (поле, оператор, значення одне під одним).
 .filter-panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: variables.$pad-md;
-  background: variables.$surface-color;
-  border: 1px solid variables.$border-color;
-  border-radius: variables.$radius-lg;
 
-  &__header {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-  }
-
-  &__empty {
+  &__empty,
+  &__hint {
     line-height: 18px;
-  }
-
-  &__row {
-    display: grid;
-    grid-template-columns: 200px 150px 1fr 28px;
-    gap: 8px;
-    align-items: center;
-  }
-
-  &__values {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
   }
 
   &__footer {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 8px;
+  }
+}
 
-    &-right {
-      display: flex;
-      gap: 8px;
-    }
+.filter-condition {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid variables.$border-color;
+  border-radius: variables.$radius-md;
+  background: variables.$bg-color;
+
+  &__line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__range {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
 }
 
@@ -105,8 +98,12 @@
 .filter-chips {
   display: flex;
   flex-wrap: wrap;
+  flex-shrink: 0;
   align-items: center;
   gap: 8px;
+  // Не більше двох рядків чипів - решта прокручується, таблиця не стискається.
+  max-height: 64px;
+  overflow-y: auto;
 
   &__item {
     display: inline-flex;
@@ -154,5 +151,177 @@
     &:hover {
       color: variables.$danger-color;
     }
+  }
+}
+
+// Панель над таблицею / зведенням: модель, пошук, фільтри, вибір подання.
+.records-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: variables.$pad-sm;
+  flex-wrap: wrap;
+
+  &__left,
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: variables.$pad-sm;
+  }
+}
+
+// Перемикач з кількох кнопок ("Таблиця | Зведення").
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: variables.$radius-md;
+  background: variables.$surface-color;
+  border: 1px solid variables.$border-color;
+
+  &__item {
+    height: 28px;
+    padding: 0 14px;
+    border: none;
+    border-radius: variables.$radius-sm;
+    background: transparent;
+    color: variables.$button-text-color;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.2s;
+
+    &:hover {
+      color: variables.$accent-color;
+    }
+
+    &--active,
+    &--active:hover {
+      background: variables.$accent-color;
+      color: variables.$surface-color;
+    }
+  }
+}
+
+// Робоча область сторінки записів: дані + бічна панель параметрів праворуч.
+.workspace {
+  display: flex;
+  gap: variables.$pad-md;
+  flex: 1;
+  min-height: 0;
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+  }
+}
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 360px;
+  min-height: 0;
+  background: variables.$surface-color;
+  border: 1px solid variables.$border-color;
+  border-radius: variables.$radius-lg;
+  overflow: hidden;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 56px;
+    padding: 0 variables.$pad-md;
+    border-bottom: 1px solid variables.$border-color;
+  }
+
+  &__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: variables.$radius-sm;
+    background: transparent;
+    cursor: pointer;
+    transition: 0.2s;
+
+    svg {
+      height: 16px;
+    }
+
+    &:hover {
+      background: variables.$accent-light-color;
+
+      svg {
+        fill: variables.$accent-color;
+      }
+    }
+  }
+
+  &__body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: variables.$pad-md;
+
+    & + & {
+      border-top: 1px solid variables.$border-color;
+    }
+  }
+}
+
+// Кнопка показу бічної панелі з лічильником умов.
+.panel-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid variables.$border-color;
+  border-radius: variables.$radius-md;
+  background: variables.$surface-color;
+  color: variables.$button-text-color;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.25s;
+
+  svg {
+    height: 16px;
+    fill: currentColor;
+  }
+
+  &:hover {
+    color: variables.$accent-color;
+    background: variables.$accent-light-color;
+  }
+
+  &--active {
+    color: variables.$accent-color;
+    border-color: variables.$accent-color;
+    background: variables.$accent-light-color;
+  }
+
+  &__count {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: variables.$accent-color;
+    color: variables.$surface-color;
+    font-size: 12px;
+    line-height: 20px;
+    text-align: center;
   }
 }

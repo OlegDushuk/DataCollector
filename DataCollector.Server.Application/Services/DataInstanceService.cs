@@ -40,17 +40,8 @@ public class DataInstanceService(
   {
     var entity = await entityConfigRepository.Load(config);
 
-    var filters = (command.Filters ?? [])
-      .Select(f => RecordFilter.Create(
-        RecordField.Resolve(entity, f.Field),
-        f.Operator.ToFilterOperator(),
-        f.Value?.ToRawValue(f.Field),
-        f.ValueTo?.ToRawValue(f.Field),
-        f.Values?.Select(v => v.ToRawValue(f.Field)).ToList()))
-      .ToList();
-
     var query = new RecordQuery(
-      filters,
+      BuildFilters(entity, command.Filters),
       command.Search,
       RecordField.Resolve(entity, string.IsNullOrWhiteSpace(command.SortBy) ? RecordField.CreatedAtKey : command.SortBy),
       command.SortDescending,
@@ -66,6 +57,42 @@ public class DataInstanceService(
       PageNumber = query.PageNumber,
       PageSize = query.PageSize
     };
+  }
+
+  public async Task<AggregateResultDto> Aggregate(
+    string config,
+    AggregateDataInstancesCommand command,
+    CancellationToken cancellationToken = default)
+  {
+    var entity = await entityConfigRepository.Load(config);
+
+    var dimensions = (command.GroupBy ?? [])
+      .Select(d => AggregateDimension.Create(
+        RecordField.Resolve(entity, d.Field),
+        d.Interval.ToDateInterval(),
+        d.Step))
+      .ToList();
+
+    // Без показників - кількість записів: найчастіший запит ("скільки записів у кожній групі").
+    var metrics = command.Metrics is { Count: > 0 }
+      ? command.Metrics
+        .Select(m => AggregateMetric.Create(
+          m.Function.ToAggregateFunction(),
+          string.IsNullOrWhiteSpace(m.Field) ? null : RecordField.Resolve(entity, m.Field)))
+        .ToList()
+      : [AggregateMetric.Create(AggregateFunction.Count, null)];
+
+    var query = new AggregateQuery(
+      BuildFilters(entity, command.Filters),
+      command.Search,
+      dimensions,
+      metrics,
+      command.OrderBy.ToAggregateOrder(),
+      command.Limit,
+      AggregateQuery.ResolveTimeZone(command.TimeZone));
+
+    var result = await entityInstanceRepository.Aggregate(entity, query, cancellationToken);
+    return query.ToDto(result);
   }
 
   public async Task<DataInstanceDto> Get(string config, Guid instanceId)
@@ -105,6 +132,18 @@ public class DataInstanceService(
     var instance = await LoadInstance(entity, instanceId);
 
     await entityInstanceRepository.Delete(instance.Id);
+  }
+
+  private static List<RecordFilter> BuildFilters(EntityConfig entity, List<RecordFilterDto>? filters)
+  {
+    return (filters ?? [])
+      .Select(f => RecordFilter.Create(
+        RecordField.Resolve(entity, f.Field),
+        f.Operator.ToFilterOperator(),
+        f.Value?.ToRawValue(f.Field),
+        f.ValueTo?.ToRawValue(f.Field),
+        f.Values?.Select(v => v.ToRawValue(f.Field)).ToList()))
+      .ToList();
   }
 
   private async Task<EntityInstance> LoadInstance(EntityConfig entity, Guid instanceId)

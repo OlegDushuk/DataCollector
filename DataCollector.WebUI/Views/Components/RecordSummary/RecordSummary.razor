@@ -1,0 +1,174 @@
+@namespace DataCollector.WebUI.Views.Components
+@implements IDisposable
+@inject EntityRecordApiService RecordApi
+
+@*
+    Результат зведення: таблиця груп з показниками або плитки підсумків (без групування).
+    Параметри (SummarySettings) редагуються в бічній панелі (SummarySettingsEditor); зведення
+    перераховується, коли змінюється Version - лічильник змін фільтрів і параметрів на сторінці.
+*@
+
+<div class="summary">
+    <Alert Message="@_error" />
+
+    <div class="summary__result @(_loading ? "summary__result--loading" : "")">
+        @if (_result is null)
+        {
+            <div class="default-text summary__empty">@(_loading ? "Рахуємо…" : "")</div>
+        }
+        else if (_result.Dimensions.Count == 0)
+        {
+            @* Без групування - один рядок підсумків: показуємо плитками. *@
+            <div class="summary__tiles">
+                @for (var i = 0; i < _result.Metrics.Count; i++)
+                {
+                    var metric = _result.Metrics[i];
+                    var value = _result.Rows.Count > 0 ? _result.Rows[0].Values[i] : default;
+
+                    <div class="summary__tile">
+                        <div class="subtitle">@metric.Name</div>
+                        <div class="summary__tile-value">@AggregateFormat.Value(metric, FieldType(metric.Field), value)</div>
+                    </div>
+                }
+            </div>
+        }
+        else if (_result.Rows.Count == 0)
+        {
+            <div class="default-text summary__empty">Немає записів, що відповідають умовам</div>
+        }
+        else
+        {
+            var maxValue = _result.Rows.Select(r => AggregateFormat.Numeric(r.Values[0]) ?? 0).DefaultIfEmpty(0).Max();
+
+            <table class="summary__table">
+                <thead>
+                <tr>
+                    @foreach (var dim in _result.Dimensions)
+                    {
+                        <th>@dim.Name</th>
+                    }
+                    @foreach (var metric in _result.Metrics)
+                    {
+                        <th class="summary__number">@metric.Name</th>
+                    }
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var row in _result.Rows)
+                {
+                    <tr>
+                        @for (var i = 0; i < _result.Dimensions.Count; i++)
+                        {
+                            <td>@AggregateFormat.Key(_result.Dimensions[i], row.Keys[i])</td>
+                        }
+                        @for (var i = 0; i < _result.Metrics.Count; i++)
+                        {
+                            var metric = _result.Metrics[i];
+                            var value = row.Values[i];
+
+                            <td class="summary__number">
+                                @if (i == 0 && maxValue > 0 && AggregateFormat.Numeric(value) is { } number && number > 0)
+                                {
+                                    @* Смуга пропорційна першому показнику - швидко видно найбільші групи. *@
+                                    <span class="summary__bar" style="width: @(Math.Round(number / maxValue * 100, 1).ToString(System.Globalization.CultureInfo.InvariantCulture))%"></span>
+                                }
+                                <span class="summary__value">@AggregateFormat.Value(metric, FieldType(metric.Field), value)</span>
+                            </td>
+                        }
+                    </tr>
+                }
+                </tbody>
+            </table>
+
+            @if (_result.Truncated)
+            {
+                <div class="default-text summary__note">
+                    Показано перші @_result.Rows.Count груп. Звузьте фільтри або виберіть більший інтервал.
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+  [Parameter, EditorRequired] public Guid ConfigId { get; set; }
+  [Parameter, EditorRequired] public IReadOnlyList<FilterField> Fields { get; set; } = [];
+
+  /// <summary>Умови фільтра у форматі API (ті самі, що в таблиці).</summary>
+  [Parameter] public IReadOnlyList<object> Filters { get; set; } = [];
+
+  [Parameter] public string? Search { get; set; }
+
+  /// <summary>Лічильник змін фільтрів і параметрів на сторінці: змінився - перерахувати.</summary>
+  [Parameter] public int Version { get; set; }
+
+  /// <summary>Параметри зведення (зберігає сторінка, редагує бічна панель).</summary>
+  [Parameter, EditorRequired] public SummarySettings Settings { get; set; } = new();
+
+  private AggregateResult? _result;
+  private bool _loading;
+  private string? _error;
+
+  private CancellationTokenSource? _cts;
+  private Guid _loadedConfig;
+  private int _loadedVersion = -1;
+
+  protected override async Task OnParametersSetAsync()
+  {
+    if (ConfigId == _loadedConfig && Version == _loadedVersion)
+      return;
+
+    if (ConfigId != _loadedConfig)
+      _result = null;
+
+    _loadedConfig = ConfigId;
+    _loadedVersion = Version;
+    await Load();
+  }
+
+  private PropertyDataType? FieldType(string? key) => Fields.FirstOrDefault(f => f.Key == key)?.DataType;
+
+  private async Task Load()
+  {
+    _cts?.Cancel();
+    var cts = _cts = new CancellationTokenSource();
+
+    var dims = Settings.Dimensions
+      .Select(d => (Form: d, Field: Fields.FirstOrDefault(f => f.Key == d.Field)))
+      .Where(x => x.Field != null)
+      .Select(x => x.Form.ToApi(x.Field!))
+      .ToList();
+
+    _loading = true;
+    _error = null;
+
+    try
+    {
+      _result = await RecordApi.Aggregate(
+        ConfigId, Filters, Search, dims, Settings.Metrics.Select(m => m.ToApi()), Settings.Order, cts.Token);
+    }
+    catch (OperationCanceledException) when (cts.IsCancellationRequested)
+    {
+      // Параметри змінились ще раз - результат цього запиту вже не потрібен.
+      return;
+    }
+    catch (ApiException e)
+    {
+      _error = e.Message;
+    }
+    finally
+    {
+      if (_cts == cts)
+        _cts = null;
+
+      cts.Dispose();
+    }
+
+    _loading = false;
+  }
+
+  public void Dispose()
+  {
+    _cts?.Cancel();
+  }
+}

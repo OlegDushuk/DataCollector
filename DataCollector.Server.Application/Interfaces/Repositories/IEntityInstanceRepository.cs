@@ -13,6 +13,12 @@ public interface IEntityInstanceRepository
     RecordQuery query,
     CancellationToken cancellationToken = default);
 
+  /// <summary>Групи записів, що задовольняють запит, і показники по кожній групі.</summary>
+  Task<AggregateResult> Aggregate(
+    EntityConfig config,
+    AggregateQuery query,
+    CancellationToken cancellationToken = default);
+
   /// <summary>Повертає null, якщо запису немає або він належить іншій моделі.</summary>
   Task<EntityInstance?> GetById(EntityConfig config, Guid id);
 

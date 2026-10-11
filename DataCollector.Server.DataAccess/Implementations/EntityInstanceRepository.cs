@@ -24,11 +24,7 @@ public class EntityInstanceRepository : RepositoryBase, IEntityInstanceRepositor
     // Умови фільтра довільні, тому SQL збирається під запит (параметризовано), а не береться з процедури.
     var command = RecordQuerySql.Build(config, query);
 
-    var parameters = new DynamicParameters();
-    foreach (var parameter in command.Parameters)
-      parameters.Add(parameter.Name, parameter.Value, parameter.DbType);
-
-    return QueryMultipleSqlAsync(command.Sql, parameters, async grid =>
+    return QueryMultipleSqlAsync(command.Sql, ToParameters(command), async grid =>
     {
       var totalCount = await grid.ReadSingleAsync<int>();
       var rows = (await grid.ReadAsync<EntityInstanceRow>()).ToList();
@@ -37,6 +33,27 @@ public class EntityInstanceRepository : RepositoryBase, IEntityInstanceRepositor
       var items = rows.Select(r => Build(config, r, values[r.Id])).ToList();
       return (items, totalCount);
     }, cancellationToken);
+  }
+
+  public async Task<AggregateResult> Aggregate(
+    EntityConfig config,
+    AggregateQuery query,
+    CancellationToken cancellationToken = default)
+  {
+    var command = RecordAggregateSql.Build(config, query);
+    var rows = await QueryRowsSqlAsync(command.Sql, ToParameters(command), cancellationToken);
+
+    // SQL повертає на одну групу більше за ліміт - так видно, що результат обрізано.
+    var truncated = rows.Count > query.Limit;
+
+    var result = rows
+      .Take(query.Limit)
+      .Select(row => new AggregateRow(
+        query.Dimensions.Select((d, i) => d.NormalizeKey(row[$"K{i}"])).ToList(),
+        query.Metrics.Select((m, i) => m.NormalizeValue(row[$"M{i}"])).ToList()))
+      .ToList();
+
+    return new AggregateResult(result, truncated);
   }
 
   public Task<EntityInstance?> GetById(EntityConfig config, Guid id)
@@ -77,6 +94,15 @@ public class EntityInstanceRepository : RepositoryBase, IEntityInstanceRepositor
   public async Task Delete(Guid id)
   {
     await ExecuteAsync("Delete", new { Id = id });
+  }
+
+  private static DynamicParameters ToParameters(RecordSqlBuilder command)
+  {
+    var parameters = new DynamicParameters();
+    foreach (var parameter in command.Parameters)
+      parameters.Add(parameter.Name, parameter.Value, parameter.DbType);
+
+    return parameters;
   }
 
   private static EntityInstance Build(

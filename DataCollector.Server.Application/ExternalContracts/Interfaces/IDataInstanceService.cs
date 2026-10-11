@@ -12,6 +12,12 @@ public interface IDataInstanceService
     GetDataInstancesQuery query,
     CancellationToken cancellationToken = default);
 
+  /// <summary>Групування записів і показники по групах (з тими ж умовами фільтра).</summary>
+  Task<AggregateResultDto> Aggregate(
+    string config,
+    AggregateDataInstancesCommand command,
+    CancellationToken cancellationToken = default);
+
   /// <summary>Сторінка записів з умовами фільтра, пошуком і сортуванням.</summary>
   Task<PagedResult<DataInstanceDto>> Query(
     string config,

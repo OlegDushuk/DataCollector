@@ -2,18 +2,15 @@
 
 @inherits PageBase
 
-<div class="page page--scroll">
-    <div class="page__header">
-        <div class="page__header-left">
-            <h1 class="page__title">Головна</h1>
-            <div class="page__subtitle">Огляд моделей даних і зібраних записів</div>
-        </div>
+<PageHeader Title="Головна">
+    <Subtitle>Огляд моделей даних і зібраних записів</Subtitle>
+    <Actions>
+        <Button Text="Керувати моделями" Variant="ButtonVariant.Secondary"
+                OnClick="@(() => Navigation.NavigateTo("/management"))" />
+    </Actions>
+</PageHeader>
 
-        <div class="page__header-right">
-            <Button Text="Керувати моделями" Variant="ButtonVariant.Secondary"
-                    OnClick="@(() => Navigation.NavigateTo("/management"))" />
-        </div>
-    </div>
+<div class="page page--scroll">
 
     <Alert Message="@Error" OnClose="@(() => Error = null)" />
 

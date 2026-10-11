@@ -11,37 +11,6 @@
     height: auto;
   }
 
-  &__header {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: variables.$pad-md;
-
-    &-left {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    &-right {
-      display: flex;
-      gap: variables.$pad-sm;
-    }
-  }
-
-  &__title {
-    font-size: 24px;
-    line-height: 28px;
-    font-weight: 600;
-    color: variables.$title-text-color;
-  }
-
-  &__subtitle {
-    font-size: 13px;
-    line-height: 18px;
-    color: variables.$button-text-color;
-  }
-
   &__back {
     font-size: 13px;
     color: variables.$subtitle-text-color;

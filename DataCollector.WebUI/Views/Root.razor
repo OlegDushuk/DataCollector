@@ -5,9 +5,11 @@
     </Found>
     <NotFound>
       <LayoutView Layout="typeof(MainLayout)">
+        <PageHeader Title="Сторінку не знайдено" />
         <div class="page">
-          <div class="page__header">
-            <h1 class="page__title">Сторінку не знайдено</h1>
+          <div class="empty-state">
+            <div class="empty-state__title">Такої сторінки немає</div>
+            <a class="page__back" href="/">На головну</a>
           </div>
         </div>
       </LayoutView>

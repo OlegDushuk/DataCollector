@@ -1,0 +1,186 @@
+@namespace DataCollector.WebUI.Views.Components
+
+@*
+    Параметри зведення в бічній панелі: групування (до двох полів), показники і порядок груп.
+    Змінює SummarySettings сторінки і повідомляє про зміну - зведення перераховується одразу.
+*@
+
+<div class="summary-editor">
+    <div class="summary-editor__block">
+        <span class="form__label">Групувати за</span>
+
+        @foreach (var dim in Settings.Dimensions)
+        {
+            var field = FindField(dim.Field);
+
+            <div class="summary-editor__item">
+                <div class="summary-editor__line">
+                    <select class="select" value="@dim.Field" @onchange="@(e => ChangeDimensionField(dim, e.Value?.ToString()))">
+                        @foreach (var f in Fields)
+                        {
+                            <option value="@f.Key">@f.Name</option>
+                        }
+                    </select>
+                    <IconButton Icon="delete" Title="Прибрати групування" Danger="true"
+                                OnClick="@(() => Change(() => Settings.Dimensions.Remove(dim)))" />
+                </div>
+
+                @if (field != null && AggregateDimensionForm.IsDate(field))
+                {
+                    <select class="select" value="@dim.Interval" @onchange="@(e => Change(() => dim.Interval = e.Value?.ToString() ?? "day"))">
+                        @foreach (var (value, label) in AggregateCatalog.IntervalsFor(field))
+                        {
+                            <option value="@value">@label</option>
+                        }
+                    </select>
+                }
+                else if (field is { DataType: PropertyDataType.Number, IsSystem: false })
+                {
+                    <input class="input" type="number" min="0" step="any" placeholder="Крок діапазону, напр. 100"
+                           title="Ширина діапазону: 100 - групи 0–100, 100–200... Порожньо - точні значення"
+                           value="@dim.Step" @onchange="@(e => Change(() => dim.Step = e.Value?.ToString()))" />
+                }
+            </div>
+        }
+
+        @if (Settings.Dimensions.Count == 0)
+        {
+            <div class="default-text summary-editor__hint">Без групування - підсумки по всіх записах.</div>
+        }
+
+        @if (Settings.Dimensions.Count < MaxDimensions && Fields.Count > 0)
+        {
+            <Button Text="@(Settings.Dimensions.Count == 0 ? "+ Групувати за полем" : "+ Ще одне групування")"
+                    Variant="ButtonVariant.Ghost" Small="true" OnClick="AddDimension" />
+        }
+    </div>
+
+    <div class="summary-editor__block">
+        <span class="form__label">Показники</span>
+
+        @foreach (var metric in Settings.Metrics)
+        {
+            <div class="summary-editor__item">
+                <div class="summary-editor__line">
+                    <select class="select" value="@metric.Function" @onchange="@(e => ChangeFunction(metric, e.Value?.ToString()))">
+                        @foreach (var (value, label) in AggregateCatalog.Functions)
+                        {
+                            <option value="@value" disabled="@(value != "count" && !AggregateCatalog.FieldsFor(value, Fields).Any())">@label</option>
+                        }
+                    </select>
+
+                    @if (Settings.Metrics.Count > 1)
+                    {
+                        <IconButton Icon="delete" Title="Прибрати показник" Danger="true"
+                                    OnClick="@(() => Change(() => Settings.Metrics.Remove(metric)))" />
+                    }
+                </div>
+
+                <select class="select" value="@metric.Field" @onchange="@(e => Change(() => metric.Field = e.Value?.ToString() ?? ""))">
+                    @if (metric.Function == "count")
+                    {
+                        <option value="">записів</option>
+                    }
+                    @foreach (var f in AggregateCatalog.FieldsFor(metric.Function, Fields))
+                    {
+                        <option value="@f.Key">@(metric.Function == "count" ? $"заповнених «{f.Name}»" : f.Name)</option>
+                    }
+                </select>
+            </div>
+        }
+
+        @if (Settings.Metrics.Count < MaxMetrics)
+        {
+            <Button Text="+ Показник" Variant="ButtonVariant.Ghost" Small="true" OnClick="AddMetric" />
+        }
+    </div>
+
+    @if (Settings.Dimensions.Count > 0)
+    {
+        <div class="summary-editor__block">
+            <span class="form__label">Порядок груп</span>
+            <select class="select" value="@Settings.Order" @onchange="@(e => Change(() => Settings.Order = e.Value?.ToString() ?? "keys"))">
+                @foreach (var (value, label) in AggregateCatalog.Orders)
+                {
+                    <option value="@value">@label</option>
+                }
+            </select>
+        </div>
+    }
+</div>
+
+@code {
+  private const int MaxDimensions = 2;
+  private const int MaxMetrics = 5;
+
+  [Parameter, EditorRequired] public IReadOnlyList<FilterField> Fields { get; set; } = [];
+  [Parameter, EditorRequired] public SummarySettings Settings { get; set; } = new();
+
+  /// <summary>Параметри змінились - зведення треба перерахувати.</summary>
+  [Parameter] public EventCallback OnChanged { get; set; }
+
+  private FilterField? FindField(string? key) => Fields.FirstOrDefault(f => f.Key == key);
+
+  private Task Change(Action change)
+  {
+    change();
+    return OnChanged.InvokeAsync();
+  }
+
+  private Task AddDimension()
+  {
+    // Пропонуємо поле, за яким зручно групувати: перелік або так/ні, інакше перше ще не використане.
+    var field = Fields.FirstOrDefault(f => f.DataType is PropertyDataType.Enum or PropertyDataType.Boolean
+                                           && Settings.Dimensions.All(d => d.Field != f.Key))
+                ?? Fields.FirstOrDefault(f => Settings.Dimensions.All(d => d.Field != f.Key))
+                ?? Fields[0];
+
+    return Change(() => Settings.Dimensions.Add(new AggregateDimensionForm { Field = field.Key, Interval = "month" }));
+  }
+
+  private Task ChangeDimensionField(AggregateDimensionForm dim, string? key)
+  {
+    if (FindField(key) is not { } field)
+      return Task.CompletedTask;
+
+    return Change(() =>
+    {
+      dim.Field = field.Key;
+      dim.Step = null;
+
+      if (AggregateDimensionForm.IsDate(field) && AggregateCatalog.IntervalsFor(field).All(i => i.Code != dim.Interval))
+        dim.Interval = "day";
+    });
+  }
+
+  private Task AddMetric()
+  {
+    // Найкорисніший другий показник - сума першого числового поля.
+    var number = AggregateCatalog.FieldsFor("sum", Fields).FirstOrDefault();
+    var metric = number is null
+      ? new AggregateMetricForm()
+      : new AggregateMetricForm { Function = "sum", Field = number.Key };
+
+    return Change(() => Settings.Metrics.Add(metric));
+  }
+
+  private Task ChangeFunction(AggregateMetricForm metric, string? function)
+  {
+    if (function is null)
+      return Task.CompletedTask;
+
+    return Change(() =>
+    {
+      metric.Function = function;
+
+      // Поле лишається, якщо підходить для нової функції; інакше - перше відповідне
+      // (для кількості порожнє поле означає "кількість записів").
+      if (metric.Field == "" && function == "count")
+        return;
+
+      var allowed = AggregateCatalog.FieldsFor(function, Fields).Select(f => f.Key).ToList();
+      if (!allowed.Contains(metric.Field))
+        metric.Field = function == "count" ? "" : allowed.FirstOrDefault() ?? "";
+    });
+  }
+}

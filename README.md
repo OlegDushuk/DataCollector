@@ -37,6 +37,7 @@
 | DELETE | `api/data-configs/{config}/properties/{id}` | видалити поле та його значення |
 | GET | `api/data-configs/{config}/records?pageNumber=1&pageSize=10&sortBy=price&sortDescending=false&search=текст` | записи з пагінацією, сортуванням і пошуком |
 | POST | `api/data-configs/{config}/records/query` | записи з умовами фільтра (див. «Фільтри») |
+| POST | `api/data-configs/{config}/records/aggregate` | групування і показники (див. «Агрегація») |
 | GET | `api/data-configs/{config}/records/{id}` | запис |
 | POST | `api/data-configs/{config}/records` | створити запис |
 | PATCH | `api/data-configs/{config}/records/{id}` | оновити передані поля запису |
@@ -91,6 +92,39 @@ Content-Type: application/json
 
 SQL для запиту збирається динамічно (`DataAccess/Querying/RecordQuerySql.cs`): кожна умова — `EXISTS` по значеннях
 поля в колонці його типу, усі значення — лише параметрами, `OPTION (RECOMPILE)` будує план під конкретні умови.
+
+## Агрегація
+
+`POST api/data-configs/{config}/records/aggregate` — групує записи і рахує показники для кожної групи.
+Умови фільтра і пошук — ті самі, що в `records/query`.
+
+```http
+POST api/data-configs/orders/records/aggregate
+Content-Type: application/json
+
+{
+  "filters": [ { "field": "status", "operator": "neq", "value": "Скасоване" } ],
+  "groupBy": [ { "field": "createdAt", "interval": "month" }, { "field": "status" } ],
+  "metrics": [ { "function": "count" }, { "function": "sum", "field": "price" }, { "function": "avg", "field": "price" } ],
+  "orderBy": "keys",
+  "limit": 1000,
+  "timeZone": "Europe/Kyiv"
+}
+```
+
+Відповідь: опис колонок і рядки `{ "keys": ["2026-10", "Нове"], "values": [120, 15340.5, 127.84] }`, прапорець `truncated`,
+якщо груп більше за `limit`.
+
+| Параметр | Значення |
+|---|---|
+| `groupBy` (до 2) | поле; для дат `interval`: `hour`, `day`, `week` (з понеділка), `month`, `quarter`, `year`; для чисел `step` — ширина діапазону (100 → 0–100, 100–200…), без нього — точні значення. Порожньо — один рядок підсумків |
+| `metrics` (1–10) | `count` (без поля — записи, з полем — заповнені значення), `sum`, `avg` — числа; `min`, `max` — числа й дати |
+| `orderBy` | `keys` — за групами (дати хронологічно, переліки в порядку варіантів), `valueDesc` / `valueAsc` — за першим показником |
+| `timeZone` | IANA або Windows; межі днів і місяців для дат з часом рахуються в ньому (за замовчуванням UTC) |
+
+Ключі груп-дат повертаються підписами інтервалу: `2026-10-11`, `2026-10-11T08:00`, `2026-10`, `2026-Q4`, `2026`
+(тиждень — дата понеділка). SQL: `DataAccess/Querying/RecordAggregateSql.cs` — LEFT JOIN значення кожного потрібного поля
+по первинному ключу (InstancePkey, PropertyPkey) і `GROUP BY` по виразах над колонками типу.
 
 ## Типи полів і правила
 

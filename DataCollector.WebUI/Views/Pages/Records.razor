@@ -3,63 +3,20 @@
 
 @inherits PageBase
 
-<div class="page">
-    <div class="page__header">
-        <div class="page__header-left">
-            <h1 class="page__title">Записи</h1>
-            <div class="page__subtitle">Дані, зібрані за моделями: вручну або через API</div>
-        </div>
-
+<PageHeader Title="Записи">
+    <Subtitle>Дані, зібрані за моделями: вручну або через API</Subtitle>
+    <Actions>
         @if (_config != null)
         {
-            <div class="page__header-right">
-                <Button Text="Налаштувати модель" Variant="ButtonVariant.Secondary"
-                        OnClick="@(() => Navigation.NavigateTo($"/management/{_config.Id}"))" />
-                <Button Text="Новий запис" OnClick="OpenCreate" Disabled="@(_config.Properties.Count == 0)" />
-            </div>
+            <Button Text="Налаштувати модель" Variant="ButtonVariant.Secondary"
+                    OnClick="@(() => Navigation.NavigateTo($"/management/{_config.Id}"))" />
+            <Button Text="Новий запис" OnClick="OpenCreate" Disabled="@(_config.Properties.Count == 0)" />
         }
-    </div>
+    </Actions>
+</PageHeader>
 
+<div class="page">
     <Alert Message="@Error" OnClose="@(() => Error = null)" />
-
-    @if (_config != null && _isFilterPanelOpen)
-    {
-        <RecordFilterPanel Fields="_filterFields"
-                           Filters="_filters"
-                           FocusField="@_filterFocus"
-                           OnApply="ApplyFilters"
-                           OnClose="@(() => { _isFilterPanelOpen = false; _filterFocus = null; })" />
-    }
-
-    @if (_config != null && HasFilters)
-    {
-        <div class="filter-chips">
-            @if (!string.IsNullOrWhiteSpace(_search))
-            {
-                <span class="filter-chips__item">
-                    <span>Пошук: «@_search»</span>
-                    <button type="button" class="filter-chips__remove" title="Прибрати"
-                            @onclick="@(() => { _search = null; return ReloadFromFirstPage(); })">×</button>
-                </span>
-            }
-
-            @foreach (var filter in _filters)
-            {
-                var field = FindFilterField(filter.Field);
-                if (field is null)
-                    continue;
-
-                <span class="filter-chips__item">
-                    <button type="button" class="filter-chips__text" title="Змінити умову"
-                            @onclick="@(() => OnFilterColumnClick(filter.Field))">@filter.Describe(field)</button>
-                    <button type="button" class="filter-chips__remove" title="Прибрати умову"
-                            @onclick="@(() => RemoveFilter(filter))">×</button>
-                </span>
-            }
-
-            <button type="button" class="filter-chips__clear" @onclick="ClearFilters">Скинути все</button>
-        </div>
-    }
 
     @if (_configs is { Count: 0 })
     {
@@ -71,73 +28,171 @@
     }
     else if (_config != null)
     {
-        <div class="page__main">
-            <DataTable @key="_config.Id"
-                       @ref="_table"
-                       TItem="EntityInstance"
-                       Items="_records"
-                       TotalCount="_totalCount"
-                       IsLoading="_isLoading"
-                       InitialSortKey="createdAt"
-                       EmptyText="@EmptyText"
-                       TotalLabel="@(HasFilters ? "Знайдено" : "Всього")"
-                       OnReload="OnReload"
-                       OnFilterClick="OnFilterColumnClick"
-                       ActiveFilterKeys="ActiveFilterKeys"
-                       OnRowClick="OpenEdit">
-                <ToolbarLeft>
-                    <label class="toolbar-field">
-                        <span class="subtitle">Модель</span>
-                        <select class="select" value="@_config.Key" @onchange="OnConfigChange">
-                            @foreach (var c in _configs ?? [])
-                            {
-                                <option value="@c.Key">@c.Name</option>
-                            }
-                        </select>
-                    </label>
+        @* Панель спільна для таблиці і зведення: модель, пошук, бічна панель параметрів, вибір подання. *@
+        <div class="records-toolbar">
+            <div class="records-toolbar__left">
+                <label class="toolbar-field">
+                    <span class="subtitle">Модель</span>
+                    <select class="select" value="@_config.Key" @onchange="OnConfigChange">
+                        @foreach (var c in _configs ?? [])
+                        {
+                            <option value="@c.Key">@c.Name</option>
+                        }
+                    </select>
+                </label>
 
-                    <div class="search-input">
-                        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                        <input class="input" placeholder="Пошук у текстових полях" value="@_search" @oninput="OnSearchInput" />
+                <div class="search-input">
+                    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    <input class="input" placeholder="Пошук у текстових полях" value="@_search" @oninput="OnSearchInput" />
+                </div>
+            </div>
+
+            <div class="records-toolbar__right">
+                <span class="default-text">Ключ для API: <span class="code">@_config.Key</span></span>
+
+                <div class="segmented">
+                    <button type="button" class="segmented__item @(_view == RecordsView.Table ? "segmented__item--active" : "")"
+                            @onclick="@(() => SwitchView(RecordsView.Table))">Таблиця</button>
+                    <button type="button" class="segmented__item @(_view == RecordsView.Summary ? "segmented__item--active" : "")"
+                            @onclick="@(() => SwitchView(RecordsView.Summary))">Зведення</button>
+                </div>
+
+                <button type="button" class="panel-toggle @(_isPanelOpen ? "panel-toggle--active" : "")"
+                        title="@(_isPanelOpen ? "Сховати панель" : "Показати панель")" @onclick="TogglePanel">
+                    <svg viewBox="0 0 24 24"><path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/></svg>
+                    <span>@(_view == RecordsView.Summary ? "Параметри" : "Фільтри")</span>
+                    @if (_filters.Count > 0)
+                    {
+                        <span class="panel-toggle__count">@_filters.Count</span>
+                    }
+                </button>
+            </div>
+        </div>
+
+        @if (HasFilters)
+        {
+            <div class="filter-chips">
+                @if (!string.IsNullOrWhiteSpace(_search))
+                {
+                    <span class="filter-chips__item">
+                        <span>Пошук: «@_search»</span>
+                        <button type="button" class="filter-chips__remove" title="Прибрати"
+                                @onclick="@(() => { _search = null; return ReloadFromFirstPage(); })">×</button>
+                    </span>
+                }
+
+                @foreach (var filter in _filters)
+                {
+                    var field = FindFilterField(filter.Field);
+                    if (field is null)
+                        continue;
+
+                    <span class="filter-chips__item">
+                        <button type="button" class="filter-chips__text" title="Змінити умову"
+                                @onclick="@(() => OnFilterColumnClick(filter.Field))">@filter.Describe(field)</button>
+                        <button type="button" class="filter-chips__remove" title="Прибрати умову"
+                                @onclick="@(() => RemoveFilter(filter))">×</button>
+                    </span>
+                }
+
+                <button type="button" class="filter-chips__clear" @onclick="ClearFilters">Скинути все</button>
+            </div>
+        }
+
+        @* Робоча область: дані займають усе місце, параметри - у бічній панелі, яку можна сховати. *@
+        <div class="workspace">
+            <div class="workspace__main">
+                @if (_view == RecordsView.Summary)
+                {
+                    <RecordSummary ConfigId="_config.Id"
+                                   Fields="_filterFields"
+                                   Filters="ApiFilters()"
+                                   Search="@_search"
+                                   Version="_filtersVersion"
+                                   Settings="_summarySettings" />
+                }
+                else
+                {
+                    <DataTable @key="_config.Id"
+                               @ref="_table"
+                               TItem="EntityInstance"
+                               Items="_records"
+                               TotalCount="_totalCount"
+                               IsLoading="_isLoading"
+                               InitialSortKey="createdAt"
+                               EmptyText="@EmptyText"
+                               TotalLabel="@(HasFilters ? "Знайдено" : "Всього")"
+                               OnReload="OnReload"
+                               OnFilterClick="OnFilterColumnClick"
+                               ActiveFilterKeys="ActiveFilterKeys"
+                               OnRowClick="OpenEdit">
+                        <RowTemplate>
+                            @foreach (var prop in _config.Properties)
+                            {
+                                <ColumnTemplate TItem="EntityInstance" Context="item"
+                                                Key="@prop.Key"
+                                                Title="@prop.Name"
+                                                IsSortable="true"
+                                                IsFilterable="true">
+                                    <span class="default-text">@item.GetDisplayValue(prop)</span>
+                                </ColumnTemplate>
+                            }
+
+                            <ColumnTemplate TItem="EntityInstance" Context="item"
+                                            Key="createdAt"
+                                            Title="Створено"
+                                            IsSortable="true"
+                                            IsFilterable="true"
+                                            Width="170px">
+                                <span class="default-text">@Format.Date(item.CreatedAt)</span>
+                            </ColumnTemplate>
+
+                            <ColumnTemplate TItem="EntityInstance" Context="item" Width="90px">
+                                <div class="actions">
+                                    <IconButton Icon="edit" Title="Змінити" OnClick="@(() => OpenEdit(item))" />
+                                    <IconButton Icon="delete" Title="Видалити" Danger="true"
+                                                OnClick="@(() => { _deleteError = null; _toDelete = item; })" />
+                                </div>
+                            </ColumnTemplate>
+                        </RowTemplate>
+                    </DataTable>
+                }
+            </div>
+
+            @if (_isPanelOpen)
+            {
+                <aside class="side-panel">
+                    <div class="side-panel__header">
+                        <div class="card__title">@(_view == RecordsView.Summary ? "Параметри зведення" : "Фільтри")</div>
+                        <button type="button" class="side-panel__close" title="Сховати панель" @onclick="TogglePanel">
+                            <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                        </button>
                     </div>
 
-                    <Button Text="@(_filters.Count > 0 ? $"Фільтри · {_filters.Count}" : "Фільтри")"
-                            Variant="@(_isFilterPanelOpen || _filters.Count > 0 ? ButtonVariant.Primary : ButtonVariant.Secondary)"
-                            OnClick="ToggleFilterPanel" />
-                </ToolbarLeft>
-                <ToolbarRight>
-                    <span class="default-text">Ключ для API: <span class="code">@_config.Key</span></span>
-                </ToolbarRight>
-                <RowTemplate>
-                    @foreach (var prop in _config.Properties)
-                    {
-                        <ColumnTemplate TItem="EntityInstance" Context="item"
-                                        Key="@prop.Key"
-                                        Title="@prop.Name"
-                                        IsSortable="true"
-                                        IsFilterable="true">
-                            <span class="default-text">@item.GetDisplayValue(prop)</span>
-                        </ColumnTemplate>
-                    }
+                    <div class="side-panel__body">
+                        @if (_view == RecordsView.Summary)
+                        {
+                            <section class="side-panel__section">
+                                <div class="side-panel__section-title subtitle">Групування і показники</div>
+                                <SummarySettingsEditor Fields="_filterFields"
+                                                       Settings="_summarySettings"
+                                                       OnChanged="OnSummarySettingsChanged" />
+                            </section>
+                        }
 
-                    <ColumnTemplate TItem="EntityInstance" Context="item"
-                                    Key="createdAt"
-                                    Title="Створено"
-                                    IsSortable="true"
-                                    IsFilterable="true"
-                                    Width="170px">
-                        <span class="default-text">@Format.Date(item.CreatedAt)</span>
-                    </ColumnTemplate>
-
-                    <ColumnTemplate TItem="EntityInstance" Context="item" Width="90px">
-                        <div class="actions">
-                            <IconButton Icon="edit" Title="Змінити" OnClick="@(() => OpenEdit(item))" />
-                            <IconButton Icon="delete" Title="Видалити" Danger="true"
-                                        OnClick="@(() => { _deleteError = null; _toDelete = item; })" />
-                        </div>
-                    </ColumnTemplate>
-                </RowTemplate>
-            </DataTable>
+                        <section class="side-panel__section">
+                            @if (_view == RecordsView.Summary)
+                            {
+                                <div class="side-panel__section-title subtitle">Фільтри</div>
+                            }
+                            <RecordFilterPanel Fields="_filterFields"
+                                               Filters="_filters"
+                                               FocusField="@_filterFocus"
+                                               OnApply="ApplyFilters" />
+                        </section>
+                    </div>
+                </aside>
+            }
         </div>
     }
 </div>

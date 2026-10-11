@@ -1,0 +1,46 @@
+@namespace DataCollector.WebUI.Views.Components
+
+@*
+    Заголовок сторінки в шапці сайту (MainLayout). Сторінка оголошує його у своїй розмітці,
+    а показується він у SectionOutlet шапки - так контент сторінки не втрачає висоту під заголовок.
+*@
+
+<SectionContent SectionName="@SectionName">
+    <div class="app-header">
+        <div class="app-header__left">
+            @if (BackHref != null)
+            {
+                <a class="app-header__back" href="@BackHref" title="@BackTitle">
+                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                </a>
+            }
+
+            <div class="app-header__titles">
+                <h1 class="app-header__title">@Title</h1>
+                @if (Subtitle != null)
+                {
+                    <div class="app-header__subtitle">@Subtitle</div>
+                }
+            </div>
+        </div>
+
+        @if (Actions != null)
+        {
+            <div class="app-header__right">@Actions</div>
+        }
+    </div>
+</SectionContent>
+
+@code {
+  public const string SectionName = "page-header";
+
+  [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+  [Parameter] public RenderFragment? Subtitle { get; set; }
+
+  /// <summary>Кнопки праворуч у шапці.</summary>
+  [Parameter] public RenderFragment? Actions { get; set; }
+
+  /// <summary>Посилання "назад" ліворуч від заголовка.</summary>
+  [Parameter] public string? BackHref { get; set; }
+  [Parameter] public string? BackTitle { get; set; }
+}

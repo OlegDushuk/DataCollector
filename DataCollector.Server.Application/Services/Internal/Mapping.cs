@@ -86,6 +86,78 @@ internal static class Mapping
     ["isNotEmpty"] = FilterOperator.IsNotEmpty
   };
 
+  private static readonly Dictionary<string, AggregateFunction> AggregateFunctions = new(StringComparer.OrdinalIgnoreCase)
+  {
+    ["count"] = AggregateFunction.Count,
+    ["sum"] = AggregateFunction.Sum,
+    ["avg"] = AggregateFunction.Avg,
+    ["min"] = AggregateFunction.Min,
+    ["max"] = AggregateFunction.Max
+  };
+
+  private static readonly Dictionary<string, DateInterval> DateIntervals = new(StringComparer.OrdinalIgnoreCase)
+  {
+    ["hour"] = DateInterval.Hour,
+    ["day"] = DateInterval.Day,
+    ["week"] = DateInterval.Week,
+    ["month"] = DateInterval.Month,
+    ["quarter"] = DateInterval.Quarter,
+    ["year"] = DateInterval.Year
+  };
+
+  private static readonly Dictionary<string, AggregateOrder> AggregateOrders = new(StringComparer.OrdinalIgnoreCase)
+  {
+    ["keys"] = AggregateOrder.Keys,
+    ["valueDesc"] = AggregateOrder.ValueDesc,
+    ["valueAsc"] = AggregateOrder.ValueAsc
+  };
+
+  public static AggregateFunction ToAggregateFunction(this string? code)
+    => Parse(AggregateFunctions, code, "Невідома функція показника");
+
+  public static DateInterval? ToDateInterval(this string? code)
+    => string.IsNullOrWhiteSpace(code) ? null : Parse(DateIntervals, code, "Невідомий інтервал дат");
+
+  public static AggregateOrder ToAggregateOrder(this string? code)
+    => string.IsNullOrWhiteSpace(code) ? AggregateOrder.Keys : Parse(AggregateOrders, code, "Невідомий порядок груп");
+
+  private static T Parse<T>(Dictionary<string, T> codes, string? code, string error)
+  {
+    if (code != null && codes.TryGetValue(code.Trim(), out var value))
+      return value;
+
+    throw new DomainValidationException($"{error} '{code}'. Доступні: {string.Join(", ", codes.Keys)}");
+  }
+
+  private static string Code<T>(Dictionary<string, T> codes, T value) where T : struct, Enum
+    => codes.First(c => c.Value.Equals(value)).Key;
+
+  public static AggregateResultDto ToDto(this AggregateQuery query, AggregateResult result) => new()
+  {
+    Dimensions = query.Dimensions.Select(d => new AggregateDimensionInfoDto
+    {
+      Field = FieldKey(d.Field),
+      Name = d.Field.Name,
+      DataType = d.Field.Type.ToContract(),
+      Interval = d.Interval is { } interval ? Code(DateIntervals, interval) : null,
+      Step = d.Step
+    }).ToList(),
+    Metrics = query.Metrics.Select(m => new AggregateMetricInfoDto
+    {
+      Function = Code(AggregateFunctions, m.Function),
+      Field = m.Field is null ? null : FieldKey(m.Field),
+      Name = m.Name
+    }).ToList(),
+    Rows = result.Rows.Select(r => new AggregateRowDto { Keys = [.. r.Keys], Values = [.. r.Values] }).ToList(),
+    Truncated = result.Truncated
+  };
+
+  private static string FieldKey(RecordField field) => field.Property?.Key ?? field.SystemField switch
+  {
+    RecordSystemField.UpdatedAt => RecordField.UpdatedAtKey,
+    _ => RecordField.CreatedAtKey
+  };
+
   public static FilterOperator ToFilterOperator(this string? code)
   {
     if (code != null && FilterOperators.TryGetValue(code.Trim(), out var op))

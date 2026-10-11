@@ -15,6 +15,7 @@ public partial class Settings : PageBase
     ("GET", "api/data-configs/{config}", "модель з полями"),
     ("GET", "api/data-configs/{config}/records?pageNumber=1&pageSize=10&sortBy=price&search=текст", "записи з пагінацією і пошуком"),
     ("POST", "api/data-configs/{config}/records/query", "записи з умовами фільтра"),
+    ("POST", "api/data-configs/{config}/records/aggregate", "групування і показники (кількість, сума, середнє...)"),
     ("POST", "api/data-configs/{config}/records", "створити запис"),
     ("PATCH", "api/data-configs/{config}/records/{id}", "оновити поля запису"),
     ("DELETE", "api/data-configs/{config}/records/{id}", "видалити запис")

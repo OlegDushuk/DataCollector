@@ -37,6 +37,19 @@ public class DataRecordsController(
     return await dataInstanceService.Query(config, command, cancellationToken);
   }
 
+  /// <summary>
+  /// Групування записів і показники по групах (кількість, сума, середнє, мінімум, максимум).
+  /// Дані для діаграм, звітів і моніторингу.
+  /// </summary>
+  [HttpPost("aggregate")]
+  public async Task<ActionResult<AggregateResultDto>> Aggregate(
+    string config,
+    [FromBody] AggregateDataInstancesCommand command,
+    CancellationToken cancellationToken)
+  {
+    return await dataInstanceService.Aggregate(config, command, cancellationToken);
+  }
+
   [HttpGet("{recordId:guid}")]
   public async Task<ActionResult<DataInstanceDto>> Get(string config, Guid recordId)
   {

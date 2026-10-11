@@ -2,17 +2,14 @@
 
 @inherits PageBase
 
+<PageHeader Title="Моделі даних">
+    <Subtitle>Структура даних, які збирає система: назва, ключ для API та набір полів</Subtitle>
+    <Actions>
+        <Button Text="Нова модель" OnClick="OpenCreate" />
+    </Actions>
+</PageHeader>
+
 <div class="page">
-    <div class="page__header">
-        <div class="page__header-left">
-            <h1 class="page__title">Моделі даних</h1>
-            <div class="page__subtitle">Структура даних, які збирає система: назва, ключ для API та набір полів</div>
-        </div>
-        
-        <div class="page__header-right">
-            <Button Text="Нова модель" OnClick="OpenCreate" />
-        </div>
-    </div>
 
     <Alert Message="@Error" OnClose="@(() => Error = null)" />
 

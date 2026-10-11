@@ -1,19 +1,20 @@
 @namespace DataCollector.WebUI.Views.Components
 
 @*
-    Редактор умов фільтра записів. Працює з копією умов: зміни потрапляють у таблицю лише після «Застосувати».
-    Усі умови поєднуються через «І».
+    Редактор умов фільтра записів (у бічній панелі). Працює з копією умов: зміни потрапляють у таблицю
+    лише після «Застосувати». Усі умови поєднуються через «І».
 *@
 
 <div class="filter-panel">
-    <div class="filter-panel__header">
-        <div class="card__title">Фільтри</div>
-        <span class="default-text">Показуються записи, що відповідають усім умовам</span>
-    </div>
-
     @if (_draft.Count == 0)
     {
-        <div class="default-text filter-panel__empty">Умов ще немає. Додайте першу або натисніть на значок фільтра в заголовку колонки.</div>
+        <div class="default-text filter-panel__empty">
+            Умов ще немає. Додайте першу або натисніть на значок фільтра в заголовку колонки таблиці.
+        </div>
+    }
+    else
+    {
+        <div class="default-text filter-panel__hint">Показуються записи, що відповідають усім умовам.</div>
     }
 
     @foreach (var filter in _draft)
@@ -24,13 +25,17 @@
 
         var op = field.FindOperator(filter.Operator) ?? field.Operators[0];
 
-        <div class="filter-panel__row">
-            <select class="select" value="@filter.Field" @onchange="@(e => ChangeField(filter, e.Value?.ToString()))">
-                @foreach (var f in Fields)
-                {
-                    <option value="@f.Key">@f.Name</option>
-                }
-            </select>
+        <div class="filter-condition">
+            <div class="filter-condition__line">
+                <select class="select" value="@filter.Field" @onchange="@(e => ChangeField(filter, e.Value?.ToString()))">
+                    @foreach (var f in Fields)
+                    {
+                        <option value="@f.Key">@f.Name</option>
+                    }
+                </select>
+
+                <IconButton Icon="delete" Title="Прибрати умову" Danger="true" OnClick="@(() => _draft.Remove(filter))" />
+            </div>
 
             <select class="select" value="@op.Code" @onchange="@(e => ChangeOperator(filter, field, e.Value?.ToString()))">
                 @foreach (var o in field.Operators)
@@ -39,54 +44,48 @@
                 }
             </select>
 
-            <div class="filter-panel__values">
-                @switch (op.Arity)
-                {
-                    case FilterArity.Single:
-                        <ValueInput DataType="field.DataType" Options="field.Options"
-                                    Value="@filter.Value" ValueChanged="@(v => filter.Value = v)"
-                                    Placeholder="Значення" />
-                        break;
+            @switch (op.Arity)
+            {
+                case FilterArity.Single:
+                    <ValueInput DataType="field.DataType" Options="field.Options"
+                                Value="@filter.Value" ValueChanged="@(v => filter.Value = v)"
+                                Placeholder="Значення" />
+                    break;
 
-                    case FilterArity.Range:
+                case FilterArity.Range:
+                    <div class="filter-condition__range">
                         <ValueInput DataType="field.DataType" Value="@filter.Value" ValueChanged="@(v => filter.Value = v)"
                                     Placeholder="від" />
-                        <span class="default-text">—</span>
                         <ValueInput DataType="field.DataType" Value="@filter.ValueTo" ValueChanged="@(v => filter.ValueTo = v)"
                                     Placeholder="до" />
-                        break;
+                    </div>
+                    break;
 
-                    case FilterArity.Multiple:
-                        <div class="option-chips">
-                            @foreach (var option in field.Options)
-                            {
-                                var selected = filter.Values.Contains(option);
-                                <button type="button"
-                                        class="option-chips__item @(selected ? "option-chips__item--selected" : "")"
-                                        @onclick="@(() => ToggleOption(filter, option))">
-                                    @option
-                                </button>
-                            }
-                        </div>
-                        break;
-                }
-            </div>
-
-            <IconButton Icon="delete" Title="Прибрати умову" Danger="true" OnClick="@(() => _draft.Remove(filter))" />
+                case FilterArity.Multiple:
+                    <div class="option-chips">
+                        @foreach (var option in field.Options)
+                        {
+                            var selected = filter.Values.Contains(option);
+                            <button type="button"
+                                    class="option-chips__item @(selected ? "option-chips__item--selected" : "")"
+                                    @onclick="@(() => ToggleOption(filter, option))">
+                                @option
+                            </button>
+                        }
+                    </div>
+                    break;
+            }
         </div>
     }
+
+    <Button Text="+ Додати умову" Variant="ButtonVariant.Ghost" Small="true" OnClick="AddEmpty" />
 
     <Alert Message="@_error" />
 
     <div class="filter-panel__footer">
-        <Button Text="+ Додати умову" Variant="ButtonVariant.Ghost" Small="true" OnClick="AddEmpty" />
-
-        <div class="filter-panel__footer-right">
-            <Button Text="Скинути все" Variant="ButtonVariant.Secondary" Small="true" OnClick="Clear"
-                    Disabled="@(_draft.Count == 0)" />
-            <Button Text="Закрити" Variant="ButtonVariant.Secondary" Small="true" OnClick="@(() => OnClose.InvokeAsync())" />
-            <Button Text="Застосувати" Small="true" OnClick="Apply" />
-        </div>
+        <Button Text="Очистити" Variant="ButtonVariant.Secondary" Small="true" OnClick="Clear"
+                Disabled="@(_draft.Count == 0)" />
+        <Button Text="Застосувати" Small="true" OnClick="Apply" />
     </div>
 </div>
 
@@ -100,7 +99,6 @@
   [Parameter] public string? FocusField { get; set; }
 
   [Parameter] public EventCallback<List<RecordFilterForm>> OnApply { get; set; }
-  [Parameter] public EventCallback OnClose { get; set; }
 
   private List<RecordFilterForm> _draft = [];
   private string? _error;

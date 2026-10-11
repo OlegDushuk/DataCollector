@@ -2,28 +2,24 @@
 
 @inherits PageBase
 
-<div class="page">
-    <div class="page__header">
-        <div class="page__header-left">
-            <a class="page__back" href="/management">← Моделі даних</a>
-            <h1 class="page__title">@(_config?.Name ?? "Модель")</h1>
-            @if (_config != null)
-            {
-                <div class="page__subtitle">
-                    Ключ <span class="code">@_config.Key</span> · створено @Format.Date(_config.CreatedAt)
-                </div>
-            }
-        </div>
-
+<PageHeader Title="@(_config?.Name ?? "Модель")" BackHref="/management" BackTitle="До списку моделей">
+    <Subtitle>
         @if (_config != null)
         {
-            <div class="page__header-right">
-                <Button Text="Записи" Variant="ButtonVariant.Secondary"
-                        OnClick="@(() => Navigation.NavigateTo($"/records/{_config.Key}"))" />
-                <Button Text="Видалити модель" Variant="ButtonVariant.Danger" OnClick="@(() => { _deleteError = null; _isDeleteOpen = true; })" />
-            </div>
+            <text>Ключ <span class="code">@_config.Key</span> · створено @Format.Date(_config.CreatedAt)</text>
         }
-    </div>
+    </Subtitle>
+    <Actions>
+        @if (_config != null)
+        {
+            <Button Text="Записи" Variant="ButtonVariant.Secondary"
+                    OnClick="@(() => Navigation.NavigateTo($"/records/{_config.Key}"))" />
+            <Button Text="Видалити модель" Variant="ButtonVariant.Danger" OnClick="@(() => { _deleteError = null; _isDeleteOpen = true; })" />
+        }
+    </Actions>
+</PageHeader>
+
+<div class="page">
 
     <Alert Message="@Error" OnClose="@(() => Error = null)" />
     <Alert Message="@_success" Success="true" OnClose="@(() => _success = null)" />
