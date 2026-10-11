@@ -12,7 +12,8 @@ public interface IEntityInstanceRepository
     int pageNumber,
     int pageSize,
     Guid? sortPropertyId,
-    bool sortDescending);
+    bool sortDescending,
+    CancellationToken cancellationToken = default);
 
   /// <summary>Повертає null, якщо запису немає або він належить іншій моделі.</summary>
   Task<EntityInstance?> GetById(EntityConfig config, Guid id);

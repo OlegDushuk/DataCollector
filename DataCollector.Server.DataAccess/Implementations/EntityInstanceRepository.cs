@@ -19,7 +19,8 @@ public class EntityInstanceRepository : RepositoryBase, IEntityInstanceRepositor
     int pageNumber,
     int pageSize,
     Guid? sortPropertyId,
-    bool sortDescending)
+    bool sortDescending,
+    CancellationToken cancellationToken = default)
   {
     var parameters = new
     {
@@ -38,7 +39,7 @@ public class EntityInstanceRepository : RepositoryBase, IEntityInstanceRepositor
 
       var items = rows.Select(r => Build(config, r, values[r.Id])).ToList();
       return (items, totalCount);
-    });
+    }, cancellationToken);
   }
 
   public Task<EntityInstance?> GetById(EntityConfig config, Guid id)
@@ -89,8 +90,31 @@ public class EntityInstanceRepository : RepositoryBase, IEntityInstanceRepositor
     var instance = new EntityInstance(config, row.Id, AsUtc(row.CreatedAt), AsUtc(row.UpdatedAt));
 
     foreach (var value in values)
-      instance.RestorePropertyValue(value.EntityPropertyConfigId, value.Id, value.Value, AsUtc(value.CreatedAt));
+      instance.RestorePropertyValue(value.EntityPropertyConfigId, ReadValue(value));
 
     return instance;
   }
+
+  /// <summary>
+  /// У рядку заповнена рівно одна колонка (CHECK у таблиці), тож беремо першу непорожню.
+  /// </summary>
+  private static object? ReadValue(EntityPropertyValueRow row)
+  {
+    if (row.ValueText != null)
+      return row.ValueText;
+
+    if (row.ValueNumber is { } number)
+      return TrimZeros(number);
+
+    if (row.ValueBool is { } flag)
+      return flag;
+
+    return row.ValueDate is { } date ? AsUtc(date) : null;
+  }
+
+  /// <summary>
+  /// DECIMAL(38, 10) повертається з 10 знаками після коми (120.5000000000) - прибираємо зайві нулі,
+  /// щоб API віддавало число в тому ж вигляді, у якому його надіслали (120.5).
+  /// </summary>
+  private static decimal TrimZeros(decimal value) => value / 1.0000000000000000000000000000m;
 }

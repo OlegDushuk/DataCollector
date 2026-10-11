@@ -1,6 +1,6 @@
-﻿# Заповнює БД тестовими даними: модель shop_orders з 6 полями і 10000 записів.
+﻿# Заповнює БД тестовими даними: 10 моделей різної структури (від 3 до 12 полів) по 100 000 записів.
 # Потрібен sqlcmd (йде разом з SQL Server / SSMS або: winget install Microsoft.Sqlcmd).
-# Кількість записів змінюється в scripts\seed-demo-data.sql (@RecordCount).
+# Кількість записів змінюється в scripts\seed-demo-data.sql (@RecordsPerModel), моделі й поля - у #Models / #Props.
 
 param(
   [string]$Server = "localhost",

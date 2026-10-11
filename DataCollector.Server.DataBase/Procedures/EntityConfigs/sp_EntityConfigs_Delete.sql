@@ -7,19 +7,21 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    IF NOT EXISTS (SELECT 1 FROM [dbo].[EntityConfigs] WHERE [Id] = @Id)
+    DECLARE @Pkey INT = (SELECT [Pkey] FROM [dbo].[EntityConfigs] WHERE [Id] = @Id);
+
+    IF @Pkey IS NULL
         THROW 50404, N'Модель не знайдена', 1;
 
     BEGIN TRANSACTION;
 
     DELETE v
     FROM [dbo].[EntityPropertyInstances] v
-    INNER JOIN [dbo].[EntityInstances] i ON i.[Id] = v.[EntityInstanceId]
-    WHERE i.[EntityConfigId] = @Id;
+    INNER JOIN [dbo].[EntityInstances] i ON i.[Pkey] = v.[InstancePkey]
+    WHERE i.[ConfigPkey] = @Pkey;
 
-    DELETE FROM [dbo].[EntityInstances] WHERE [EntityConfigId] = @Id;
-    DELETE FROM [dbo].[EntityPropertyConfigs] WHERE [EntityConfigId] = @Id;
-    DELETE FROM [dbo].[EntityConfigs] WHERE [Id] = @Id;
+    DELETE FROM [dbo].[EntityInstances] WHERE [ConfigPkey] = @Pkey;
+    DELETE FROM [dbo].[EntityPropertyConfigs] WHERE [ConfigPkey] = @Pkey;
+    DELETE FROM [dbo].[EntityConfigs] WHERE [Pkey] = @Pkey;
 
     COMMIT TRANSACTION;
 END

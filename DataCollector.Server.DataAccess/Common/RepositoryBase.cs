@@ -74,29 +74,43 @@ public abstract class RepositoryBase
   /// <summary>
   /// Для процедур, що повертають кілька наборів результатів.
   /// </summary>
+  /// <remarks>
+  /// <paramref name="cancellationToken"/> скасовує запит і на стороні SQL Server (через SqlCommand.Cancel),
+  /// тож якщо клієнт пішов, база не продовжує рахувати непотрібну сторінку.
+  /// </remarks>
   protected Task<TResult> QueryMultipleAsync<TResult>(
     string procedureName,
     object? param,
-    Func<SqlMapper.GridReader, Task<TResult>> read)
+    Func<SqlMapper.GridReader, Task<TResult>> read,
+    CancellationToken cancellationToken = default)
   {
     return Run(async connection =>
     {
-      using var grid = await connection.QueryMultipleAsync(
-        sql: GetProcedureName(procedureName),
-        param: param,
-        commandType: CommandType.StoredProcedure);
+      using var grid = await connection.QueryMultipleAsync(new CommandDefinition(
+        commandText: GetProcedureName(procedureName),
+        parameters: param,
+        commandType: CommandType.StoredProcedure,
+        cancellationToken: cancellationToken));
 
       return await read(grid);
-    });
+    }, cancellationToken);
   }
 
-  private async Task<TResult> Run<TResult>(Func<SqlConnection, Task<TResult>> action)
+  private async Task<TResult> Run<TResult>(
+    Func<SqlConnection, Task<TResult>> action,
+    CancellationToken cancellationToken = default)
   {
     await using var connection = GetConnection();
 
     try
     {
       return await action(connection);
+    }
+    // Скасований запит SqlClient повідомляє як SqlException ("Operation cancelled by user") -
+    // перетворюємо на стандартний виняток скасування, щоб він не виглядав як помилка бази.
+    catch (SqlException) when (cancellationToken.IsCancellationRequested)
+    {
+      throw new OperationCanceledException(cancellationToken);
     }
     catch (SqlException e) when (e.Number == NotFoundErrorNumber)
     {

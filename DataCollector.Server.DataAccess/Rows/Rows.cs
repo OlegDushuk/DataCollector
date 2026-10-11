@@ -31,9 +31,12 @@ internal class EntityInstanceRow
 
 internal class EntityPropertyValueRow
 {
-  public Guid Id { get; set; }
   public Guid EntityInstanceId { get; set; }
   public Guid EntityPropertyConfigId { get; set; }
-  public string? Value { get; set; }
-  public DateTime CreatedAt { get; set; }
+
+  // Заповнена лише колонка, що відповідає типу поля.
+  public string? ValueText { get; set; }
+  public decimal? ValueNumber { get; set; }
+  public bool? ValueBool { get; set; }
+  public DateTime? ValueDate { get; set; }
 }

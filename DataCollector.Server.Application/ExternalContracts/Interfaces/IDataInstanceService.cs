@@ -7,7 +7,10 @@ namespace DataCollector.Server.Application.ExternalContracts.Interfaces;
 /// </summary>
 public interface IDataInstanceService
 {
-  Task<PagedResult<DataInstanceDto>> GetPage(string config, GetDataInstancesQuery query);
+  Task<PagedResult<DataInstanceDto>> GetPage(
+    string config,
+    GetDataInstancesQuery query,
+    CancellationToken cancellationToken = default);
   Task<DataInstanceDto> Get(string config, Guid instanceId);
   Task<Guid> CreateInstance(string config, CreateDataInstanceCommand command);
   Task UpdateInstance(string config, Guid instanceId, UpdateDataInstanceCommand command);

@@ -16,7 +16,10 @@ public class DataInstanceService(
 {
   public const int MaxPageSize = 200;
 
-  public async Task<PagedResult<DataInstanceDto>> GetPage(string config, GetDataInstancesQuery query)
+  public async Task<PagedResult<DataInstanceDto>> GetPage(
+    string config,
+    GetDataInstancesQuery query,
+    CancellationToken cancellationToken = default)
   {
     var entity = await entityConfigRepository.Load(config);
 
@@ -32,7 +35,7 @@ public class DataInstanceService(
     }
 
     var (items, totalCount) = await entityInstanceRepository.GetPage(
-      entity, pageNumber, pageSize, sortPropertyId, query.SortDescending);
+      entity, pageNumber, pageSize, sortPropertyId, query.SortDescending, cancellationToken);
 
     return new PagedResult<DataInstanceDto>
     {

@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Components;
 
 namespace DataCollector.WebUI.Views.Pages;
 
-public partial class Records : PageBase
+public partial class Records : PageBase, IDisposable
 {
   [Parameter] public string? ConfigKey { get; set; }
 
@@ -22,6 +22,10 @@ public partial class Records : PageBase
   private List<EntityInstance> _records = [];
   private int _totalCount;
   private bool _isLoading = true;
+
+  // Запит поточної сторінки таблиці. Новий запит скасовує попередній, щоб застаріла відповідь
+  // не перезаписала свіжу і сервер не рахував сторінку, яка вже не потрібна.
+  private CancellationTokenSource? _reloadCts;
 
   private bool _isFormOpen;
   private EntityInstance? _editing;
@@ -49,6 +53,7 @@ public partial class Records : PageBase
     if (_config != null && string.Equals(_config.Key, ConfigKey, StringComparison.OrdinalIgnoreCase))
       return;
 
+    CancelReload();
     _config = null;
     _records = [];
     _totalCount = 0;
@@ -72,16 +77,49 @@ public partial class Records : PageBase
     if (_config is null)
       return;
 
-    _isLoading = true;
-    await Try(async () =>
-    {
-      var page = await RecordApi.GetPage(
-        _config.Id, args.PageNumber, args.PageSize, args.SortColumnKey, args.SortIsDescending);
+    CancelReload();
+    var cts = _reloadCts = new CancellationTokenSource();
+    var configId = _config.Id;
 
-      _records = page.Items;
-      _totalCount = page.TotalCount;
-    });
+    _isLoading = true;
+    try
+    {
+      await Try(async () =>
+      {
+        var page = await RecordApi.GetPage(
+          configId, args.PageNumber, args.PageSize, args.SortColumnKey, args.SortIsDescending, cts.Token);
+
+        _records = page.Items;
+        _totalCount = page.TotalCount;
+      });
+    }
+    catch (OperationCanceledException) when (cts.IsCancellationRequested)
+    {
+      // Запит замінено новішим (інша сторінка, сортування, модель) - результат більше не потрібен,
+      // а індикатор завантаження вимкне новий запит.
+      return;
+    }
+    finally
+    {
+      if (_reloadCts == cts)
+        _reloadCts = null;
+
+      cts.Dispose();
+    }
+
     _isLoading = false;
+  }
+
+  private void CancelReload()
+  {
+    _reloadCts?.Cancel();
+    _reloadCts = null;
+  }
+
+  public void Dispose()
+  {
+    // Користувач пішов зі сторінки - незавершений запит більше нікому не потрібен.
+    CancelReload();
   }
 
   private void OpenCreate()

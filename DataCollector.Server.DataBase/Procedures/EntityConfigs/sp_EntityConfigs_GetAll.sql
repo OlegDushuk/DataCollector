@@ -9,8 +9,8 @@ BEGIN
         c.[Key],
         c.[Name],
         c.[CreatedAt],
-        (SELECT COUNT(*) FROM [dbo].[EntityPropertyConfigs] p WHERE p.[EntityConfigId] = c.[Id]) AS [PropertyCount],
-        (SELECT COUNT(*) FROM [dbo].[EntityInstances] i WHERE i.[EntityConfigId] = c.[Id]) AS [RecordCount]
+        (SELECT COUNT(*) FROM [dbo].[EntityPropertyConfigs] p WHERE p.[ConfigPkey] = c.[Pkey]) AS [PropertyCount],
+        (SELECT COUNT(*) FROM [dbo].[EntityInstances] i WHERE i.[ConfigPkey] = c.[Pkey]) AS [RecordCount]
     FROM [dbo].[EntityConfigs] c
     ORDER BY c.[CreatedAt] DESC;
 END

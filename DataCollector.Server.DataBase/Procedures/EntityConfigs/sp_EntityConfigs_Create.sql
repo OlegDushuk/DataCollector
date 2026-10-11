@@ -19,8 +19,10 @@ BEGIN
     INSERT INTO [dbo].[EntityConfigs] ([Id], [Key], [Name], [CreatedAt])
     VALUES (@Id, @Key, @Name, @CreatedAt);
 
-    INSERT INTO [dbo].[EntityPropertyConfigs] ([Id], [EntityConfigId], [Key], [Name], [DataType], [CreatedAt])
-    SELECT [Id], @Id, [Key], [Name], [DataType], [CreatedAt]
+    DECLARE @Pkey INT = SCOPE_IDENTITY();
+
+    INSERT INTO [dbo].[EntityPropertyConfigs] ([Id], [ConfigPkey], [Key], [Name], [DataType], [CreatedAt])
+    SELECT [Id], @Pkey, [Key], [Name], [DataType], [CreatedAt]
     FROM @Properties;
 
     COMMIT TRANSACTION;

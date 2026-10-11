@@ -1,4 +1,4 @@
--- Повертає два набори: модель і її поля.
+-- Повертає два набори: модель і її поля (ідентифікатори - зовнішні GUID).
 CREATE PROCEDURE [dbo].[sp_EntityConfigs_GetById]
     @Id UNIQUEIDENTIFIER
 AS
@@ -13,8 +13,9 @@ BEGIN
     FROM [dbo].[EntityConfigs] c
     WHERE c.[Id] = @Id;
 
-    SELECT [Id], [EntityConfigId], [Key], [Name], [DataType], [CreatedAt]
-    FROM [dbo].[EntityPropertyConfigs]
-    WHERE [EntityConfigId] = @Id
-    ORDER BY [CreatedAt], [Key];
+    SELECT p.[Id], c.[Id] AS [EntityConfigId], p.[Key], p.[Name], p.[DataType], p.[CreatedAt]
+    FROM [dbo].[EntityPropertyConfigs] p
+    INNER JOIN [dbo].[EntityConfigs] c ON c.[Pkey] = p.[ConfigPkey]
+    WHERE c.[Id] = @Id
+    ORDER BY p.[CreatedAt], p.[Key];
 END

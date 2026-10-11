@@ -11,13 +11,14 @@ public class EntityRecordApiService(HttpClient httpClient) : ApiServiceBase(http
     int pageNumber,
     int pageSize,
     string? sortBy,
-    bool sortDescending)
+    bool sortDescending,
+    CancellationToken cancellationToken = default)
   {
     var query = $"?pageNumber={pageNumber}&pageSize={pageSize}&sortDescending={sortDescending.ToString().ToLowerInvariant()}";
     if (!string.IsNullOrEmpty(sortBy))
       query += $"&sortBy={Escape(sortBy)}";
 
-    return GetAsync<PagedResult<EntityInstance>>(RecordsUrl(configId) + query);
+    return GetAsync<PagedResult<EntityInstance>>(RecordsUrl(configId) + query, cancellationToken);
   }
 
   public async Task<Guid> Create(Guid configId, IReadOnlyDictionary<string, string?> values)

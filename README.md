@@ -55,6 +55,21 @@ Content-Type: application/json
 
 ## Зберігання даних
 
-Зараз — EAV: значення полів зберігаються рядками в `EntityPropertyInstances.Value`
-у нормалізованому вигляді (числа — інваріантна культура, bool — `true`/`false`).
-Сортування за полем виконується в `sp_EntityInstances_GetPage` через `TRY_CAST`.
+Модель EAV з типізованими колонками (`DataCollector.Server.DataBase/Tables`):
+
+| Таблиця | Первинний ключ | Зв'язки |
+|---|---|---|
+| `EntityConfigs` — моделі | `Pkey INT IDENTITY` | — |
+| `EntityPropertyConfigs` — поля | `Pkey INT IDENTITY` | `ConfigPkey` → `EntityConfigs.Pkey` |
+| `EntityInstances` — записи | `Pkey BIGINT IDENTITY` | `ConfigPkey` → `EntityConfigs.Pkey` |
+| `EntityPropertyInstances` — значення | `(InstancePkey, PropertyPkey)` | → `EntityInstances.Pkey`, `EntityPropertyConfigs.Pkey` |
+
+- `Pkey` — внутрішній цілий ключ: кластерні індекси і всі зовнішні ключі побудовані на ньому.
+- `Id` (GUID, унікальний індекс) — зовнішній ідентифікатор для API і домену. Процедури приймають GUID,
+  перетворюють його на `Pkey` і повертають назовні знову GUID, тому C#-код про `Pkey` не знає.
+- Значення поля лежить у колонці свого типу (`ValueText`, `ValueNumber DECIMAL(38,10)`, `ValueBool`, `ValueDate`),
+  заповнена рівно одна (CHECK); порожні значення не зберігаються. Фільтровані індекси
+  `(PropertyPkey, Value*)` пришвидшують сортування і фільтрацію за полем.
+
+Міграцій немає: при зміні схеми БД видаляється і публікується заново (`./publish-db.ps1`).
+Тестові дані: `./seed-db.ps1` (10 моделей по 100 000 записів, `scripts/seed-demo-data.sql`).

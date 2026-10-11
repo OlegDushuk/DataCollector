@@ -3,7 +3,7 @@
 namespace DataCollector.Server.Domain.Entities;
 
 /// <summary>
-/// Запис моделі. Для кожного поля моделі має значення (може бути порожнім).
+/// Запис моделі. Для кожного поля моделі має значення (може бути порожнім - null).
 /// </summary>
 public class EntityInstance
 {
@@ -47,11 +47,11 @@ public class EntityInstance
   }
 
   /// <summary>
-  /// Відновлення значення з БД без повторної валідації.
+  /// Відновлення значення з БД без повторної валідації. Значення поля, якого вже немає в моделі, ігнорується.
   /// </summary>
-  public void RestorePropertyValue(Guid propertyConfigId, Guid valueId, string? value, DateTime createdAt)
+  public void RestorePropertyValue(Guid propertyConfigId, object? value)
   {
     var prop = _properties.FirstOrDefault(p => p.Config.Id == propertyConfigId);
-    prop?.Restore(valueId, value, createdAt);
+    prop?.Restore(value);
   }
 }

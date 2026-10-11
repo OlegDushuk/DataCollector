@@ -13,10 +13,12 @@ BEGIN
 
     IF EXISTS (
         SELECT 1 FROM @Properties p
-        INNER JOIN [dbo].[EntityPropertyConfigs] e
-            ON e.[EntityConfigId] = p.[EntityConfigId] AND e.[Key] = p.[Key])
+        INNER JOIN [dbo].[EntityConfigs] c ON c.[Id] = p.[EntityConfigId]
+        INNER JOIN [dbo].[EntityPropertyConfigs] e ON e.[ConfigPkey] = c.[Pkey] AND e.[Key] = p.[Key])
         THROW 50409, N'Поле з таким ключем вже існує', 1;
 
-    INSERT INTO [dbo].[EntityPropertyConfigs] ([Id], [EntityConfigId], [Key], [Name], [DataType], [CreatedAt])
-    SELECT [Id], [EntityConfigId], [Key], [Name], [DataType], [CreatedAt] FROM @Properties;
+    INSERT INTO [dbo].[EntityPropertyConfigs] ([Id], [ConfigPkey], [Key], [Name], [DataType], [CreatedAt])
+    SELECT p.[Id], c.[Pkey], p.[Key], p.[Name], p.[DataType], p.[CreatedAt]
+    FROM @Properties p
+    INNER JOIN [dbo].[EntityConfigs] c ON c.[Id] = p.[EntityConfigId];
 END

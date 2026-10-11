@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using DataCollector.Server.Application.ExternalContracts.Models;
 using DataCollector.Server.Domain.Entities;
@@ -36,22 +35,8 @@ internal static class Mapping
     Id = instance.Id,
     CreatedAt = instance.CreatedAt,
     UpdatedAt = instance.UpdatedAt,
-    Values = instance.Properties.ToDictionary(p => p.Config.Key, p => ToTypedValue(p))
+    Values = instance.Properties.ToDictionary(p => p.Config.Key, p => p.Value)
   };
-
-  private static object? ToTypedValue(EntityProperty property)
-  {
-    if (property.Value is null)
-      return null;
-
-    return property.Config.Type switch
-    {
-      DomainDataType.Number when decimal.TryParse(
-        property.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) => number,
-      DomainDataType.Boolean when bool.TryParse(property.Value, out var flag) => flag,
-      _ => property.Value
-    };
-  }
 
   /// <summary>
   /// Перетворює JSON-значення з запиту на рядок; доменна модель далі перевіряє відповідність типу поля.

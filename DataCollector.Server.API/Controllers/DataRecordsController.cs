@@ -17,9 +17,12 @@ public class DataRecordsController(
   [HttpGet]
   public async Task<ActionResult<PagedResult<DataInstanceDto>>> GetPage(
     string config,
-    [FromQuery] GetDataInstancesQuery query)
+    [FromQuery] GetDataInstancesQuery query,
+    CancellationToken cancellationToken)
   {
-    return await dataInstanceService.GetPage(config, query);
+    // cancellationToken = HttpContext.RequestAborted: спрацьовує, коли клієнт розірвав запит
+    // (наприклад, UI перейшов на іншу сторінку таблиці, не дочекавшись цієї).
+    return await dataInstanceService.GetPage(config, query, cancellationToken);
   }
 
   [HttpGet("{recordId:guid}")]

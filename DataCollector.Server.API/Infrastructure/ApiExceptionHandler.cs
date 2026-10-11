@@ -18,6 +18,13 @@ public class ApiExceptionHandler(
     Exception exception,
     CancellationToken cancellationToken)
   {
+    // Клієнт сам скасував запит: відповідати нікому, і це не помилка сервера.
+    if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
+    {
+      httpContext.Response.StatusCode = StatusCodes.Status499ClientClosedRequest;
+      return true;
+    }
+
     var (status, title) = exception switch
     {
       DomainValidationException => (StatusCodes.Status400BadRequest, "Некоректні дані"),

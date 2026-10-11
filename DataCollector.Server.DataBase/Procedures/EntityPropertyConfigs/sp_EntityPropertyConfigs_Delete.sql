@@ -7,13 +7,15 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    IF NOT EXISTS (SELECT 1 FROM [dbo].[EntityPropertyConfigs] WHERE [Id] = @Id)
+    DECLARE @Pkey INT = (SELECT [Pkey] FROM [dbo].[EntityPropertyConfigs] WHERE [Id] = @Id);
+
+    IF @Pkey IS NULL
         THROW 50404, N'Поле не знайдене', 1;
 
     BEGIN TRANSACTION;
 
-    DELETE FROM [dbo].[EntityPropertyInstances] WHERE [EntityPropertyConfigId] = @Id;
-    DELETE FROM [dbo].[EntityPropertyConfigs] WHERE [Id] = @Id;
+    DELETE FROM [dbo].[EntityPropertyInstances] WHERE [PropertyPkey] = @Pkey;
+    DELETE FROM [dbo].[EntityPropertyConfigs] WHERE [Pkey] = @Pkey;
 
     COMMIT TRANSACTION;
 END

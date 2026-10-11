@@ -11,10 +11,14 @@ public abstract class ApiServiceBase(HttpClient httpClient)
     Converters = { new JsonStringEnumConverter() }
   };
 
-  protected async Task<T> GetAsync<T>(string url)
+  /// <remarks>
+  /// Скасування через <paramref name="cancellationToken"/> обриває HTTP-запит, і API зупиняє запит до бази.
+  /// Виклик при цьому завершується <see cref="OperationCanceledException"/>, а не <see cref="ApiException"/>.
+  /// </remarks>
+  protected async Task<T> GetAsync<T>(string url, CancellationToken cancellationToken = default)
   {
-    var response = await Send(() => httpClient.GetAsync(url));
-    return (await response.Content.ReadFromJsonAsync<T>(JsonOptions))!;
+    var response = await Send(() => httpClient.GetAsync(url, cancellationToken), cancellationToken);
+    return (await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken))!;
   }
 
   protected async Task<TResult> PostAsync<TResult>(string url, object body)
@@ -35,7 +39,9 @@ public abstract class ApiServiceBase(HttpClient httpClient)
 
   protected static string Escape(string value) => Uri.EscapeDataString(value);
 
-  private static async Task<HttpResponseMessage> Send(Func<Task<HttpResponseMessage>> request)
+  private static async Task<HttpResponseMessage> Send(
+    Func<Task<HttpResponseMessage>> request,
+    CancellationToken cancellationToken = default)
   {
     HttpResponseMessage response;
 
@@ -46,6 +52,11 @@ public abstract class ApiServiceBase(HttpClient httpClient)
     catch (HttpRequestException)
     {
       throw new ApiException("Не вдалося з'єднатися з сервером API. Перевірте, що DataCollector.Server.API запущений.");
+    }
+    // Скасування, якого ми не просили, - це тайм-аут HttpClient.
+    catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+    {
+      throw new ApiException("Сервер API не відповів вчасно. Спробуйте ще раз.");
     }
 
     if (response.IsSuccessStatusCode)
