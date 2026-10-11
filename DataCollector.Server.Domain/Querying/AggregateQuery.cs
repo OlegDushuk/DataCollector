@@ -119,6 +119,16 @@ public sealed class AggregateDimension
     => new($"Групування за полем '{field.Name}': {message}");
 
   internal static decimal TrimZeros(decimal value) => value / 1.0000000000000000000000000000m;
+
+  /// <summary>Фактичні межі значень у діапазоні з БД (MIN / MAX); null - групування не діапазон.</summary>
+  public AggregateRange? NormalizeRange(object? min, object? max)
+  {
+    if (Step is null)
+      return null;
+
+    static decimal? Number(object? raw) => raw is decimal number ? TrimZeros(number) : null;
+    return new AggregateRange(Number(min), Number(max));
+  }
 }
 
 /// <summary>Показник, що рахується для кожної групи.</summary>
@@ -270,7 +280,17 @@ public sealed class AggregateQuery
 }
 
 /// <summary>Рядок результату: значення групувань і показників у тому ж порядку, що в запиті.</summary>
-public sealed record AggregateRow(IReadOnlyList<object?> Keys, IReadOnlyList<object?> Values);
+/// <param name="Ranges">
+/// Для кожного групування: фактичні мінімум і максимум значень у групі, якщо групування - діапазон числа
+/// (крок), інакше null. Сам діапазон [від; від + крок) не показує, які значення в ньому є.
+/// </param>
+public sealed record AggregateRow(
+  IReadOnlyList<object?> Keys,
+  IReadOnlyList<object?> Values,
+  IReadOnlyList<AggregateRange?>? Ranges = null);
+
+/// <summary>Фактичні межі значень у групі-діапазоні.</summary>
+public sealed record AggregateRange(decimal? Min, decimal? Max);
 
 /// <param name="Truncated">Груп більше за ліміт - повернуто лише перші.</param>
 public sealed record AggregateResult(IReadOnlyList<AggregateRow> Rows, bool Truncated);

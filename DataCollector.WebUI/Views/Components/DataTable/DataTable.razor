@@ -15,7 +15,7 @@
   }
   
   <div class="data-table__header">
-    @foreach (var column in _columns)
+    @foreach (var column in Columns)
     {
       <div class="data-table__header-cell" style="@column.Style">
         <button type="button"
@@ -61,7 +61,7 @@
     {
       <div class="data-table__row @(OnRowClick.HasDelegate ? "data-table__row--clickable" : "")"
            @onclick="@(() => OnRowClick.InvokeAsync(item))">
-        @foreach (var column in _columns)
+        @foreach (var column in Columns)
         {
           <div class="data-table__row-cell" style="@column.Style">
             @column.Template(item)

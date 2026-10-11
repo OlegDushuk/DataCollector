@@ -32,6 +32,9 @@ internal sealed class RecordQuerySql : RecordSqlBuilder
     AddParameter("PageSize", query.PageSize, DbType.Int32);
 
     var sql = new StringBuilder();
+    // Проєкція готується до Declarations, бо оголошує змінні з ключами вибраних полів.
+    var valuesFilter = ValuesFilter(query.Fields);
+
     sql.AppendLine("SET NOCOUNT ON;");
     sql.AppendLine();
     sql.AppendLine("-- Внутрішні ключі моделі та полів: далі всі зв'язки через них.");
@@ -72,10 +75,25 @@ internal sealed class RecordQuerySql : RecordSqlBuilder
           v.[ValueText], v.[ValueNumber], v.[ValueBool], v.[ValueDate]
       FROM @Page pg
       INNER JOIN [dbo].[EntityPropertyInstances] v ON v.[InstancePkey] = pg.[Pkey]
-      INNER JOIN [dbo].[EntityPropertyConfigs] p ON p.[Pkey] = v.[PropertyPkey];
       """);
+    sql.Append("INNER JOIN [dbo].[EntityPropertyConfigs] p ON p.[Pkey] = v.[PropertyPkey]");
+    sql.AppendLine(valuesFilter is null ? ";" : $"\n{valuesFilter};");
 
     return sql.ToString();
+  }
+
+  /// <summary>
+  /// Значення лише вибраних полів. (InstancePkey, PropertyPkey) - первинний ключ, тож це той самий пошук
+  /// по записах сторінки, але з БД читається і передається менше рядків.
+  /// </summary>
+  private string? ValuesFilter(IReadOnlyList<EntityPropertyConfig>? fields)
+  {
+    if (fields is null)
+      return null;
+
+    return fields.Count == 0
+      ? "WHERE 1 = 0"
+      : $"WHERE v.[PropertyPkey] IN ({string.Join(", ", fields.Select(PropertyVariable))})";
   }
 
   /// <summary>

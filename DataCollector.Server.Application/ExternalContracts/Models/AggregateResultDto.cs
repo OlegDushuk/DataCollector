@@ -41,4 +41,16 @@ public class AggregateRowDto
 
   /// <summary>Значення показників: кількість - ціле число, сума/середнє - число, мінімум/максимум - число або дата.</summary>
   public List<object?> Values { get; set; } = [];
+
+  /// <summary>
+  /// Лише коли є групування числа за кроком: для кожного групування фактичні {min, max} значень у групі
+  /// (null - групування не діапазон). Група "6 – 8" означає [6; 8), а min/max показують, що в ній, наприклад, лише 6.
+  /// </summary>
+  public List<AggregateRangeDto?>? Ranges { get; set; }
+}
+
+public class AggregateRangeDto
+{
+  public decimal? Min { get; set; }
+  public decimal? Max { get; set; }
 }

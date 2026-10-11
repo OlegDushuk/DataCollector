@@ -1,0 +1,81 @@
+@namespace DataCollector.WebUI.Views.Components
+
+@*
+    Вибір колонок таблиці записів у бічній панелі: показати/сховати поле і змінити порядок.
+    Сервер повертає значення лише видимих полів - менше даних, швидший запит.
+*@
+
+<div class="column-chooser">
+    <div class="column-chooser__summary">
+        <span class="default-text">Показано @Columns.Visible.Count() з @Columns.Items.Count</span>
+        <div class="column-chooser__summary-actions">
+            @if (Columns.Items.Any(c => !c.IsVisible))
+            {
+                <button type="button" class="column-chooser__link" @onclick="@(() => Change(Columns.ShowAll))">Показати всі</button>
+            }
+            @if (Columns.IsCustomized)
+            {
+                <button type="button" class="column-chooser__link" @onclick="@(() => Change(() => Columns.Reset(Config)))">Скинути</button>
+            }
+        </div>
+    </div>
+
+    <ul class="column-chooser__list">
+        @for (var i = 0; i < Columns.Items.Count; i++)
+        {
+            var column = Columns.Items[i];
+            var isFirst = i == 0;
+            var isLast = i == Columns.Items.Count - 1;
+            var isOnlyVisible = column.IsVisible && Columns.Visible.Count() == 1;
+
+            <li class="column-chooser__item @(column.IsVisible ? "" : "column-chooser__item--hidden")" @key="column.Key">
+                <label class="column-chooser__label" title="@(isOnlyVisible ? "Хоча б одна колонка має лишатися" : null)">
+                    <input type="checkbox" checked="@column.IsVisible" disabled="@isOnlyVisible"
+                           @onchange="@(() => Change(() => Columns.Toggle(column)))" />
+                    <span>@column.Name</span>
+                    @if (column.IsSystem)
+                    {
+                        <span class="column-chooser__badge">системне</span>
+                    }
+                </label>
+
+                <div class="column-chooser__move">
+                    <button type="button" title="Вище" disabled="@isFirst" @onclick="@(() => Change(() => Columns.Move(column, -1)))">
+                        <svg viewBox="0 0 24 24"><path d="M7.41 15.41 12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+                    </button>
+                    <button type="button" title="Нижче" disabled="@isLast" @onclick="@(() => Change(() => Columns.Move(column, 1)))">
+                        <svg viewBox="0 0 24 24"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+                    </button>
+                </div>
+            </li>
+        }
+    </ul>
+
+    <div class="default-text column-chooser__hint">
+        Сховані поля не завантажуються з сервера, але за ними можна фільтрувати й шукати.
+    </div>
+</div>
+
+@code {
+  [Parameter, EditorRequired] public EntityConfig Config { get; set; } = null!;
+  [Parameter, EditorRequired] public TableColumns Columns { get; set; } = null!;
+
+  /// <summary>
+  /// Вибір змінився. Аргумент - чи потрібні нові дані: показали поле, якого ще немає в завантажених записах.
+  /// Сховати чи переставити колонку можна без запиту.
+  /// </summary>
+  [Parameter] public EventCallback<bool> OnChanged { get; set; }
+
+  private Task Change(Action change)
+  {
+    var before = Columns.ApiFields;
+    change();
+    var after = Columns.ApiFields;
+
+    // Потрібен запит, якщо стало видно поле, якого раніше не просили (before == null - просили всі).
+    var needsData = before != null && (after is null || after.Except(before).Any());
+    return OnChanged.InvokeAsync(needsData);
+  }
+
+  private Task Change(Func<bool> change) => Change(() => { change(); });
+}

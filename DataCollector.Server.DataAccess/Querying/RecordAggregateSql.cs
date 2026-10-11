@@ -16,8 +16,9 @@ namespace DataCollector.Server.DataAccess.Querying;
 /// (InstancePkey, PropertyPkey). Ключ унікальний, тож з'єднання не розмножує записи і COUNT(*) рахує саме записи.
 /// </para>
 /// <para>
-/// Результат: колонки K0..Kn (значення групувань) і M0..Mn (показники). Обирається на одну групу більше за ліміт,
-/// щоб знати, чи результат обрізано.
+/// Результат: колонки K0..Kn (значення групувань) і M0..Mn (показники). Для групування числа за кроком -
+/// ще R{i}Min / R{i}Max: фактичні мінімум і максимум значень у діапазоні (група "6 – 8" може містити лише 6).
+/// Обирається на одну групу більше за ліміт, щоб знати, чи результат обрізано.
 /// </para>
 /// </remarks>
 internal sealed class RecordAggregateSql : RecordSqlBuilder
@@ -49,8 +50,19 @@ internal sealed class RecordAggregateSql : RecordSqlBuilder
 
     AddParameter("Limit", query.Limit + 1, DbType.Int32);
 
+    // Межі фактичних значень у діапазонах: підпис "6 – 8" сам не каже, чи там 6, 7 чи 8.
+    var ranges = query.Dimensions
+      .Select((d, i) => (Dimension: d, Index: i))
+      .Where(x => x.Dimension.Step != null)
+      .SelectMany(x =>
+      {
+        var value = ValueExpression(x.Dimension.Field);
+        return new[] { $"MIN({value}) AS [R{x.Index}Min]", $"MAX({value}) AS [R{x.Index}Max]" };
+      });
+
     var select = keys.Select((k, i) => $"{k} AS [K{i}]")
-      .Concat(metrics.Select((m, i) => $"{m} AS [M{i}]"));
+      .Concat(metrics.Select((m, i) => $"{m} AS [M{i}]"))
+      .Concat(ranges);
 
     var sql = new StringBuilder();
     sql.AppendLine("SET NOCOUNT ON;");

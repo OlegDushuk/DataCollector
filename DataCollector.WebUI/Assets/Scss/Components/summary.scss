@@ -61,6 +61,16 @@
     }
   }
 
+  // Фактичні значення в діапазоні поруч з його підписом: "6 – 8  лише 6".
+  &__range {
+    margin-left: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: variables.$accent-light-color;
+    color: variables.$subtitle-text-color;
+    font-size: 12px;
+  }
+
   &__number {
     position: relative;
     text-align: right !important;

@@ -58,6 +58,11 @@ public partial class DataTable<TItem> : ComponentBase
       await InvokeReload();
   }
 
+  /// <summary>Колонки в порядку відображення (OrderBy стабільний: однаковий Order - порядок появи).</summary>
+  private IEnumerable<Column<TItem>> Columns => _columns.OrderBy(c => c.Order);
+
+  internal void ColumnsChanged() => StateHasChanged();
+
   internal void AddColumn(Column<TItem> column)
   {
     _columns.Add(column);

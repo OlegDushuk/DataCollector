@@ -37,7 +37,7 @@
                 else if (field is { DataType: PropertyDataType.Number, IsSystem: false })
                 {
                     <input class="input" type="number" min="0" step="any" placeholder="Крок діапазону, напр. 100"
-                           title="Ширина діапазону: 100 - групи 0–100, 100–200... Порожньо - точні значення"
+                           title="Ширина діапазону: 100 - групи 0–100, 100–200... (межа входить у наступну групу). Порожньо - точні значення"
                            value="@dim.Step" @onchange="@(e => Change(() => dim.Step = e.Value?.ToString()))" />
                 }
             </div>

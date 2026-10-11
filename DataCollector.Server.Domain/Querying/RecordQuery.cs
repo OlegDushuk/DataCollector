@@ -1,3 +1,4 @@
+using DataCollector.Server.Domain.Entities;
 using DataCollector.Server.Domain.Enums;
 using DataCollector.Server.Domain.Exceptions;
 
@@ -23,13 +24,20 @@ public sealed class RecordQuery
   public int PageNumber { get; }
   public int PageSize { get; }
 
+  /// <summary>
+  /// Поля моделі, значення яких потрібно повернути (проєкція). null - усі поля;
+  /// порожній список - лише системні поля запису (id, дати). На умови, пошук і сортування не впливає.
+  /// </summary>
+  public IReadOnlyList<EntityPropertyConfig>? Fields { get; }
+
   public RecordQuery(
     IReadOnlyList<RecordFilter> filters,
     string? search,
     RecordField sortField,
     bool sortDescending,
     int pageNumber,
-    int pageSize)
+    int pageSize,
+    IReadOnlyList<EntityPropertyConfig>? fields = null)
   {
     if (filters.Count > MaxFilters)
       throw new DomainValidationException($"Не більше {MaxFilters} умов фільтра в одному запиті");
@@ -50,6 +58,7 @@ public sealed class RecordQuery
     SortDescending = sortDescending;
     PageNumber = pageNumber;
     PageSize = pageSize;
+    Fields = fields?.DistinctBy(f => f.Id).ToList();
   }
 
   /// <summary>Чи бере поле участь у текстовому пошуку.</summary>

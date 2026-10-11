@@ -18,6 +18,9 @@ public class Column<TItem>
   /// <summary>Фіксована ширина (наприклад "120px"); без неї колонка розтягується.</summary>
   public string? Width { get; set; }
 
+  /// <summary>Позиція колонки; однакові - у порядку появи. Дає змінювати порядок без перебудови таблиці.</summary>
+  public int Order { get; set; }
+
   public bool CanSort => IsSortable && !string.IsNullOrEmpty(Key);
 
   public string Style => Width is null ? string.Empty : $"flex: 0 0 {Width};";

@@ -6,7 +6,8 @@ namespace DataCollector.Server.Application.ExternalContracts.Models;
 /// <example>
 /// { "filters": [ { "field": "price", "operator": "gte", "value": 100 },
 ///                { "field": "status", "operator": "in", "values": ["Нове", "Оплачене"] } ],
-///   "search": "ТОВ", "sortBy": "price", "sortDescending": true, "pageNumber": 1, "pageSize": 20 }
+///   "search": "ТОВ", "sortBy": "price", "sortDescending": true, "pageNumber": 1, "pageSize": 20,
+///   "fields": ["name", "price", "status"] }
 /// </example>
 public class QueryDataInstancesCommand
 {
@@ -21,4 +22,11 @@ public class QueryDataInstancesCommand
 
   public int PageNumber { get; set; } = 1;
   public int PageSize { get; set; } = 10;
+
+  /// <summary>
+  /// Ключі полів, значення яких повернути у values. Не задано (null) - усі поля;
+  /// порожній список - лише id і дати запису. Менше полів - менше даних з БД і по мережі.
+  /// "createdAt" / "updatedAt" повертаються завжди, їх можна не вказувати.
+  /// </summary>
+  public List<string>? Fields { get; set; }
 }

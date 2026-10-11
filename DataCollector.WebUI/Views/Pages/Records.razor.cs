@@ -5,6 +5,7 @@ using DataCollector.WebUI.Views.Base;
 using DataCollector.WebUI.Views.Components.DataTable;
 using DataCollector.WebUI.Views.Components.DataTable.Models;
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 
 namespace DataCollector.WebUI.Views.Pages;
 
@@ -14,6 +15,7 @@ public partial class Records : PageBase, IDisposable
 
   [Inject] private EntityConfigApiService ConfigApi { get; set; } = null!;
   [Inject] private EntityRecordApiService RecordApi { get; set; } = null!;
+  [Inject] private IJSRuntime JS { get; set; } = null!;
 
   private DataTable<EntityInstance>? _table;
 
@@ -46,6 +48,19 @@ public partial class Records : PageBase, IDisposable
   }
 
   private RecordsView _view = RecordsView.Table;
+
+  // Вкладки бічної панелі в режимі таблиці.
+  private enum PanelTab
+  {
+    Filters,
+    Columns
+  }
+
+  private PanelTab _panelTab = PanelTab.Filters;
+
+  // Видимі колонки і їхній порядок; видимі поля моделі - це й проєкція запиту (fields).
+  private TableColumns? _columns;
+  private const string ActionsColumnKey = "__actions";
   private readonly SummarySettings _summarySettings = new();
 
   // Збільшується при кожній зміні фільтрів або пошуку - за ним зведення розуміє, що треба перерахувати.
@@ -95,7 +110,52 @@ public partial class Records : PageBase, IDisposable
     {
       _filterFields = FilterField.ForConfig(_config);
       _summarySettings.ResetFor(_config.Id);
+      _columns = TableColumns.For(_config, await LoadSavedColumns(_config.Id));
     }
+  }
+
+  /// <summary>
+  /// Збережений вибір колонок з localStorage. Під час попереднього рендеру на сервері браузера ще немає -
+  /// тоді null (таблиця в цей момент даних не завантажує, а в інтерактивному режимі вибір прочитається).
+  /// </summary>
+  private async Task<string?> LoadSavedColumns(Guid configId)
+  {
+    if (!RendererInfo.IsInteractive)
+      return null;
+
+    try
+    {
+      return await JS.InvokeAsync<string?>("localStorage.getItem", TableColumns.StorageKey(configId));
+    }
+    catch (Exception e) when (e is JSException or JSDisconnectedException or InvalidOperationException)
+    {
+      // Сховище недоступне (приватний режим, заборона браузера) - просто стандартні колонки.
+      return null;
+    }
+  }
+
+  private async Task SaveColumns(TableColumns columns)
+  {
+    try
+    {
+      await JS.InvokeVoidAsync("localStorage.setItem", TableColumns.StorageKey(columns.ConfigId), columns.ToJson());
+    }
+    catch (Exception e) when (e is JSException or JSDisconnectedException or InvalidOperationException)
+    {
+      // Не вдалося зберегти - вибір діє до перезавантаження сторінки.
+    }
+  }
+
+  /// <param name="needsData">Показано поле, значень якого ще немає в завантажених записах.</param>
+  private async Task OnColumnsChanged(bool needsData)
+  {
+    if (_columns is null)
+      return;
+
+    await SaveColumns(_columns);
+
+    if (needsData && _table != null)
+      await _table.Reload();
   }
 
   private async Task<List<EntityConfigListItem>?> LoadConfigs()
@@ -126,7 +186,7 @@ public partial class Records : PageBase, IDisposable
       {
         var page = await RecordApi.Query(
           configId, ApiFilters(), _search,
-          args.PageNumber, args.PageSize, args.SortColumnKey, args.SortIsDescending, cts.Token);
+          args.PageNumber, args.PageSize, args.SortColumnKey, args.SortIsDescending, _columns?.ApiFields, cts.Token);
 
         _records = page.Items;
         _totalCount = page.TotalCount;
@@ -190,6 +250,7 @@ public partial class Records : PageBase, IDisposable
   private void OnFilterColumnClick(string key)
   {
     _filterFocus = key;
+    _panelTab = PanelTab.Filters;
     _isPanelOpen = true;
   }
 
@@ -275,10 +336,23 @@ public partial class Records : PageBase, IDisposable
     _isFormOpen = true;
   }
 
-  private void OpenEdit(EntityInstance record)
+  /// <summary>
+  /// Форма редагування завжди бере повний запис з сервера: у таблиці можуть бути лише вибрані поля,
+  /// і збереження форми з неповними даними стерло б значення схованих полів.
+  /// </summary>
+  private async Task OpenEdit(EntityInstance row)
   {
+    if (_config is null)
+      return;
+
+    var config = _config;
+    EntityInstance? record = null;
+
+    if (!await Try(async () => record = await RecordApi.Get(config.Id, row.Id)) || record is null || _config != config)
+      return;
+
     _editing = record;
-    _form = _config!.Properties.ToDictionary(p => p.Key, p => record.GetFormValue(p));
+    _form = config.Properties.ToDictionary(p => p.Key, p => record.GetFormValue(p));
     _formError = null;
     _isFormOpen = true;
   }

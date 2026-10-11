@@ -35,7 +35,7 @@
 | POST | `api/data-configs/{config}/properties` | додати поля |
 | PATCH | `api/data-configs/{config}/properties/{id}` | змінити назву / ключ поля |
 | DELETE | `api/data-configs/{config}/properties/{id}` | видалити поле та його значення |
-| GET | `api/data-configs/{config}/records?pageNumber=1&pageSize=10&sortBy=price&sortDescending=false&search=текст` | записи з пагінацією, сортуванням і пошуком |
+| GET | `api/data-configs/{config}/records?pageNumber=1&pageSize=10&sortBy=price&sortDescending=false&search=текст&fields=price,status` | записи з пагінацією, сортуванням, пошуком і вибором полів |
 | POST | `api/data-configs/{config}/records/query` | записи з умовами фільтра (див. «Фільтри») |
 | POST | `api/data-configs/{config}/records/aggregate` | групування і показники (див. «Агрегація») |
 | GET | `api/data-configs/{config}/records/{id}` | запис |
@@ -71,7 +71,8 @@ Content-Type: application/json
   ],
   "search": "Луцьк",
   "sortBy": "price", "sortDescending": true,
-  "pageNumber": 1, "pageSize": 20
+  "pageNumber": 1, "pageSize": 20,
+  "fields": ["customer", "price", "status"]
 }
 ```
 
@@ -89,6 +90,9 @@ Content-Type: application/json
 - `search` — підрядок у будь-якому текстовому полі або полі-переліку; текст порівнюється без урахування регістру.
 - Поле-перелік сортується в порядку варіантів, а не за алфавітом.
 - Не більше 20 умов у запиті.
+- `fields` — які поля повернути у `values` (проєкція). Не задано — усі поля; `[]` — лише `id` і дати.
+  Умови, пошук і сортування працюють і за полями, яких немає у `fields`. У GET — `?fields=customer,price`.
+  Інтерфейс передає сюди видимі колонки таблиці (вкладка «Колонки» в бічній панелі).
 
 SQL для запиту збирається динамічно (`DataAccess/Querying/RecordQuerySql.cs`): кожна умова — `EXISTS` по значеннях
 поля в колонці його типу, усі значення — лише параметрами, `OPTION (RECOMPILE)` будує план під конкретні умови.
@@ -117,7 +121,7 @@ Content-Type: application/json
 
 | Параметр | Значення |
 |---|---|
-| `groupBy` (до 2) | поле; для дат `interval`: `hour`, `day`, `week` (з понеділка), `month`, `quarter`, `year`; для чисел `step` — ширина діапазону (100 → 0–100, 100–200…), без нього — точні значення. Порожньо — один рядок підсумків |
+| `groupBy` (до 2) | поле; для дат `interval`: `hour`, `day`, `week` (з понеділка), `month`, `quarter`, `year`; для чисел `step` — ширина діапазону (100 → [0; 100), [100; 200)…: нижня межа входить, верхня — ні), без нього — точні значення; для діапазонів рядок має ще `ranges` — фактичні `{ "min", "max" }` значень у групі (група [6; 8) може містити лише 6). Порожньо — один рядок підсумків |
 | `metrics` (1–10) | `count` (без поля — записи, з полем — заповнені значення), `sum`, `avg` — числа; `min`, `max` — числа й дати |
 | `orderBy` | `keys` — за групами (дати хронологічно, переліки в порядку варіантів), `valueDesc` / `valueAsc` — за першим показником |
 | `timeZone` | IANA або Windows; межі днів і місяців для дат з часом рахуються в ньому (за замовчуванням UTC) |

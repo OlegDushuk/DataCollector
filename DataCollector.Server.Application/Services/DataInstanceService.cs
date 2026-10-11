@@ -29,7 +29,10 @@ public class DataInstanceService(
       SortBy = query.SortBy,
       SortDescending = query.SortDescending,
       PageNumber = query.PageNumber,
-      PageSize = query.PageSize
+      PageSize = query.PageSize,
+      Fields = string.IsNullOrWhiteSpace(query.Fields)
+        ? null
+        : query.Fields.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()
     }, cancellationToken);
   }
 
@@ -46,13 +49,14 @@ public class DataInstanceService(
       RecordField.Resolve(entity, string.IsNullOrWhiteSpace(command.SortBy) ? RecordField.CreatedAtKey : command.SortBy),
       command.SortDescending,
       Math.Max(1, command.PageNumber),
-      Math.Clamp(command.PageSize, 1, MaxPageSize));
+      Math.Clamp(command.PageSize, 1, MaxPageSize),
+      BuildFields(entity, command.Fields));
 
     var (items, totalCount) = await entityInstanceRepository.Query(entity, query, cancellationToken);
 
     return new PagedResult<DataInstanceDto>
     {
-      Items = items.Select(i => i.ToDto()).ToList(),
+      Items = items.Select(i => i.ToDto(query.Fields)).ToList(),
       TotalCount = totalCount,
       PageNumber = query.PageNumber,
       PageSize = query.PageSize
@@ -132,6 +136,18 @@ public class DataInstanceService(
     var instance = await LoadInstance(entity, instanceId);
 
     await entityInstanceRepository.Delete(instance.Id);
+  }
+
+  /// <summary>
+  /// Проєкція: ключі -> поля моделі. Системні поля (createdAt, updatedAt) повертаються завжди, тож пропускаються;
+  /// невідомий ключ - помилка 400, щоб опечатка не давала мовчки порожню колонку.
+  /// </summary>
+  private static List<EntityPropertyConfig>? BuildFields(EntityConfig entity, List<string>? keys)
+  {
+    return keys?
+      .Select(key => RecordField.Resolve(entity, key).Property)
+      .OfType<EntityPropertyConfig>()
+      .ToList();
   }
 
   private static List<RecordFilter> BuildFilters(EntityConfig entity, List<RecordFilterDto>? filters)

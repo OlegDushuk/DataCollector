@@ -13,6 +13,9 @@
   [Parameter] public DataTableFilterType FilterType { get; set; }
   [Parameter] public string? Width { get; set; }
 
+  /// <summary>Позиція колонки в таблиці (колонки, показані пізніше, інакше стали б у кінець).</summary>
+  [Parameter] public int Order { get; set; }
+
   private readonly Column<TItem> _column = new();
   
   protected override void OnInitialized()
@@ -29,6 +32,12 @@
     _column.IsFilterable = IsFilterable;
     _column.FilterType = FilterType;
     _column.Width = Width;
+
+    if (_column.Order != Order)
+    {
+      _column.Order = Order;
+      DataTable.ColumnsChanged();
+    }
   }
 
   public void Dispose()

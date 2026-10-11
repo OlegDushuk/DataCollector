@@ -58,12 +58,15 @@ internal static class Mapping
     };
   }
 
-  public static DataInstanceDto ToDto(this EntityInstance instance) => new()
+  /// <param name="fields">Проєкція: лише ці поля у values (null - усі поля моделі).</param>
+  public static DataInstanceDto ToDto(this EntityInstance instance, IReadOnlyList<EntityPropertyConfig>? fields = null) => new()
   {
     Id = instance.Id,
     CreatedAt = instance.CreatedAt,
     UpdatedAt = instance.UpdatedAt,
-    Values = instance.Properties.ToDictionary(p => p.Config.Key, p => p.Value)
+    Values = instance.Properties
+      .Where(p => fields is null || fields.Any(f => f.Id == p.Config.Id))
+      .ToDictionary(p => p.Config.Key, p => p.Value)
   };
 
   /// <summary>Коди операторів фільтра в API (без урахування регістру).</summary>
@@ -148,7 +151,12 @@ internal static class Mapping
       Field = m.Field is null ? null : FieldKey(m.Field),
       Name = m.Name
     }).ToList(),
-    Rows = result.Rows.Select(r => new AggregateRowDto { Keys = [.. r.Keys], Values = [.. r.Values] }).ToList(),
+    Rows = result.Rows.Select(r => new AggregateRowDto
+    {
+      Keys = [.. r.Keys],
+      Values = [.. r.Values],
+      Ranges = r.Ranges?.Select(x => x is null ? null : new AggregateRangeDto { Min = x.Min, Max = x.Max }).ToList()
+    }).ToList(),
     Truncated = result.Truncated
   };
 

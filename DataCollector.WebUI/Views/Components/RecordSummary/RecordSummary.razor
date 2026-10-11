@@ -59,7 +59,16 @@
                     <tr>
                         @for (var i = 0; i < _result.Dimensions.Count; i++)
                         {
-                            <td>@AggregateFormat.Key(_result.Dimensions[i], row.Keys[i])</td>
+                            var dimension = _result.Dimensions[i];
+                            var rangeValues = AggregateFormat.RangeValues(row.RangeAt(i));
+
+                            <td title="@AggregateFormat.RangeTitle(dimension, row.Keys[i])">
+                                <span>@AggregateFormat.Key(dimension, row.Keys[i])</span>
+                                @if (rangeValues != null)
+                                {
+                                    <span class="summary__range">@rangeValues</span>
+                                }
+                            </td>
                         }
                         @for (var i = 0; i < _result.Metrics.Count; i++)
                         {

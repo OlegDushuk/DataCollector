@@ -45,12 +45,16 @@ public class EntityInstanceRepository : RepositoryBase, IEntityInstanceRepositor
 
     // SQL повертає на одну групу більше за ліміт - так видно, що результат обрізано.
     var truncated = rows.Count > query.Limit;
+    var hasRanges = query.Dimensions.Any(d => d.Step != null);
 
     var result = rows
       .Take(query.Limit)
       .Select(row => new AggregateRow(
         query.Dimensions.Select((d, i) => d.NormalizeKey(row[$"K{i}"])).ToList(),
-        query.Metrics.Select((m, i) => m.NormalizeValue(row[$"M{i}"])).ToList()))
+        query.Metrics.Select((m, i) => m.NormalizeValue(row[$"M{i}"])).ToList(),
+        hasRanges
+          ? query.Dimensions.Select((d, i) => d.Step is null ? null : d.NormalizeRange(row[$"R{i}Min"], row[$"R{i}Max"])).ToList()
+          : null))
       .ToList();
 
     return new AggregateResult(result, truncated);

@@ -13,4 +13,7 @@ public class GetDataInstancesQuery
 
   /// <summary>Підрядок для пошуку в текстових полях і полях-переліках. Умови фільтра - у POST .../records/query.</summary>
   public string? Search { get; set; }
+
+  /// <summary>Ключі полів через кому, значення яких повернути (?fields=name,price). Не задано - усі поля.</summary>
+  public string? Fields { get; set; }
 }

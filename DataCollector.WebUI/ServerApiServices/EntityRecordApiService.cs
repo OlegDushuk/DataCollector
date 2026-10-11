@@ -10,6 +10,7 @@ public class EntityRecordApiService(HttpClient httpClient) : ApiServiceBase(http
   /// Сторінка записів з умовами фільтра (POST .../records/query).
   /// </summary>
   /// <param name="filters">Умови у форматі API (див. <see cref="RecordFilterForm.ToApi"/>).</param>
+  /// <param name="fields">Поля, значення яких повернути; null - усі (див. <see cref="TableColumns.ApiFields"/>).</param>
   public Task<PagedResult<EntityInstance>> Query(
     Guid configId,
     IEnumerable<object> filters,
@@ -18,6 +19,7 @@ public class EntityRecordApiService(HttpClient httpClient) : ApiServiceBase(http
     int pageSize,
     string? sortBy,
     bool sortDescending,
+    IReadOnlyCollection<string>? fields,
     CancellationToken cancellationToken = default)
   {
     var body = new
@@ -27,7 +29,8 @@ public class EntityRecordApiService(HttpClient httpClient) : ApiServiceBase(http
       sortBy,
       sortDescending,
       pageNumber,
-      pageSize
+      pageSize,
+      fields
     };
 
     return PostAsync<PagedResult<EntityInstance>>($"{RecordsUrl(configId)}/query", body, cancellationToken);
@@ -59,6 +62,10 @@ public class EntityRecordApiService(HttpClient httpClient) : ApiServiceBase(http
 
     return PostAsync<AggregateResult>($"{RecordsUrl(configId)}/aggregate", body, cancellationToken);
   }
+
+  /// <summary>Запис з усіма полями (таблиця може містити лише частину полів).</summary>
+  public Task<EntityInstance> Get(Guid configId, Guid recordId, CancellationToken cancellationToken = default)
+    => GetAsync<EntityInstance>($"{RecordsUrl(configId)}/{recordId}", cancellationToken);
 
   public async Task<Guid> Create(Guid configId, IReadOnlyDictionary<string, string?> values)
   {

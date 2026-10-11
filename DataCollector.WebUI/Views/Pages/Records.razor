@@ -60,7 +60,7 @@
                 <button type="button" class="panel-toggle @(_isPanelOpen ? "panel-toggle--active" : "")"
                         title="@(_isPanelOpen ? "Сховати панель" : "Показати панель")" @onclick="TogglePanel">
                     <svg viewBox="0 0 24 24"><path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/></svg>
-                    <span>@(_view == RecordsView.Summary ? "Параметри" : "Фільтри")</span>
+                    <span>Параметри</span>
                     @if (_filters.Count > 0)
                     {
                         <span class="panel-toggle__count">@_filters.Count</span>
@@ -127,27 +127,44 @@
                                ActiveFilterKeys="ActiveFilterKeys"
                                OnRowClick="OpenEdit">
                         <RowTemplate>
-                            @foreach (var prop in _config.Properties)
+                            @* Колонки - за вибором у панелі «Колонки»: лише видимі, у вибраному порядку. *@
+                            @for (var i = 0; i < (_columns?.Items.Count ?? 0); i++)
                             {
-                                <ColumnTemplate TItem="EntityInstance" Context="item"
-                                                Key="@prop.Key"
-                                                Title="@prop.Name"
-                                                IsSortable="true"
-                                                IsFilterable="true">
-                                    <span class="default-text">@item.GetDisplayValue(prop)</span>
-                                </ColumnTemplate>
+                                var column = _columns!.Items[i];
+                                if (!column.IsVisible)
+                                    continue;
+
+                                var order = i;
+                                var prop = column.IsSystem ? null : _config.Properties.FirstOrDefault(p => p.Key == column.Key);
+
+                                if (prop != null)
+                                {
+                                    <ColumnTemplate @key="column.Key" TItem="EntityInstance" Context="item"
+                                                    Key="@prop.Key"
+                                                    Title="@prop.Name"
+                                                    Order="order"
+                                                    IsSortable="true"
+                                                    IsFilterable="true">
+                                        <span class="default-text">@item.GetDisplayValue(prop)</span>
+                                    </ColumnTemplate>
+                                }
+                                else if (column.IsSystem)
+                                {
+                                    <ColumnTemplate @key="column.Key" TItem="EntityInstance" Context="item"
+                                                    Key="@column.Key"
+                                                    Title="@column.Name"
+                                                    Order="order"
+                                                    IsSortable="true"
+                                                    IsFilterable="true"
+                                                    Width="170px">
+                                        <span class="default-text">
+                                            @Format.Date(column.Key == FilterField.UpdatedAtKey ? item.UpdatedAt : item.CreatedAt)
+                                        </span>
+                                    </ColumnTemplate>
+                                }
                             }
 
-                            <ColumnTemplate TItem="EntityInstance" Context="item"
-                                            Key="createdAt"
-                                            Title="Створено"
-                                            IsSortable="true"
-                                            IsFilterable="true"
-                                            Width="170px">
-                                <span class="default-text">@Format.Date(item.CreatedAt)</span>
-                            </ColumnTemplate>
-
-                            <ColumnTemplate TItem="EntityInstance" Context="item" Width="90px">
+                            <ColumnTemplate @key="ActionsColumnKey" TItem="EntityInstance" Context="item" Width="90px" Order="int.MaxValue">
                                 <div class="actions">
                                     <IconButton Icon="edit" Title="Змінити" OnClick="@(() => OpenEdit(item))" />
                                     <IconButton Icon="delete" Title="Видалити" Danger="true"
@@ -163,14 +180,36 @@
             {
                 <aside class="side-panel">
                     <div class="side-panel__header">
-                        <div class="card__title">@(_view == RecordsView.Summary ? "Параметри зведення" : "Фільтри")</div>
+                        <div class="card__title">@(_view == RecordsView.Summary ? "Параметри зведення" : "Параметри таблиці")</div>
                         <button type="button" class="side-panel__close" title="Сховати панель" @onclick="TogglePanel">
                             <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
                         </button>
                     </div>
 
+                    @if (_view == RecordsView.Table)
+                    {
+                        <div class="side-panel__tabs">
+                            <div class="segmented segmented--stretch">
+                                <button type="button" class="segmented__item @(_panelTab == PanelTab.Filters ? "segmented__item--active" : "")"
+                                        @onclick="@(() => _panelTab = PanelTab.Filters)">
+                                    Фільтри@(_filters.Count > 0 ? $" ({_filters.Count})" : "")
+                                </button>
+                                <button type="button" class="segmented__item @(_panelTab == PanelTab.Columns ? "segmented__item--active" : "")"
+                                        @onclick="@(() => _panelTab = PanelTab.Columns)">
+                                    Колонки@(_columns != null ? $" ({_columns.Visible.Count()}/{_columns.Items.Count})" : "")
+                                </button>
+                            </div>
+                        </div>
+                    }
+
                     <div class="side-panel__body">
-                        @if (_view == RecordsView.Summary)
+                        @if (_view == RecordsView.Table && _panelTab == PanelTab.Columns && _columns != null)
+                        {
+                            <section class="side-panel__section">
+                                <ColumnChooser Config="_config" Columns="_columns" OnChanged="OnColumnsChanged" />
+                            </section>
+                        }
+                        else if (_view == RecordsView.Summary)
                         {
                             <section class="side-panel__section">
                                 <div class="side-panel__section-title subtitle">Групування і показники</div>
@@ -180,7 +219,8 @@
                             </section>
                         }
 
-                        <section class="side-panel__section">
+                        @* Фільтри лише ховаються (не прибираються), щоб не загубити незастосовані умови при перемиканні вкладок. *@
+                        <section class="side-panel__section" hidden="@(_view == RecordsView.Table && _panelTab == PanelTab.Columns)">
                             @if (_view == RecordsView.Summary)
                             {
                                 <div class="side-panel__section-title subtitle">Фільтри</div>

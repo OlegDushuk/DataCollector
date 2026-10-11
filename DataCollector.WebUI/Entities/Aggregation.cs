@@ -34,6 +34,17 @@ public class AggregateRow
 {
   public List<JsonElement> Keys { get; set; } = [];
   public List<JsonElement> Values { get; set; } = [];
+
+  /// <summary>Для групувань-діапазонів: фактичні мінімум і максимум значень у групі (інакше null).</summary>
+  public List<AggregateRange?>? Ranges { get; set; }
+
+  public AggregateRange? RangeAt(int index) => Ranges is { } ranges && index < ranges.Count ? ranges[index] : null;
+}
+
+public class AggregateRange
+{
+  public decimal? Min { get; set; }
+  public decimal? Max { get; set; }
 }
 
 /// <summary>Групування в редакторі зведення.</summary>
@@ -155,6 +166,27 @@ public static class AggregateFormat
     }
 
     return FieldValue.Display(dimension.DataType, raw);
+  }
+
+  /// <summary>
+  /// Які значення реально є в діапазоні: "лише 6" або "фактично 4 – 5". Підпис "6 – 8" сам цього не каже.
+  /// </summary>
+  public static string? RangeValues(AggregateRange? range)
+  {
+    if (range is not { Min: { } min, Max: { } max })
+      return null;
+
+    return min == max ? $"лише {Number(min)}" : $"фактично {Number(min)} – {Number(max)}";
+  }
+
+  /// <summary>Підказка до діапазону: нижня межа входить, верхня - ні (вона початок наступного діапазону).</summary>
+  public static string? RangeTitle(AggregateDimensionInfo dimension, JsonElement key)
+  {
+    if (dimension.Step is not { } step ||
+        !decimal.TryParse(FieldValue.Raw(key), NumberStyles.Float, CultureInfo.InvariantCulture, out var from))
+      return null;
+
+    return $"Від {Number(from)} включно до {Number(from + step)} не включно";
   }
 
   public static string Value(AggregateMetricInfo metric, PropertyDataType? fieldType, JsonElement value)
