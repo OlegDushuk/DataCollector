@@ -18,7 +18,6 @@ public sealed class TableColumn
 /// </summary>
 public sealed class TableColumns
 {
-  private const string StoragePrefix = "datacollector.columns.";
 
   public Guid ConfigId { get; private set; }
   public List<TableColumn> Items { get; private set; } = [];
@@ -33,7 +32,8 @@ public sealed class TableColumns
     ? Items.Where(c => c is { IsSystem: false, IsVisible: true }).Select(c => c.Key).ToList()
     : null;
 
-  public static string StorageKey(Guid configId) => StoragePrefix + configId;
+  /// <summary>Ключ у <see cref="Services.BrowserStorage"/> (повний ключ у браузері - datacollector.columns.{id}).</summary>
+  public static string StorageKey(Guid configId) => "columns." + configId;
 
   private string _defaultJson = string.Empty;
 

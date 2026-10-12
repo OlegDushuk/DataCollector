@@ -125,7 +125,10 @@
                                Items="_records"
                                TotalCount="_totalCount"
                                IsLoading="_isLoading"
-                               InitialSortKey="createdAt"
+                               InitialSortKey="@(_sortKey ?? FilterField.CreatedAtKey)"
+                               InitialSortDescending="_sortDescending"
+                               StartPageSize="_pageSize"
+                               PageSizes="PageSizes"
                                EmptyText="@EmptyText"
                                TotalLabel="@(HasFilters ? "Знайдено" : "Всього")"
                                OnReload="OnReload"
@@ -236,6 +239,12 @@
                                                FocusField="@_filterFocus"
                                                OnApply="ApplyFilters" />
                         </section>
+
+                        <div class="side-panel__footer">
+                            <button type="button" class="column-chooser__link" title="Фільтри, сортування, колонки, зведення і стан панелі для цієї моделі"
+                                    @onclick="ResetView">Скинути налаштування вигляду</button>
+                            <span class="default-text">Налаштування зберігаються в цьому браузері</span>
+                        </div>
                     </div>
                 </aside>
             }

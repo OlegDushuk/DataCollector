@@ -278,6 +278,17 @@
     overflow-y: auto;
   }
 
+  // Внизу прокручуваної області: скидання налаштувань вигляду.
+  &__footer {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: variables.$pad-md;
+    border-top: 1px solid variables.$border-color;
+    font-size: 12px;
+  }
+
   &__tabs {
     padding: 12px variables.$pad-md;
     border-bottom: 1px solid variables.$border-color;

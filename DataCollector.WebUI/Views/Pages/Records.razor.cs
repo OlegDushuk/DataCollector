@@ -1,6 +1,7 @@
 ﻿using DataCollector.WebUI.Entities;
 using DataCollector.WebUI.Helpers;
 using DataCollector.WebUI.ServerApiServices;
+using DataCollector.WebUI.Services;
 using DataCollector.WebUI.Views.Base;
 using DataCollector.WebUI.Views.Components.DataTable;
 using DataCollector.WebUI.Views.Components.DataTable.Models;
@@ -16,6 +17,15 @@ public partial class Records : PageBase, IDisposable
   [Inject] private EntityConfigApiService ConfigApi { get; set; } = null!;
   [Inject] private EntityRecordApiService RecordApi { get; set; } = null!;
   [Inject] private IJSRuntime JS { get; set; } = null!;
+  [Inject] private BrowserStorage Storage { get; set; } = null!;
+
+  // Налаштування сторінки для поточної моделі зберігаються після кожного рендеру, якщо змінились
+  // (див. OnAfterRenderAsync): так не треба пам'ятати про збереження в кожному обробнику.
+  private string? _savedSettingsJson;
+  private bool _settingsRestored;
+
+  private static readonly List<int> PageSizes = [5, 10, 20, 50];
+  private int _pageSize = 10;
 
   private DataTable<EntityInstance>? _table;
 
@@ -96,10 +106,13 @@ public partial class Records : PageBase, IDisposable
     if (_configs is null || _configs.Count == 0)
       return;
 
-    // Без ключа в адресі відкриваємо першу модель.
+    // Без ключа в адресі відкриваємо модель, з якою працювали минулого разу (або першу).
     if (string.IsNullOrEmpty(ConfigKey))
     {
-      Navigation.NavigateTo($"/records/{_configs[0].Key}", replace: true);
+      var last = await Storage.GetString(RecordsPageSettings.LastModelKey);
+      var target = _configs.FirstOrDefault(c => string.Equals(c.Key, last, StringComparison.OrdinalIgnoreCase)) ?? _configs[0];
+
+      Navigation.NavigateTo($"/records/{target.Key}", replace: true);
       return;
     }
 
@@ -108,6 +121,7 @@ public partial class Records : PageBase, IDisposable
 
     CancelReload();
     _config = null;
+    _settingsRestored = false;
     _records = [];
     _totalCount = 0;
     ResetFilters();
@@ -117,40 +131,81 @@ public partial class Records : PageBase, IDisposable
     {
       _filterFields = FilterField.ForConfig(_config);
       _summarySettings.ResetFor(_config.Id);
-      _columns = TableColumns.For(_config, await LoadSavedColumns(_config.Id));
+      _columns = TableColumns.For(_config, await Storage.GetString(TableColumns.StorageKey(_config.Id)));
+
+      // Таблиця створюється вже з відновленими сортуванням, розміром сторінки й фільтрами,
+      // тож перший запит одразу правильний (без зайвого запиту зі стандартними налаштуваннями).
+      await RestoreSettings(_config);
+      await Storage.SetString(RecordsPageSettings.LastModelKey, _config.Key);
     }
   }
+
+  /// <summary>Відновлює налаштування моделі з браузера; без збережених - стандартні.</summary>
+  private async Task RestoreSettings(EntityConfig config)
+  {
+    var saved = await Storage.Get<RecordsPageSettings>(RecordsPageSettings.StorageKey(config.Id));
+    if (saved?.Version != RecordsPageSettings.CurrentVersion)
+      saved = new RecordsPageSettings();
+
+    _view = saved.View == "summary" ? RecordsView.Summary : RecordsView.Table;
+    _isPanelOpen = saved.PanelOpen;
+    _panelTab = saved.PanelTab == "columns" ? PanelTab.Columns : PanelTab.Filters;
+
+    _search = string.IsNullOrWhiteSpace(saved.Search) ? null : saved.Search;
+    _filters = saved.RestoreFilters(_filterFields);
+
+    // Поле сортування могли видалити з моделі - тоді стандартне сортування.
+    _sortKey = _filterFields.Any(f => f.Key == saved.SortKey) ? saved.SortKey : FilterField.CreatedAtKey;
+    _sortDescending = saved.SortKey is null || saved.SortDescending;
+    _pageSize = saved.PageSize is { } size && PageSizes.Contains(size) ? size : 10;
+
+    saved.RestoreSummary(_summarySettings, _filterFields);
+
+    _savedSettingsJson = BrowserStorage.Serialize(CurrentSettings());
+    _settingsRestored = true;
+  }
+
+  private RecordsPageSettings CurrentSettings() => new()
+  {
+    View = _view == RecordsView.Summary ? "summary" : "table",
+    PanelOpen = _isPanelOpen,
+    PanelTab = _panelTab == PanelTab.Columns ? "columns" : "filters",
+    Search = string.IsNullOrWhiteSpace(_search) ? null : _search,
+    Filters = _filters.Select(f => f.Clone()).ToList(),
+    SortKey = _sortKey,
+    SortDescending = _sortDescending,
+    PageSize = _pageSize,
+    Summary = RecordsPageSettings.Save(_summarySettings)
+  };
 
   /// <summary>
-  /// Збережений вибір колонок з localStorage. Під час попереднього рендеру на сервері браузера ще немає -
-  /// тоді null (таблиця в цей момент даних не завантажує, а в інтерактивному режимі вибір прочитається).
+  /// Після кожного рендеру: якщо налаштування змінились (фільтр, сортування, подання, панель...) - зберегти.
+  /// Порівняння за JSON дешеве, а запис у localStorage відбувається лише при реальній зміні.
   /// </summary>
-  private async Task<string?> LoadSavedColumns(Guid configId)
+  protected override async Task OnAfterRenderAsync(bool firstRender)
   {
-    if (!RendererInfo.IsInteractive)
-      return null;
+    if (_config is null || !_settingsRestored)
+      return;
 
-    try
-    {
-      return await JS.InvokeAsync<string?>("localStorage.getItem", TableColumns.StorageKey(configId));
-    }
-    catch (Exception e) when (e is JSException or JSDisconnectedException or InvalidOperationException)
-    {
-      // Сховище недоступне (приватний режим, заборона браузера) - просто стандартні колонки.
-      return null;
-    }
+    var json = BrowserStorage.Serialize(CurrentSettings());
+    if (json == _savedSettingsJson)
+      return;
+
+    _savedSettingsJson = json;
+    await Storage.SetString(RecordsPageSettings.StorageKey(_config.Id), json);
   }
 
-  private async Task SaveColumns(TableColumns columns)
+  /// <summary>Скинути вигляд моделі: подання, фільтри, сортування, колонки, зведення - як уперше.</summary>
+  private async Task ResetView()
   {
-    try
-    {
-      await JS.InvokeVoidAsync("localStorage.setItem", TableColumns.StorageKey(columns.ConfigId), columns.ToJson());
-    }
-    catch (Exception e) when (e is JSException or JSDisconnectedException or InvalidOperationException)
-    {
-      // Не вдалося зберегти - вибір діє до перезавантаження сторінки.
-    }
+    if (_config is null)
+      return;
+
+    await Storage.Remove(RecordsPageSettings.StorageKey(_config.Id));
+    await Storage.Remove(TableColumns.StorageKey(_config.Id));
+
+    // Найпростіше і найнадійніше - відкрити модель заново: таблиця створиться зі стандартними налаштуваннями.
+    Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
   }
 
   /// <param name="needsData">Показано поле, значень якого ще немає в завантажених записах.</param>
@@ -159,7 +214,7 @@ public partial class Records : PageBase, IDisposable
     if (_columns is null)
       return;
 
-    await SaveColumns(_columns);
+    await Storage.SetString(TableColumns.StorageKey(_columns.ConfigId), _columns.ToJson());
 
     if (needsData && _table != null)
       await _table.Reload();
@@ -188,6 +243,7 @@ public partial class Records : PageBase, IDisposable
 
     _sortKey = args.SortColumnKey;
     _sortDescending = args.SortIsDescending;
+    _pageSize = args.PageSize;
 
     _isLoading = true;
     try
