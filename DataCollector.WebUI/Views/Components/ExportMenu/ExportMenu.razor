@@ -1,0 +1,75 @@
+@namespace DataCollector.WebUI.Views.Components
+
+@*
+    Кнопка «Експорт» з вибором формату. Що саме вивантажується (записи чи зведення, з якими умовами) -
+    вирішує сторінка в OnExport; меню лише показує формати і стан підготовки файлу.
+*@
+
+<div class="export-menu">
+    <button type="button" class="panel-toggle @(_isOpen ? "panel-toggle--active" : "")"
+            disabled="@IsBusy" title="@Hint" @onclick="Toggle">
+        @if (IsBusy)
+        {
+            <span class="export-menu__spinner"></span>
+            <span>Готуємо файл…</span>
+        }
+        else
+        {
+            <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            <span>Експорт</span>
+        }
+    </button>
+
+    @if (_isOpen)
+    {
+        @* Прозорий фон на весь екран: клік повз меню закриває його. *@
+        <div class="export-menu__backdrop" @onclick="Close"></div>
+
+        <div class="export-menu__dropdown">
+            <div class="export-menu__caption subtitle">@Caption</div>
+
+            @foreach (var format in Formats)
+            {
+                <button type="button" class="export-menu__item" @onclick="@(() => Choose(format.Code))">
+                    <span class="export-menu__badge">@format.Code.ToUpperInvariant()</span>
+                    <span class="export-menu__text">
+                        <span class="export-menu__title">@format.Title</span>
+                        <span class="default-text">@format.Description</span>
+                    </span>
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+  private static readonly (string Code, string Title, string Description)[] Formats =
+  [
+    ("xlsx", "Excel", "Таблиця з датами й числами, фільтр у заголовку"),
+    ("csv", "CSV", "Простий текст для інших програм і систем"),
+    ("json", "JSON", "Для розробників та інтеграцій"),
+    ("xml", "XML", "Для систем, що обмінюються XML")
+  ];
+
+  /// <summary>Що буде у файлі - підпис над форматами ("Записи з поточними фільтрами").</summary>
+  [Parameter] public string Caption { get; set; } = string.Empty;
+
+  /// <summary>Підказка на кнопці.</summary>
+  [Parameter] public string? Hint { get; set; }
+
+  [Parameter] public bool IsBusy { get; set; }
+
+  /// <summary>Вибрано формат: "xlsx", "csv", "json" або "xml".</summary>
+  [Parameter] public EventCallback<string> OnExport { get; set; }
+
+  private bool _isOpen;
+
+  private void Toggle() => _isOpen = !_isOpen;
+  private void Close() => _isOpen = false;
+
+  private Task Choose(string format)
+  {
+    _isOpen = false;
+    return OnExport.InvokeAsync(format);
+  }
+}

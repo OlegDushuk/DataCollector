@@ -10,6 +10,7 @@ public static class DependencyInjection
   {
     services.AddTransient<IDataConfigService, DataConfigService>();
     services.AddTransient<IDataInstanceService, DataInstanceService>();
+    services.AddTransient<IDataExportService, DataExportService>();
     
     return services;
   }

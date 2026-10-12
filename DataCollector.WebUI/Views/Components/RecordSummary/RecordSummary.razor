@@ -142,11 +142,7 @@
     _cts?.Cancel();
     var cts = _cts = new CancellationTokenSource();
 
-    var dims = Settings.Dimensions
-      .Select(d => (Form: d, Field: Fields.FirstOrDefault(f => f.Key == d.Field)))
-      .Where(x => x.Field != null)
-      .Select(x => x.Form.ToApi(x.Field!))
-      .ToList();
+    var dims = Settings.ApiDimensions(Fields);
 
     _loading = true;
     _error = null;
@@ -154,7 +150,7 @@
     try
     {
       _result = await RecordApi.Aggregate(
-        ConfigId, Filters, Search, dims, Settings.Metrics.Select(m => m.ToApi()), Settings.Order, cts.Token);
+        ConfigId, Filters, Search, dims, Settings.ApiMetrics(), Settings.Order, cts.Token);
     }
     catch (OperationCanceledException) when (cts.IsCancellationRequested)
     {

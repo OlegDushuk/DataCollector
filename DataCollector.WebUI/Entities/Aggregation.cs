@@ -89,6 +89,15 @@ public sealed class SummarySettings
   public List<AggregateMetricForm> Metrics { get; set; } = [];
   public string Order { get; set; } = "keys";
 
+  /// <summary>Групування у форматі API (поля, яких уже немає в моделі, пропускаються).</summary>
+  public List<object> ApiDimensions(IReadOnlyList<FilterField> fields) => Dimensions
+    .Select(d => (Form: d, Field: fields.FirstOrDefault(f => f.Key == d.Field)))
+    .Where(x => x.Field != null)
+    .Select(x => x.Form.ToApi(x.Field!))
+    .ToList();
+
+  public List<object> ApiMetrics() => Metrics.Select(m => m.ToApi()).ToList();
+
   /// <summary>Інша модель - починаємо з найпоширенішого зведення: кількість записів по місяцях.</summary>
   public void ResetFor(Guid configId)
   {

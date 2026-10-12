@@ -60,6 +60,13 @@ public partial class Records : PageBase, IDisposable
 
   // Видимі колонки і їхній порядок; видимі поля моделі - це й проєкція запиту (fields).
   private TableColumns? _columns;
+
+  // Поточне сортування таблиці (з останнього запиту) - експорт повторює його.
+  private string? _sortKey = FilterField.CreatedAtKey;
+  private bool _sortDescending = true;
+
+  private bool _isExporting;
+  private string? _notice;
   private const string ActionsColumnKey = "__actions";
   private readonly SummarySettings _summarySettings = new();
 
@@ -178,6 +185,9 @@ public partial class Records : PageBase, IDisposable
     CancelReload();
     var cts = _reloadCts = new CancellationTokenSource();
     var configId = _config.Id;
+
+    _sortKey = args.SortColumnKey;
+    _sortDescending = args.SortIsDescending;
 
     _isLoading = true;
     try
@@ -309,6 +319,62 @@ public partial class Records : PageBase, IDisposable
 
     // У режимі зведення таблиці немає (воно перераховується саме за _filtersVersion).
     return _view == RecordsView.Table && _table != null ? _table.Reload(toFirstPage: true) : Task.CompletedTask;
+  }
+
+  private string ExportCaption => _view == RecordsView.Summary
+    ? "Зведення з поточними групуваннями, показниками й фільтрами"
+    : HasFilters
+      ? $"Знайдені записи ({_totalCount:N0}), видимі колонки і сортування"
+      : $"Усі записи ({_totalCount:N0}), видимі колонки і сортування";
+
+  /// <summary>
+  /// Експорт того, що відкрито: записи таблиці (умови, пошук, сортування, видимі колонки в їхньому порядку)
+  /// або зведення (групування, показники, умови). Файл формує API, браузер отримує його через JS.
+  /// </summary>
+  private async Task Export(string format)
+  {
+    if (_config is null || _isExporting)
+      return;
+
+    _isExporting = true;
+    _notice = null;
+    Error = null;
+
+    try
+    {
+      DownloadedFile? file = null;
+
+      var ok = await Try(async () =>
+      {
+        file = _view == RecordsView.Summary
+          ? await RecordApi.ExportAggregate(
+            _config.Id, format, ApiFilters(), _search,
+            _summarySettings.ApiDimensions(_filterFields), _summarySettings.ApiMetrics(), _summarySettings.Order)
+          : await RecordApi.ExportRecords(
+            _config.Id, format, ApiFilters(), _search, _sortKey, _sortDescending,
+            _columns?.Visible.Select(c => c.Key).ToList());
+      });
+
+      if (!ok || file is null)
+        return;
+
+      using var stream = new MemoryStream(file.Content);
+      using var reference = new DotNetStreamReference(stream);
+      await JS.InvokeVoidAsync("dataCollector.downloadFile", file.FileName, file.ContentType, reference);
+
+      if (file.Truncated)
+        Error = $"У файл потрапили лише перші {file.RowCount:N0} записів - це ліміт одного експорту. Звузьте фільтри, щоб вивантажити решту.";
+      else
+        _notice = $"Файл {file.FileName} збережено" + (file.RowCount is { } rows ? $" ({rows:N0} рядків)" : "");
+    }
+    catch (JSException)
+    {
+      Error = "Браузер не зміг зберегти файл. Оновіть сторінку (Ctrl+F5) і спробуйте ще раз.";
+    }
+    finally
+    {
+      _isExporting = false;
+    }
   }
 
   private void CancelReload()

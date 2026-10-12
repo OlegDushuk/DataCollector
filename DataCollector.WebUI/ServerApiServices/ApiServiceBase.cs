@@ -27,6 +27,28 @@ public abstract class ApiServiceBase(HttpClient httpClient)
     return (await response.Content.ReadFromJsonAsync<TResult>(JsonOptions, cancellationToken))!;
   }
 
+  /// <summary>
+  /// POST, у відповідь на який приходить файл (експорт). Назва файлу - із Content-Disposition,
+  /// кількість рядків і ознака обрізання - із заголовків X-Export-*.
+  /// </summary>
+  protected async Task<DownloadedFile> PostForFileAsync(string url, object body, CancellationToken cancellationToken = default)
+  {
+    var response = await Send(() => httpClient.PostAsJsonAsync(url, body, JsonOptions, cancellationToken), cancellationToken);
+    var content = response.Content.Headers;
+
+    return new DownloadedFile
+    {
+      FileName = content.ContentDisposition?.FileNameStar ?? content.ContentDisposition?.FileName?.Trim('"') ?? "export",
+      ContentType = content.ContentType?.MediaType ?? "application/octet-stream",
+      Content = await response.Content.ReadAsByteArrayAsync(cancellationToken),
+      RowCount = int.TryParse(Header(response, "X-Export-Rows"), out var rows) ? rows : null,
+      Truncated = Header(response, "X-Export-Truncated") == "true"
+    };
+  }
+
+  private static string? Header(HttpResponseMessage response, string name)
+    => response.Headers.TryGetValues(name, out var values) ? values.FirstOrDefault() : null;
+
   protected async Task PatchAsync(string url, object body)
   {
     await Send(() => httpClient.PatchAsJsonAsync(url, body, JsonOptions));

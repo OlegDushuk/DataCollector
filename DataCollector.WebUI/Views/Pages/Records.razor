@@ -17,6 +17,7 @@
 
 <div class="page">
     <Alert Message="@Error" OnClose="@(() => Error = null)" />
+    <Alert Message="@_notice" Success="true" OnClose="@(() => _notice = null)" />
 
     @if (_configs is { Count: 0 })
     {
@@ -49,6 +50,11 @@
 
             <div class="records-toolbar__right">
                 <span class="default-text">Ключ для API: <span class="code">@_config.Key</span></span>
+
+                <ExportMenu Caption="@ExportCaption"
+                            Hint="@(_view == RecordsView.Summary ? "Зберегти зведення у файл" : "Зберегти записи у файл")"
+                            IsBusy="_isExporting"
+                            OnExport="Export" />
 
                 <div class="segmented">
                     <button type="button" class="segmented__item @(_view == RecordsView.Table ? "segmented__item--active" : "")"

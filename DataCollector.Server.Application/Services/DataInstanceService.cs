@@ -44,13 +44,13 @@ public class DataInstanceService(
     var entity = await entityConfigRepository.Load(config);
 
     var query = new RecordQuery(
-      BuildFilters(entity, command.Filters),
+      RecordQueries.Filters(entity, command.Filters),
       command.Search,
-      RecordField.Resolve(entity, string.IsNullOrWhiteSpace(command.SortBy) ? RecordField.CreatedAtKey : command.SortBy),
+      RecordQueries.Sort(entity, command.SortBy),
       command.SortDescending,
       Math.Max(1, command.PageNumber),
       Math.Clamp(command.PageSize, 1, MaxPageSize),
-      BuildFields(entity, command.Fields));
+      RecordQueries.Fields(entity, command.Fields));
 
     var (items, totalCount) = await entityInstanceRepository.Query(entity, query, cancellationToken);
 
@@ -70,30 +70,7 @@ public class DataInstanceService(
   {
     var entity = await entityConfigRepository.Load(config);
 
-    var dimensions = (command.GroupBy ?? [])
-      .Select(d => AggregateDimension.Create(
-        RecordField.Resolve(entity, d.Field),
-        d.Interval.ToDateInterval(),
-        d.Step))
-      .ToList();
-
-    // Без показників - кількість записів: найчастіший запит ("скільки записів у кожній групі").
-    var metrics = command.Metrics is { Count: > 0 }
-      ? command.Metrics
-        .Select(m => AggregateMetric.Create(
-          m.Function.ToAggregateFunction(),
-          string.IsNullOrWhiteSpace(m.Field) ? null : RecordField.Resolve(entity, m.Field)))
-        .ToList()
-      : [AggregateMetric.Create(AggregateFunction.Count, null)];
-
-    var query = new AggregateQuery(
-      BuildFilters(entity, command.Filters),
-      command.Search,
-      dimensions,
-      metrics,
-      command.OrderBy.ToAggregateOrder(),
-      command.Limit,
-      AggregateQuery.ResolveTimeZone(command.TimeZone));
+    var query = RecordQueries.Aggregate(entity, command);
 
     var result = await entityInstanceRepository.Aggregate(entity, query, cancellationToken);
     return query.ToDto(result);
@@ -138,29 +115,7 @@ public class DataInstanceService(
     await entityInstanceRepository.Delete(instance.Id);
   }
 
-  /// <summary>
-  /// Проєкція: ключі -> поля моделі. Системні поля (createdAt, updatedAt) повертаються завжди, тож пропускаються;
-  /// невідомий ключ - помилка 400, щоб опечатка не давала мовчки порожню колонку.
-  /// </summary>
-  private static List<EntityPropertyConfig>? BuildFields(EntityConfig entity, List<string>? keys)
-  {
-    return keys?
-      .Select(key => RecordField.Resolve(entity, key).Property)
-      .OfType<EntityPropertyConfig>()
-      .ToList();
-  }
 
-  private static List<RecordFilter> BuildFilters(EntityConfig entity, List<RecordFilterDto>? filters)
-  {
-    return (filters ?? [])
-      .Select(f => RecordFilter.Create(
-        RecordField.Resolve(entity, f.Field),
-        f.Operator.ToFilterOperator(),
-        f.Value?.ToRawValue(f.Field),
-        f.ValueTo?.ToRawValue(f.Field),
-        f.Values?.Select(v => v.ToRawValue(f.Field)).ToList()))
-      .ToList();
-  }
 
   private async Task<EntityInstance> LoadInstance(EntityConfig entity, Guid instanceId)
   {

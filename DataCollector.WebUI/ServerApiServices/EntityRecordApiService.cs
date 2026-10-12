@@ -63,6 +63,60 @@ public class EntityRecordApiService(HttpClient httpClient) : ApiServiceBase(http
     return PostAsync<AggregateResult>($"{RecordsUrl(configId)}/aggregate", body, cancellationToken);
   }
 
+  /// <summary>
+  /// Файл із записами (POST .../records/export): ті самі умови, пошук і сортування, що в таблиці,
+  /// колонки - видимі колонки таблиці в їхньому порядку.
+  /// </summary>
+  /// <param name="format">"csv", "xlsx", "json" або "xml".</param>
+  public Task<DownloadedFile> ExportRecords(
+    Guid configId,
+    string format,
+    IEnumerable<object> filters,
+    string? search,
+    string? sortBy,
+    bool sortDescending,
+    IReadOnlyCollection<string>? fields,
+    CancellationToken cancellationToken = default)
+  {
+    var body = new
+    {
+      format,
+      filters,
+      search,
+      sortBy,
+      sortDescending,
+      fields,
+      timeZone = TimeZoneInfo.Local.Id
+    };
+
+    return PostForFileAsync($"{RecordsUrl(configId)}/export", body, cancellationToken);
+  }
+
+  /// <summary>Файл зі зведенням (POST .../records/aggregate/export): ті самі групування й показники, усі групи.</summary>
+  public Task<DownloadedFile> ExportAggregate(
+    Guid configId,
+    string format,
+    IEnumerable<object> filters,
+    string? search,
+    IEnumerable<object> groupBy,
+    IEnumerable<object> metrics,
+    string orderBy,
+    CancellationToken cancellationToken = default)
+  {
+    var body = new
+    {
+      format,
+      filters,
+      search,
+      groupBy,
+      metrics,
+      orderBy,
+      timeZone = TimeZoneInfo.Local.Id
+    };
+
+    return PostForFileAsync($"{RecordsUrl(configId)}/aggregate/export", body, cancellationToken);
+  }
+
   /// <summary>Запис з усіма полями (таблиця може містити лише частину полів).</summary>
   public Task<EntityInstance> Get(Guid configId, Guid recordId, CancellationToken cancellationToken = default)
     => GetAsync<EntityInstance>($"{RecordsUrl(configId)}/{recordId}", cancellationToken);
