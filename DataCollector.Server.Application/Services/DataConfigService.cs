@@ -1,15 +1,21 @@
 ﻿using DataCollector.Server.Application.Common.Exceptions;
 using DataCollector.Server.Application.ExternalContracts.Interfaces;
 using DataCollector.Server.Application.ExternalContracts.Models;
+using DataCollector.Server.Application.Interfaces.Caching;
 using DataCollector.Server.Application.Interfaces.Repositories;
 using DataCollector.Server.Application.Services.Internal;
 using DataCollector.Server.Domain.Entities;
 
 namespace DataCollector.Server.Application.Services;
 
+/// <remarks>
+/// Зміни моделі читають її з БД напряму (не з кешу - кешована модель спільна для паралельних запитів),
+/// а після успішного запису скидають кеш моделей.
+/// </remarks>
 public class DataConfigService(
   IEntityConfigRepository entityConfigRepository,
-  IEntityPropertyConfigRepository entityPropertyConfigRepository
+  IEntityPropertyConfigRepository entityPropertyConfigRepository,
+  IEntityConfigCache entityConfigs
 ) : IDataConfigService
 {
   public Task<List<EntityConfigListItemDto>> GetAll()
@@ -19,7 +25,7 @@ public class DataConfigService(
 
   public async Task<EntityConfigDto> Get(string config)
   {
-    var entity = await entityConfigRepository.Load(config);
+    var entity = await entityConfigs.Get(config);
     return entity.ToDto();
   }
 
@@ -45,12 +51,14 @@ public class DataConfigService(
       entity.ChangeName(command.Name);
     
     await entityConfigRepository.Update(entity);
+    entityConfigs.Invalidate();
   }
 
   public async Task DeleteDataConfig(string config)
   {
     var entity = await entityConfigRepository.Load(config);
     await entityConfigRepository.Delete(entity.Id);
+    entityConfigs.Invalidate();
   }
 
   public async Task<List<Guid>> AddProperties(string config, AddPropertiesCommand command)
@@ -65,6 +73,7 @@ public class DataConfigService(
       return [];
 
     await entityPropertyConfigRepository.CreateMany(entity.Id, added);
+    entityConfigs.Invalidate();
     return added.Select(p => p.Id).ToList();
   }
 
@@ -76,6 +85,7 @@ public class DataConfigService(
     var property = entity.ChangeProperty(
       propertyId, command.Key, command.Name, command.Rules is null ? null : command.Rules.ToDomain());
     await entityPropertyConfigRepository.Update(property);
+    entityConfigs.Invalidate();
   }
 
   public async Task DeleteProperty(string config, Guid propertyId)
@@ -85,6 +95,7 @@ public class DataConfigService(
 
     entity.RemoveProperty(propertyId);
     await entityPropertyConfigRepository.Delete(propertyId);
+    entityConfigs.Invalidate();
   }
 
   private static void EnsurePropertyExists(EntityConfig entity, Guid propertyId)

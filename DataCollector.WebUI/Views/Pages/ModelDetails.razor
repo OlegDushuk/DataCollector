@@ -91,7 +91,7 @@
                         <span class="default-text">@Format.Date(prop.CreatedAt)</span>
                     </ColumnTemplate>
 
-                    <ColumnTemplate TItem="EntityPropertyConfig" Context="prop" Width="90px">
+                    <ColumnTemplate TItem="EntityPropertyConfig" Context="prop" Width="90px" Sticky="true">
                         <div class="actions">
                             <IconButton Icon="edit" Title="Змінити" OnClick="@(() => OpenEdit(prop))" />
                             <IconButton Icon="delete" Title="Видалити" Danger="true"

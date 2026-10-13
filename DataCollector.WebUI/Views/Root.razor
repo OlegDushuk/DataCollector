@@ -5,13 +5,7 @@
     </Found>
     <NotFound>
       <LayoutView Layout="typeof(MainLayout)">
-        <PageHeader Title="Сторінку не знайдено" />
-        <div class="page">
-          <div class="empty-state">
-            <div class="empty-state__title">Такої сторінки немає</div>
-            <a class="page__back" href="/">На головну</a>
-          </div>
-        </div>
+        <NotFoundState />
       </LayoutView>
     </NotFound>
   </Router>

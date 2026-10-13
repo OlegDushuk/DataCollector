@@ -1,0 +1,97 @@
+@use "../variables";
+
+// Спільні елементи керування: перемикач з кількох кнопок і кнопка-перемикач панелі.
+
+// Перемикач з кількох кнопок ("Таблиця | Зведення").
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: variables.$radius-md;
+  background: variables.$surface-color;
+  border: 1px solid variables.$border-color;
+
+  &__item {
+    height: 28px;
+    padding: 0 14px;
+    border: none;
+    border-radius: variables.$radius-sm;
+    background: transparent;
+    color: variables.$button-text-color;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.2s;
+
+    &:hover {
+      color: variables.$accent-color;
+    }
+
+    &--active,
+    &--active:hover {
+      background: variables.$accent-color;
+      color: variables.$surface-color;
+    }
+  }
+
+  // На всю ширину контейнера (вкладки бічної панелі).
+  &--stretch {
+    display: flex;
+
+    .segmented__item {
+      flex: 1;
+    }
+  }
+}
+
+// Кнопка показу бічної панелі з лічильником умов.
+.panel-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid variables.$border-color;
+  border-radius: variables.$radius-md;
+  background: variables.$surface-color;
+  color: variables.$button-text-color;
+  // Той самий розмір тексту, що й у перемикача подань поруч.
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.25s;
+
+  svg {
+    height: 16px;
+    fill: currentColor;
+  }
+
+  &:hover {
+    color: variables.$accent-color;
+    background: variables.$accent-light-color;
+  }
+
+  &--active {
+    color: variables.$accent-color;
+    border-color: variables.$accent-color;
+    background: variables.$accent-light-color;
+  }
+
+  // Іде дія (наприклад, готується файл експорту).
+  &:disabled {
+    color: variables.$accent-color;
+    background: variables.$surface-color;
+    cursor: progress;
+  }
+
+  &__count {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: variables.$accent-color;
+    color: variables.$surface-color;
+    font-size: 12px;
+    line-height: 20px;
+    text-align: center;
+  }
+}

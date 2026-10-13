@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using DataCollector.Server.Application.Export;
 using DataCollector.Server.Application.ExternalContracts.Interfaces;
 using DataCollector.Server.Application.ExternalContracts.Models;
+using DataCollector.Server.Application.Interfaces.Caching;
 using DataCollector.Server.Application.Interfaces.Repositories;
 using DataCollector.Server.Application.Services.Internal;
 using DataCollector.Server.Domain.Entities;
@@ -16,7 +17,7 @@ namespace DataCollector.Server.Application.Services;
 /// (умови, пошук, сортування, проєкція), частинами по <see cref="BatchSize"/>, і одразу пишуться у файл.
 /// </summary>
 public class DataExportService(
-  IEntityConfigRepository entityConfigRepository,
+  IEntityConfigCache entityConfigs,
   IEntityInstanceRepository entityInstanceRepository
 ) : IDataExportService
 {
@@ -33,7 +34,7 @@ public class DataExportService(
     CancellationToken cancellationToken = default)
   {
     var format = ExportFormats.Parse(command.Format);
-    var entity = await entityConfigRepository.Load(config);
+    var entity = await entityConfigs.Get(config);
     var timeZone = AggregateQuery.ResolveTimeZone(command.TimeZone);
 
     var fields = ResolveColumns(entity, command.Fields);
@@ -82,7 +83,7 @@ public class DataExportService(
     CancellationToken cancellationToken = default)
   {
     var format = ExportFormats.Parse(command.Format);
-    var entity = await entityConfigRepository.Load(config);
+    var entity = await entityConfigs.Get(config);
     var query = RecordQueries.Aggregate(entity, command);
 
     var result = await entityInstanceRepository.Aggregate(entity, query, cancellationToken);

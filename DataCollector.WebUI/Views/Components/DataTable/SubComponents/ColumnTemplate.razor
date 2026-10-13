@@ -16,6 +16,9 @@
   /// <summary>Позиція колонки в таблиці (колонки, показані пізніше, інакше стали б у кінець).</summary>
   [Parameter] public int Order { get; set; }
 
+  /// <summary>Закріпити колонку праворуч (видна при горизонтальній прокрутці широкої таблиці).</summary>
+  [Parameter] public bool Sticky { get; set; }
+
   private readonly Column<TItem> _column = new();
   
   protected override void OnInitialized()
@@ -32,6 +35,7 @@
     _column.IsFilterable = IsFilterable;
     _column.FilterType = FilterType;
     _column.Width = Width;
+    _column.Sticky = Sticky;
 
     if (_column.Order != Order)
     {

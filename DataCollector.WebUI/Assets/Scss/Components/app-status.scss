@@ -1,0 +1,99 @@
+@use "../variables";
+
+// Службові повідомлення Blazor: непередбачена помилка і втрата з'єднання з сервером.
+
+#blazor-error-ui {
+  display: none;
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 1000;
+  transform: translateX(-50%);
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: variables.$radius-md;
+  background: variables.$title-text-color;
+  color: variables.$surface-color;
+  font-size: 14px;
+  box-shadow: 0 12px 32px rgba(23, 20, 61, 0.25);
+
+  a {
+    color: variables.$surface-color;
+    font-weight: 600;
+  }
+
+  .dismiss {
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 18px;
+    opacity: 0.7;
+  }
+}
+
+.reconnect {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  align-items: center;
+  justify-content: center;
+  background: rgba(47, 43, 99, 0.35);
+
+  // Класи, які додає blazor.web.js залежно від стану з'єднання.
+  &.components-reconnect-show,
+  &.components-reconnect-failed,
+  &.components-reconnect-rejected {
+    display: flex;
+  }
+
+  &__dialog {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    max-width: 360px;
+    padding: 24px 28px;
+    border-radius: variables.$radius-lg;
+    background: variables.$surface-color;
+    color: variables.$title-text-color;
+    font-size: 14px;
+    text-align: center;
+  }
+
+  &__text {
+    display: none;
+    margin: 0;
+
+    a {
+      color: variables.$accent-color;
+      font-weight: 600;
+    }
+  }
+
+  &.components-reconnect-show &__text--show,
+  &.components-reconnect-failed &__text--failed,
+  &.components-reconnect-rejected &__text--rejected {
+    display: block;
+  }
+
+  &__spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid variables.$accent-light-color;
+    border-top-color: variables.$accent-color;
+    border-radius: 50%;
+    animation: reconnect-spin 0.9s linear infinite;
+  }
+
+  &.components-reconnect-failed &__spinner,
+  &.components-reconnect-rejected &__spinner {
+    display: none;
+  }
+}
+
+@keyframes reconnect-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

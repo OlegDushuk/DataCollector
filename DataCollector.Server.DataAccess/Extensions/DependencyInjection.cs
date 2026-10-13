@@ -8,9 +8,11 @@ public static class DependencyInjection
 {
   public static IServiceCollection AddDataAccess(this IServiceCollection services)
   {
-    services.AddTransient<IEntityConfigRepository, EntityConfigRepository>();
-    services.AddTransient<IEntityPropertyConfigRepository, EntityPropertyConfigRepository>();
-    services.AddTransient<IEntityInstanceRepository, EntityInstanceRepository>();
+    // Репозиторії без стану (рядок підключення читається один раз, з'єднання - на кожен запит з пулу),
+    // тож один екземпляр на процес - і їх може використовувати кеш моделей (singleton).
+    services.AddSingleton<IEntityConfigRepository, EntityConfigRepository>();
+    services.AddSingleton<IEntityPropertyConfigRepository, EntityPropertyConfigRepository>();
+    services.AddSingleton<IEntityInstanceRepository, EntityInstanceRepository>();
     
     return services;
   }

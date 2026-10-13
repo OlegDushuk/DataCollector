@@ -4,7 +4,17 @@
 @inherits PageBase
 
 <PageHeader Title="Записи">
-    <Subtitle>Дані, зібрані за моделями: вручну або через API</Subtitle>
+    <Subtitle>
+        @if (_config != null)
+        {
+            @* Ключ моделі для зовнішніх систем - у шапці, щоб не займав місце на панелі інструментів. *@
+            <span>Ключ для API: <span class="code" title="POST api/data-configs/@_config.Key/records">@_config.Key</span> · дані, зібрані вручну або через API</span>
+        }
+        else
+        {
+            <span>Дані, зібрані за моделями: вручну або через API</span>
+        }
+    </Subtitle>
     <Actions>
         @if (_config != null)
         {
@@ -29,18 +39,16 @@
     }
     else if (_config != null)
     {
-        @* Панель спільна для таблиці і зведення: модель, пошук, бічна панель параметрів, вибір подання. *@
+        @* Панель спільна для всіх подань: модель і пошук ліворуч; подання, експорт і бічна панель - праворуч. *@
         <div class="records-toolbar">
             <div class="records-toolbar__left">
-                <label class="toolbar-field">
-                    <span class="subtitle">Модель</span>
-                    <select class="select" value="@_config.Key" @onchange="OnConfigChange">
-                        @foreach (var c in _configs ?? [])
-                        {
-                            <option value="@c.Key">@c.Name</option>
-                        }
-                    </select>
-                </label>
+                <select class="select records-toolbar__model" value="@_config.Key" @onchange="OnConfigChange"
+                        title="Модель даних" aria-label="Модель даних">
+                    @foreach (var c in _configs ?? [])
+                    {
+                        <option value="@c.Key">@c.Name</option>
+                    }
+                </select>
 
                 <div class="search-input">
                     <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
@@ -49,13 +57,6 @@
             </div>
 
             <div class="records-toolbar__right">
-                <span class="default-text">Ключ для API: <span class="code">@_config.Key</span></span>
-
-                <ExportMenu Caption="@ExportCaption"
-                            Hint="@(_view switch { RecordsView.Summary => "Зберегти зведення у файл", RecordsView.Chart => "Зберегти дані діаграми у файл", _ => "Зберегти записи у файл" })"
-                            IsBusy="_isExporting"
-                            OnExport="Export" />
-
                 <div class="segmented">
                     <button type="button" class="segmented__item @(_view == RecordsView.Table ? "segmented__item--active" : "")"
                             @onclick="@(() => SwitchView(RecordsView.Table))">Таблиця</button>
@@ -64,6 +65,11 @@
                     <button type="button" class="segmented__item @(_view == RecordsView.Chart ? "segmented__item--active" : "")"
                             @onclick="@(() => SwitchView(RecordsView.Chart))">Діаграма</button>
                 </div>
+
+                <ExportMenu Caption="@ExportCaption"
+                            Hint="@(_view switch { RecordsView.Summary => "Зберегти зведення у файл", RecordsView.Chart => "Зберегти дані діаграми у файл", _ => "Зберегти записи у файл" })"
+                            IsBusy="_isExporting"
+                            OnExport="Export" />
 
                 <button type="button" class="panel-toggle @(_isPanelOpen ? "panel-toggle--active" : "")"
                         title="@(_isPanelOpen ? "Сховати панель" : "Показати панель")" @onclick="TogglePanel">
@@ -110,7 +116,16 @@
         @* Робоча область: дані займають усе місце, параметри - у бічній панелі, яку можна сховати. *@
         <div class="workspace">
             <div class="workspace__main">
-                @if (_view == RecordsView.Chart)
+                @if (_config.Properties.Count == 0)
+                {
+                    @* Модель без полів: таблиця, зведення й діаграма порожні - пояснюємо, що робити далі. *@
+                    <div class="empty-state">
+                        <div class="empty-state__title">У моделі ще немає полів</div>
+                        <div class="default-text">Додайте поля - і сюди можна буде вносити записи вручну або через API.</div>
+                        <Button Text="Додати поля" OnClick="@(() => Navigation.NavigateTo($"/management/{_config.Id}"))" />
+                    </div>
+                }
+                else if (_view == RecordsView.Chart)
                 {
                     <RecordChart ConfigId="_config.Id"
                                  Fields="_filterFields"
@@ -166,7 +181,9 @@
                                                     Order="order"
                                                     IsSortable="true"
                                                     IsFilterable="true">
-                                        <span class="default-text">@item.GetDisplayValue(prop)</span>
+                                        @{ var display = item.GetDisplayValue(prop); }
+                                        @* Довге значення обрізається «…», повне - у підказці. *@
+                                        <span class="default-text" title="@display">@display</span>
                                     </ColumnTemplate>
                                 }
                                 else if (column.IsSystem)
@@ -185,7 +202,7 @@
                                 }
                             }
 
-                            <ColumnTemplate @key="ActionsColumnKey" TItem="EntityInstance" Context="item" Width="90px" Order="int.MaxValue">
+                            <ColumnTemplate @key="ActionsColumnKey" TItem="EntityInstance" Context="item" Width="90px" Order="int.MaxValue" Sticky="true">
                                 <div class="actions">
                                     <IconButton Icon="edit" Title="Змінити" OnClick="@(() => OpenEdit(item))" />
                                     <IconButton Icon="delete" Title="Видалити" Danger="true"

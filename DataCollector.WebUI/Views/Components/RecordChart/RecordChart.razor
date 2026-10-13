@@ -104,22 +104,12 @@
     var points = Points(data.Categories.Count);
 
     return data.Series.Count > 1
-      ? $"{points} · {data.Series.Count} {Lines(data.Series.Count)}"
+      ? $"{points} · {Format.Count(data.Series.Count, "серія", "серії", "серій")}"
       : $"{points} · {metric}";
   }
 
-  private static string Points(int count)
-  {
-    var word = count % 10 == 1 && count % 100 != 11
-      ? "точка"
-      : count % 10 is >= 2 and <= 4 && count % 100 is < 12 or > 14 ? "точки" : "точок";
+  private static string Points(int count) => Format.Count(count, "точка", "точки", "точок");
 
-    return $"{count.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("uk-UA"))} {word}";
-  }
-
-  private static string Lines(int count) => count % 10 == 1 && count % 100 != 11
-    ? "серія"
-    : count % 10 is >= 2 and <= 4 && count % 100 is < 12 or > 14 ? "серії" : "серій";
 
   protected override async Task OnParametersSetAsync()
   {

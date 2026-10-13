@@ -1,5 +1,8 @@
 ﻿@use "../variables";
 
+// Синхронно з DataTable.ColumnMinWidth (з нього рахується мінімальна ширина рядка).
+$column-min-width: 150px;
+
 .data-table {
   border: 1px solid variables.$border-color;
   background-color: variables.$surface-color;
@@ -25,39 +28,86 @@
     }
   }
   
-  &__header {
-    display: flex;
-    border-bottom: 1px solid variables.$border-color;
-    background-color: variables.$bg-color;
-    padding: 8px 0;
-    
-    &-cell {
-      display: flex;
-      justify-content: space-between;
-      flex: 1;
-      min-width: 0;
-      padding-left: 20px;
-      padding-right: 10px;
-      
-      &-left {
-        display: flex;
-        gap: 5px;
-        cursor: pointer;
-      }
-      
-      &-right {
-        display: flex;
-      }
+  // Область прокрутки заголовка й рядків: вертикально - рядки, горизонтально - широка таблиця.
+  &__viewport {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    transition: opacity 0.2s;
+
+    &--loading {
+      opacity: 0.5;
+    }
+
+    &::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background-color: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: variables.$accent-inactive-color;
+      border-radius: 5px;
     }
   }
 
+  // Рядки й заголовок однакової ширини: на всю таблицю, але не вужчі за суму колонок
+  // (min-width задає DataTable) - тоді з'являється горизонтальна прокрутка.
+  &__header,
+  &__row {
+    display: flex;
+    width: 100%;
+  }
+
+  &__header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    border-bottom: 1px solid variables.$border-color;
+    background-color: variables.$bg-color;
+  }
+
+  // Колонка без фіксованої ширини: розтягується, але не вужча за $column-min-width -
+  // замість стиснення до нечитабельного з'являється горизонтальна прокрутка.
+  &__header-cell,
+  &__row-cell {
+    flex: 1 0 $column-min-width;
+    min-width: 0;
+    padding: 0 12px 0 20px;
+  }
+
+  &__header-cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    min-height: 34px;
+    background-color: variables.$bg-color;
+
+    &-left {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-width: 0;
+      cursor: pointer;
+    }
+  }
+
+  // Довга назва поля обрізається «…» (повна - у підказці), а не налазить на сусідню колонку.
   &__column-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+    line-height: 14px;
   }
 
   &__sort-button {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
 
     svg {
       height: 10px;
@@ -67,6 +117,7 @@
   &__filter-button {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
     padding: 4px;
     border-radius: 6px;
     cursor: pointer;
@@ -93,37 +144,11 @@
       }
     }
   }
-  
-  &__body {
-    flex-grow: 1;
-    overflow-y: auto;
-    min-height: 0;
-    transition: opacity 0.2s;
 
-    &--loading {
-      opacity: 0.5;
-    }
-
-    &::-webkit-scrollbar {
-      width: 10px;
-    }
-    
-    &::-webkit-scrollbar-track {
-      background-color: transparent;
-      border-radius: 5px;
-    }
-    
-    &::-webkit-scrollbar-thumb {
-      background: variables.$accent-inactive-color;
-      border-radius: 5px;
-    }
-  }
-  
   &__row {
-    display: flex;
-    border-bottom: 1px solid variables.$border-color;
-    padding: 8px 0;
     min-height: 45px;
+    border-bottom: 1px solid variables.$border-color;
+    background-color: variables.$surface-color;
     transition: background-color 0.15s;
 
     &--clickable {
@@ -133,20 +158,31 @@
         background-color: variables.$bg-color;
       }
     }
-    
+
     &-cell {
       display: flex;
       align-items: center;
-      flex: 1;
-      min-width: 0;
-      padding-left: 20px;
-      border-right: 1px solid variables.$border-color;
+      padding-top: 8px;
+      padding-bottom: 8px;
       overflow: hidden;
-      
-      &:last-child {
-        border-right: none;
+
+      // Текст комірки - в один рядок з «…»: рядки однакової висоти, таблицю легше читати.
+      > .default-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        line-height: 16px;
       }
     }
+  }
+
+  // Закріплена праворуч колонка (дії): лишається видимою при горизонтальній прокрутці.
+  &__cell--sticky {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    background-color: inherit;
+    box-shadow: -1px 0 0 variables.$border-color;
   }
 
   &__empty {
@@ -165,6 +201,7 @@
 
     &-left {
       display: flex;
+      white-space: nowrap;
     }
     
     &-center {
@@ -177,6 +214,7 @@
       align-items: center;
       justify-content: flex-end;
       gap: variables.$pad-sm;
+      white-space: nowrap;
     }
   }
 

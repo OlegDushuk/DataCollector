@@ -11,6 +11,10 @@
   cursor: pointer;
   transition: 0.25s;
   white-space: nowrap;
+  // Посилання у вигляді кнопки (<a class="button">) - без підкреслення, текст як у кнопки.
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
 
   &__text {
     font-size: 14px;

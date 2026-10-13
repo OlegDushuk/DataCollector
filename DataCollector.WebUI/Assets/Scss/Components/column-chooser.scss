@@ -1,0 +1,139 @@
+@use "../variables";
+
+// Вибір колонок таблиці (бічна панель, вкладка «Колонки»).
+.column-chooser {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  &__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  &__summary-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  &__link {
+    padding: 0;
+    border: none;
+    background: none;
+    color: variables.$accent-color;
+    font-size: 13px;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid variables.$border-color;
+    border-radius: variables.$radius-md;
+    overflow: hidden;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 6px 0 12px;
+    transition: background 0.2s;
+
+    & + & {
+      border-top: 1px solid variables.$border-color;
+    }
+
+    &:hover {
+      background: variables.$accent-light-color;
+    }
+
+    &--hidden .column-chooser__label span {
+      color: variables.$subtitle-text-color;
+    }
+  }
+
+  &__label {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    font-size: 14px;
+    color: variables.$title-text-color;
+    cursor: pointer;
+
+    input {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      accent-color: variables.$accent-color;
+      cursor: pointer;
+
+      &:disabled {
+        cursor: not-allowed;
+      }
+    }
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &__badge {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: variables.$border-color;
+    color: variables.$subtitle-text-color;
+    font-size: 11px;
+  }
+
+  &__move {
+    display: flex;
+    flex-shrink: 0;
+
+    button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border: none;
+      border-radius: variables.$radius-sm;
+      background: transparent;
+      cursor: pointer;
+
+      svg {
+        width: 18px;
+        fill: variables.$subtitle-text-color;
+      }
+
+      &:hover:not(:disabled) svg {
+        fill: variables.$accent-color;
+      }
+
+      &:disabled {
+        opacity: 0.3;
+        cursor: default;
+      }
+    }
+  }
+
+  &__hint {
+    font-size: 12px;
+  }
+}

@@ -45,6 +45,11 @@ svg {
   border-radius: 6px;
   padding: 3px 6px;
   white-space: nowrap;
+
+  // Окремим рядком у колонці форми: за шириною тексту, а не на всю ширину.
+  &--inline-block {
+    align-self: flex-start;
+  }
 }
 
 .badge {
@@ -78,13 +83,21 @@ svg {
   border-radius: 10px;
   transition: 0.25s;
   display: flex;
-  gap: 5px;
-  
+  align-items: center;
+  gap: 10px;
+
+  // Значки меню - одного розміру й по центру рядка (раніше 12px і зміщені вгору).
+  &__icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+  }
+
   &__text {
     display: inline-block;
-    font-size: 16px;
-    font-weight: 400;
-    line-height: 12px;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 18px;
     transition: 0.25s;
   }
 

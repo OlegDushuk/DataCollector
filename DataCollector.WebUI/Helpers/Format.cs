@@ -5,6 +5,29 @@ namespace DataCollector.WebUI.Helpers;
 
 public static class Format
 {
+  private static readonly System.Globalization.CultureInfo Ukrainian = System.Globalization.CultureInfo.GetCultureInfo("uk-UA");
+
+  /// <summary>Ціле число з розділенням тисяч: 1733 -> "1 733".</summary>
+  public static string Number(long value) => value.ToString("N0", Ukrainian);
+
+  /// <summary>
+  /// Форма слова для числа за правилами української мови: 1 запис, 2 записи, 5 записів, 11 записів, 21 запис.
+  /// </summary>
+  public static string Plural(long count, string one, string few, string many)
+  {
+    var n = Math.Abs(count);
+    return (n % 10, n % 100) switch
+    {
+      (1, not 11) => one,
+      (>= 2 and <= 4, < 12 or > 14) => few,
+      _ => many
+    };
+  }
+
+  /// <summary>Число разом з правильною формою слова: "1 733 записи".</summary>
+  public static string Count(long count, string one, string few, string many)
+    => $"{Number(count)} {Plural(count, one, few, many)}";
+
   public static string Date(DateTime value)
     => value.ToLocalTime().ToString("dd.MM.yyyy HH:mm");
 

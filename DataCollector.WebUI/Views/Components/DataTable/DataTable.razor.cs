@@ -58,21 +58,44 @@ public partial class DataTable<TItem> : ComponentBase
       await InvokeReload();
   }
 
-  /// <summary>Колонки в порядку відображення (OrderBy стабільний: однаковий Order - порядок появи).</summary>
-  private IEnumerable<Column<TItem>> Columns => _columns.OrderBy(c => c.Order);
+  // Колонки в порядку відображення. Рахуються лише при зміні набору чи порядку колонок,
+  // а не для кожного рядка кожного рендеру (тіло таблиці перебирає колонки в кожному рядку).
+  private List<Column<TItem>>? _orderedColumns;
 
-  internal void ColumnsChanged() => StateHasChanged();
+  /// <summary>Колонки в порядку відображення (OrderBy стабільний: однаковий Order - порядок появи).</summary>
+  private List<Column<TItem>> Columns => _orderedColumns ??= _columns.OrderBy(c => c.Order).ToList();
+
+  /// <summary>
+  /// Найменша ширина колонки без фіксованої ширини (як $column-min-width у data-table.scss): вужчою вона не стає -
+  /// натомість таблиця прокручується горизонтально.
+  /// </summary>
+  private const int ColumnMinWidth = 150;
+
+  private string? _rowStyle;
+
+  /// <summary>
+  /// Однакова для заголовка й усіх рядків мінімальна ширина - сума колонок. Ширина рядка не залежить
+  /// від вмісту, тож колонки всіх рядків вирівняні, а довгий текст обрізається «…».
+  /// </summary>
+  private string RowStyle => _rowStyle ??= $"min-width: {Columns.Sum(c => c.MinWidthPx(ColumnMinWidth))}px;";
+
+  internal void ColumnsChanged()
+  {
+    _orderedColumns = null;
+    _rowStyle = null;
+    StateHasChanged();
+  }
 
   internal void AddColumn(Column<TItem> column)
   {
     _columns.Add(column);
-    StateHasChanged();
+    ColumnsChanged();
   }
 
   internal void RemoveColumn(Column<TItem> column)
   {
     if (_columns.Remove(column))
-      StateHasChanged();
+      ColumnsChanged();
   }
 
   /// <summary>

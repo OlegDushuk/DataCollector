@@ -36,12 +36,12 @@
             
                 <ColumnTemplate TItem="EntityConfigListItem" Context="item"
                                 Key="properties" Title="Полів" IsSortable="true" Width="120px">
-                    <span class="default-text">@item.PropertyCount</span>
+                    <span class="default-text">@Format.Number(item.PropertyCount)</span>
                 </ColumnTemplate>
 
                 <ColumnTemplate TItem="EntityConfigListItem" Context="item"
                                 Key="records" Title="Записів" IsSortable="true" Width="120px">
-                    <span class="default-text">@item.RecordCount</span>
+                    <span class="default-text">@Format.Number(item.RecordCount)</span>
                 </ColumnTemplate>
             
                 <ColumnTemplate TItem="EntityConfigListItem" Context="item"
@@ -49,7 +49,7 @@
                     <span class="default-text">@Format.Date(item.CreatedAt)</span>
                 </ColumnTemplate>
 
-                <ColumnTemplate TItem="EntityConfigListItem" Context="item" Width="110px">
+                <ColumnTemplate TItem="EntityConfigListItem" Context="item" Width="110px" Sticky="true">
                     <div class="actions">
                         <IconButton Icon="open" Title="Записи" OnClick="@(() => Navigation.NavigateTo($"/records/{item.Key}"))" />
                         <IconButton Icon="edit" Title="Налаштувати" OnClick="@(() => Navigation.NavigateTo($"/management/{item.Id}"))" />
@@ -95,7 +95,7 @@
 
 <ConfirmDialog IsOpen="_toDelete != null"
                Title="Видалити модель?"
-               Text="@($"Модель «{_toDelete?.Name}» буде видалено разом з усіма полями та {_toDelete?.RecordCount} записами. Цю дію не можна скасувати.")"
+               Text="@($"Модель «{_toDelete?.Name}» буде видалено разом з усіма полями і записами ({Format.Count(_toDelete?.RecordCount ?? 0, "запис", "записи", "записів")}). Цю дію не можна скасувати.")"
                Error="@_deleteError"
                OnConfirm="Delete"
                OnCancel="@(() => _toDelete = null)" />

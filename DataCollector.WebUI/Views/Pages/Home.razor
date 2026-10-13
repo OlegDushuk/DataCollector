@@ -19,15 +19,15 @@
         <div class="stats">
             <div class="stat">
                 <div class="subtitle">Моделей</div>
-                <div class="stat__value">@_configs.Count</div>
+                <div class="stat__value">@Format.Number(_configs.Count)</div>
             </div>
             <div class="stat">
                 <div class="subtitle">Полів</div>
-                <div class="stat__value">@_configs.Sum(c => c.PropertyCount)</div>
+                <div class="stat__value">@Format.Number(_configs.Sum(c => (long)c.PropertyCount))</div>
             </div>
             <div class="stat">
                 <div class="subtitle">Записів</div>
-                <div class="stat__value">@_configs.Sum(c => c.RecordCount)</div>
+                <div class="stat__value">@Format.Number(_configs.Sum(c => (long)c.RecordCount))</div>
             </div>
         </div>
 
@@ -53,11 +53,11 @@
                         <div class="card__stats">
                             <div>
                                 <div class="subtitle">Полів</div>
-                                <div class="card__number">@config.PropertyCount</div>
+                                <div class="card__number">@Format.Number(config.PropertyCount)</div>
                             </div>
                             <div>
                                 <div class="subtitle">Записів</div>
-                                <div class="card__number">@config.RecordCount</div>
+                                <div class="card__number">@Format.Number(config.RecordCount)</div>
                             </div>
                         </div>
 

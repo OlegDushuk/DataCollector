@@ -71,7 +71,33 @@
 
 
     <main class="main-layout__content">
-      @Body
+      @* Помилка в компоненті сторінки не «заморожує» весь застосунок: меню працює, а замість сторінки -
+         пояснення. При переході на іншу сторінку запобіжник скидається (див. OnParametersSet). *@
+      <ErrorBoundary @ref="_errorBoundary">
+        <ChildContent>
+          @Body
+        </ChildContent>
+        <ErrorContent Context="exception">
+          <PageHeader Title="Щось пішло не так" />
+          <div class="page">
+            <div class="empty-state">
+              <div class="empty-state__title">Сторінку не вдалося показати</div>
+              <div class="default-text">Спробуйте оновити сторінку або перейдіть до іншого розділу.</div>
+              <button type="button" class="button button--secondary" @onclick="() => _errorBoundary?.Recover()">Спробувати ще раз</button>
+            </div>
+          </div>
+        </ErrorContent>
+      </ErrorBoundary>
     </main>
   </div>
 </div>
+
+@code {
+  private ErrorBoundary? _errorBoundary;
+
+  /// <summary>Перехід на іншу сторінку (новий Body) - скидаємо помилку попередньої.</summary>
+  protected override void OnParametersSet()
+  {
+    _errorBoundary?.Recover();
+  }
+}

@@ -13,9 +13,11 @@ public partial class Settings : PageBase
   [
     ("GET", "api/data-configs", "список моделей"),
     ("GET", "api/data-configs/{config}", "модель з полями"),
-    ("GET", "api/data-configs/{config}/records?pageNumber=1&pageSize=10&sortBy=price&search=текст", "записи з пагінацією і пошуком"),
+    ("GET", "api/data-configs/{config}/records?pageNumber=1&pageSize=10&sortBy=price&search=текст&fields=price", "записи з пагінацією, пошуком і вибором полів"),
     ("POST", "api/data-configs/{config}/records/query", "записи з умовами фільтра"),
     ("POST", "api/data-configs/{config}/records/aggregate", "групування і показники (кількість, сума, середнє...)"),
+    ("POST", "api/data-configs/{config}/records/export", "файл із записами: csv, xlsx, json, xml"),
+    ("POST", "api/data-configs/{config}/records/aggregate/export", "файл зі зведенням"),
     ("POST", "api/data-configs/{config}/records", "створити запис"),
     ("PATCH", "api/data-configs/{config}/records/{id}", "оновити поля запису"),
     ("DELETE", "api/data-configs/{config}/records/{id}", "видалити запис")

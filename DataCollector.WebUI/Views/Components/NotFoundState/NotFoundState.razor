@@ -1,0 +1,14 @@
+@namespace DataCollector.WebUI.Views.Components
+
+@* Вміст сторінки «Не знайдено»: і для невідомої адреси при першому відкритті (сторінка /not-found,
+   на яку сервер перенаправляє 404), і для переходу всередині застосунку (NotFound у Router). *@
+
+<PageHeader Title="Сторінку не знайдено" />
+
+<div class="page">
+    <div class="empty-state">
+        <div class="empty-state__title">Такої сторінки немає</div>
+        <div class="default-text">Можливо, адресу введено з помилкою або модель уже видалили.</div>
+        <a class="button button--secondary" href="/">На головну</a>
+    </div>
+</div>

@@ -21,7 +21,19 @@ public class Column<TItem>
   /// <summary>Позиція колонки; однакові - у порядку появи. Дає змінювати порядок без перебудови таблиці.</summary>
   public int Order { get; set; }
 
+  /// <summary>Колонка закріплена праворуч і видна при горизонтальній прокрутці (наприклад, кнопки дій).</summary>
+  public bool Sticky { get; set; }
+
+  public string CssClass => Sticky ? "data-table__cell--sticky" : string.Empty;
+
   public bool CanSort => IsSortable && !string.IsNullOrEmpty(Key);
 
   public string Style => Width is null ? string.Empty : $"flex: 0 0 {Width};";
+
+  /// <summary>Скільки місця колонка займає щонайменше: фіксована ширина в px або типова мінімальна.</summary>
+  public int MinWidthPx(int defaultWidth)
+    => Width != null && Width.EndsWith("px", StringComparison.Ordinal) &&
+       int.TryParse(Width[..^2], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var px)
+      ? px
+      : defaultWidth;
 }

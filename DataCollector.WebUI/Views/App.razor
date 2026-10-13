@@ -15,6 +15,30 @@
 
 <body>
 <Root @rendermode="new InteractiveServerRenderMode(false)"/>
+
+@* Непередбачена помилка з'єднання або рендеру: Blazor показує цей блок (без нього сторінка просто «завмирає»). *@
+<div id="blazor-error-ui" data-nosnippet>
+  Сталася помилка - частина сторінки може не працювати.
+  <a href="" class="reload">Оновити сторінку</a>
+  <span class="dismiss" title="Закрити">×</span>
+</div>
+
+@* Втрата з'єднання з сервером (Blazor Server працює через постійне з'єднання): власні тексти українською
+   замість стандартних англійських. Стан задають класи, які додає blazor.web.js. *@
+<div id="components-reconnect-modal" class="reconnect" data-nosnippet>
+  <div class="reconnect__dialog">
+    <div class="reconnect__spinner"></div>
+    <p class="reconnect__text reconnect__text--show">Зв'язок із сервером втрачено. Відновлюємо…</p>
+    <p class="reconnect__text reconnect__text--failed">
+      Не вдалося відновити зв'язок.
+      <a href="#" onclick="Blazor.reconnect(); return false;">Спробувати ще раз</a>
+    </p>
+    <p class="reconnect__text reconnect__text--rejected">
+      Сеанс завершено (сервер перезапущено).
+      <a href="" onclick="location.reload(); return false;">Оновити сторінку</a>
+    </p>
+  </div>
+</div>
 <script src="dist/vendor/echarts.min.js"></script>
 <script src="dist/app.min.js"></script>
 <script src="_framework/blazor.web.js"></script>

@@ -2,6 +2,7 @@ using System.Text.Json;
 using DataCollector.Server.Application.Common.Exceptions;
 using DataCollector.Server.Application.ExternalContracts.Interfaces;
 using DataCollector.Server.Application.ExternalContracts.Models;
+using DataCollector.Server.Application.Interfaces.Caching;
 using DataCollector.Server.Application.Interfaces.Repositories;
 using DataCollector.Server.Application.Services.Internal;
 using DataCollector.Server.Domain.Entities;
@@ -11,7 +12,7 @@ using DataCollector.Server.Domain.Querying;
 namespace DataCollector.Server.Application.Services;
 
 public class DataInstanceService(
-  IEntityConfigRepository entityConfigRepository,
+  IEntityConfigCache entityConfigs,
   IEntityInstanceRepository entityInstanceRepository
 ) : IDataInstanceService
 {
@@ -41,7 +42,7 @@ public class DataInstanceService(
     QueryDataInstancesCommand command,
     CancellationToken cancellationToken = default)
   {
-    var entity = await entityConfigRepository.Load(config);
+    var entity = await entityConfigs.Get(config);
 
     var query = new RecordQuery(
       RecordQueries.Filters(entity, command.Filters),
@@ -68,7 +69,7 @@ public class DataInstanceService(
     AggregateDataInstancesCommand command,
     CancellationToken cancellationToken = default)
   {
-    var entity = await entityConfigRepository.Load(config);
+    var entity = await entityConfigs.Get(config);
 
     var query = RecordQueries.Aggregate(entity, command);
 
@@ -78,7 +79,7 @@ public class DataInstanceService(
 
   public async Task<DataInstanceDto> Get(string config, Guid instanceId)
   {
-    var entity = await entityConfigRepository.Load(config);
+    var entity = await entityConfigs.Get(config);
     var instance = await LoadInstance(entity, instanceId);
 
     return instance.ToDto();
@@ -86,7 +87,7 @@ public class DataInstanceService(
 
   public async Task<Guid> CreateInstance(string config, CreateDataInstanceCommand command)
   {
-    var entity = await entityConfigRepository.Load(config);
+    var entity = await entityConfigs.Get(config);
     var instance = entity.CreateInstance();
 
     ApplyValues(instance, command.Values);
@@ -98,7 +99,7 @@ public class DataInstanceService(
 
   public async Task UpdateInstance(string config, Guid instanceId, UpdateDataInstanceCommand command)
   {
-    var entity = await entityConfigRepository.Load(config);
+    var entity = await entityConfigs.Get(config);
     var instance = await LoadInstance(entity, instanceId);
 
     ApplyValues(instance, command.Values);
@@ -109,7 +110,7 @@ public class DataInstanceService(
 
   public async Task DeleteInstance(string config, Guid instanceId)
   {
-    var entity = await entityConfigRepository.Load(config);
+    var entity = await entityConfigs.Get(config);
     var instance = await LoadInstance(entity, instanceId);
 
     await entityInstanceRepository.Delete(instance.Id);

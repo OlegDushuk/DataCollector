@@ -14,27 +14,28 @@
     </div>
   }
   
-  <div class="data-table__header">
-    @foreach (var column in Columns)
-    {
-      <div class="data-table__header-cell" style="@column.Style">
-        <button type="button"
-                style="@(column.CanSort ? "" : "cursor: default;")"
-                class="data-table__header-cell-left"
-                @onclick="@(() => OnSortClick(column))">
-          <div class="data-table__column-title">
-            <div class="subtitle">@column.Title</div>
-          </div>
-          
-          @if (column.CanSort && _sortedColumnKey == column.Key)
-          {
-            <div class="data-table__sort-button">
-              <svg style="@(_isSortDescending ? "" : "transform: rotate(180deg);")" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="M169.4 502.6c12.5 12.5 32.8 12.5 45.3 0l160-160c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L224 402.7 224 32c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 370.7-105.4-105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l160 160z"/></svg>          
-            </div>
-          }
-        </button>
-        
-        <div class="data-table__header-cell-right">
+  @* Заголовок і рядки - в одній області прокрутки: широка таблиця прокручується горизонтально,
+     а не стискає колонки до нечитабельних; заголовок закріплений зверху, колонка дій - праворуч. *@
+  <div class="data-table__viewport @(IsLoading ? "data-table__viewport--loading" : "")">
+    <div class="data-table__header" style="@RowStyle">
+      @foreach (var column in Columns)
+      {
+        <div class="data-table__header-cell @column.CssClass" style="@column.Style">
+          <button type="button"
+                  style="@(column.CanSort ? "" : "cursor: default;")"
+                  class="data-table__header-cell-left"
+                  title="@column.Title"
+                  @onclick="@(() => OnSortClick(column))">
+            <span class="data-table__column-title subtitle">@column.Title</span>
+
+            @if (column.CanSort && _sortedColumnKey == column.Key)
+            {
+              <span class="data-table__sort-button">
+                <svg style="@(_isSortDescending ? "" : "transform: rotate(180deg);")" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path d="M169.4 502.6c12.5 12.5 32.8 12.5 45.3 0l160-160c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L224 402.7 224 32c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 370.7-105.4-105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l160 160z"/></svg>
+              </span>
+            }
+          </button>
+
           @if (column.IsFilterable && OnFilterClick.HasDelegate && column.Key != null)
           {
             <button type="button"
@@ -45,11 +46,9 @@
             </button>
           }
         </div>
-      </div>
-    }
-  </div>
-  
-  <div class="data-table__body @(IsLoading ? "data-table__body--loading" : "")">
+      }
+    </div>
+
     @if (Items.Count == 0)
     {
       <div class="data-table__empty">
@@ -59,18 +58,18 @@
 
     @foreach (var item in Items)
     {
-      <div class="data-table__row @(OnRowClick.HasDelegate ? "data-table__row--clickable" : "")"
+      <div class="data-table__row @(OnRowClick.HasDelegate ? "data-table__row--clickable" : "")" style="@RowStyle"
            @onclick="@(() => OnRowClick.InvokeAsync(item))">
         @foreach (var column in Columns)
         {
-          <div class="data-table__row-cell" style="@column.Style">
+          <div class="data-table__row-cell @column.CssClass" style="@column.Style">
             @column.Template(item)
           </div>
         }
       </div>
     }
   </div>
-  
+
   @if (ShowPagination)
   {
     <div class="data-table__footer">
