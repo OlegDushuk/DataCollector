@@ -383,10 +383,12 @@ BEGIN
          N'{"version":1,"chart":{"type":"bar","stack":true,"xField":"createdAt","interval":"month","lines":[{"function":"count","field":""}],"splitBy":"status","fillGaps":true}}'),
         (NEWID(), @Orders, N'chart', N'Частки статусів', 8, 2, 4, 5,
          N'{"version":1,"chart":{"type":"pie","xField":"status","interval":"day","lines":[{"function":"count","field":""}],"fillGaps":true}}'),
-        (NEWID(), @Sensors, N'chart', N'Температура і вологість по днях', 0, 7, 6, 5,
+        (NEWID(), @Sensors, N'chart', N'Температура і вологість по днях', 0, 7, 4, 5,
          N'{"version":1,"chart":{"type":"line","xField":"measured_at","interval":"day","lines":[{"function":"avg","field":"temperature"},{"function":"avg","field":"humidity"}],"smooth":true,"fillGaps":true}}'),
-        (NEWID(), @Orders, N'summary', N'Найбільші клієнти', 6, 7, 6, 5,
+        (NEWID(), @Orders, N'summary', N'Найбільші клієнти', 4, 7, 4, 5,
          N'{"version":1,"summary":{"dimensions":[{"field":"customer","interval":"day"}],"metrics":[{"function":"count","field":""},{"function":"sum","field":"price"}],"order":"valueDesc"}}'),
+        (NEWID(), NULL, N'monitoring', N'Стан правил', 8, 7, 4, 5,
+         N'{"version":1}'),
         (NEWID(), @Orders, N'table', N'Останні замовлення', 0, 12, 12, 7,
          N'{"version":1,"columns":[{"key":"number","visible":true},{"key":"customer","visible":true},{"key":"quantity","visible":true},{"key":"price","visible":true},{"key":"status","visible":true},{"key":"paid","visible":true},{"key":"discount","visible":false},{"key":"delivery_date","visible":false},{"key":"createdAt","visible":true},{"key":"updatedAt","visible":false}],"sortKey":"createdAt","sortDescending":true,"pageSize":10}');
 
@@ -399,7 +401,40 @@ BEGIN
          @Widgets = @Widgets;
 
     -------------------------------------------------------------------------------
-    -- 5. Перевірка
+    -- 5. Демонстраційні правила моніторингу (сторінка «Моніторинг»)
+    -------------------------------------------------------------------------------
+    -- Через ту саму процедуру, що й API. Старі правила видалено разом з моделями (sp_EntityConfigs_Delete).
+    -- Записи створено рівномірно за рік (≈ 270 на добу на модель), тож у вікні години-доби дані є;
+    -- «Тривоги за добу» з порогом 5 зазвичай спрацьовує (тривога - у ≈ 3 % вимірів), решта - у нормі.
+    -- «Нові виміри надходять» спрацює, якщо 2 години не додавати записів, - так видно правило «немає даних».
+    DECLARE @RuleNow DATETIME2 = SYSUTCDATETIME();
+
+    EXEC [dbo].[sp_MonitoringRules_Create]
+         @Id = '6d0a5a1e-2f4b-4c39-9a51-0d5b6c7e8f91', @ConfigId = @Sensors, @Name = N'Тривоги датчиків за добу',
+         @IsEnabled = 1, @Filters = N'[{"field":"alarm","operator":"eq","value":true}]', @Search = NULL,
+         @Function = N'count', @FieldKey = NULL, @TimeField = N'createdAt', @WindowMinutes = 1440,
+         @Operator = N'gt', @Threshold = 5, @ConsecutiveChecks = 1, @CheckIntervalSeconds = 60, @CreatedAt = @RuleNow;
+
+    EXEC [dbo].[sp_MonitoringRules_Create]
+         @Id = '6d0a5a1e-2f4b-4c39-9a51-0d5b6c7e8f92', @ConfigId = @Sensors, @Name = N'Нові виміри надходять',
+         @IsEnabled = 1, @Filters = NULL, @Search = NULL,
+         @Function = N'count', @FieldKey = NULL, @TimeField = N'createdAt', @WindowMinutes = 120,
+         @Operator = N'lt', @Threshold = 1, @ConsecutiveChecks = 1, @CheckIntervalSeconds = 300, @CreatedAt = @RuleNow;
+
+    EXEC [dbo].[sp_MonitoringRules_Create]
+         @Id = '6d0a5a1e-2f4b-4c39-9a51-0d5b6c7e8f93', @ConfigId = @Sensors, @Name = N'Середня температура за годину',
+         @IsEnabled = 1, @Filters = NULL, @Search = NULL,
+         @Function = N'avg', @FieldKey = N'temperature', @TimeField = N'createdAt', @WindowMinutes = 60,
+         @Operator = N'gt', @Threshold = 35, @ConsecutiveChecks = 2, @CheckIntervalSeconds = 60, @CreatedAt = @RuleNow;
+
+    EXEC [dbo].[sp_MonitoringRules_Create]
+         @Id = '6d0a5a1e-2f4b-4c39-9a51-0d5b6c7e8f94', @ConfigId = @Orders, @Name = N'Скасовані замовлення за добу',
+         @IsEnabled = 1, @Filters = N'[{"field":"status","operator":"in","values":["Скасоване"]}]', @Search = NULL,
+         @Function = N'count', @FieldKey = NULL, @TimeField = N'createdAt', @WindowMinutes = 1440,
+         @Operator = N'gt', @Threshold = 100, @ConsecutiveChecks = 1, @CheckIntervalSeconds = 300, @CreatedAt = @RuleNow;
+
+    -------------------------------------------------------------------------------
+    -- 6. Перевірка
     -------------------------------------------------------------------------------
     SELECT
         c.[Key],

@@ -10,7 +10,7 @@ CREATE TABLE [dbo].[DashboardWidgets]
     [DashboardPkey] INT NOT NULL,
     -- Модель, з якої віджет бере дані. NULL - модель видалено (віджет лишається і просить вибрати іншу).
     [ConfigPkey] INT NULL,
-    [Type] NVARCHAR(16) NOT NULL,   -- table, summary, chart, kpi
+    [Type] NVARCHAR(16) NOT NULL,   -- table, summary, chart, kpi, monitoring
     [Title] NVARCHAR(128) NULL,
     [X] INT NOT NULL,
     [Y] INT NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE [dbo].[DashboardWidgets]
             REFERENCES [dbo].[EntityConfigs] ([Pkey]),
 
     CONSTRAINT CK_DashboardWidgets_Type
-        CHECK ([Type] IN (N'table', N'summary', N'chart', N'kpi')),
+        CHECK ([Type] IN (N'table', N'summary', N'chart', N'kpi', N'monitoring')),
 
     CONSTRAINT CK_DashboardWidgets_Grid
         CHECK ([X] >= 0 AND [Y] >= 0 AND [W] BETWEEN 1 AND 12 AND [X] + [W] <= 12 AND [H] BETWEEN 1 AND 12),

@@ -22,9 +22,13 @@
         </div>
 
         <label class="form__field">
-            <span class="form__label">Модель даних</span>
+            <span class="form__label">@(ModelOptional ? "Правила моделі" : "Модель даних")</span>
             <select class="select" value="@(Widget.ConfigId?.ToString() ?? "")" @onchange="OnModelChange">
-                @if (Widget.ConfigId is null || Configs.All(c => c.Id != Widget.ConfigId))
+                @if (ModelOptional)
+                {
+                    <option value="">усі моделі</option>
+                }
+                else if (Widget.ConfigId is null || Configs.All(c => c.Id != Widget.ConfigId))
                 {
                     <option value="">— виберіть модель —</option>
                 }
@@ -64,7 +68,16 @@
         </div>
     </section>
 
-    @if (Widget.Config is { } config && config.Properties.Count > 0)
+    @if (ModelOptional)
+    {
+        <section class="side-panel__section">
+            <div class="default-text default-text--multiline">
+                Показує стан правил моніторингу: спершу ті, що спрацювали. Самі правила налаштовуються
+                на сторінці <a href="/monitoring">«Моніторинг»</a>.
+            </div>
+        </section>
+    }
+    else if (Widget.Config is { } config && config.Properties.Count > 0)
     {
         @switch (Widget.Type)
         {
@@ -173,8 +186,16 @@
   private Task ChangeSize(ChangeEventArgs e, Action<int> apply)
     => int.TryParse(e.Value?.ToString(), out var value) ? Change(() => apply(value)) : Task.CompletedTask;
 
+  private bool ModelOptional => WidgetTypes.IsModelOptional(Widget.Type);
+
   private Task OnModelChange(ChangeEventArgs e)
-    => Guid.TryParse(e.Value?.ToString(), out var id) ? OnModelSelected.InvokeAsync(id) : Task.CompletedTask;
+  {
+    if (Guid.TryParse(e.Value?.ToString(), out var id))
+      return OnModelSelected.InvokeAsync(id);
+
+    // «Усі моделі» - лише там, де модель необов'язкова.
+    return ModelOptional ? Change(Widget.ClearModel) : Task.CompletedTask;
+  }
 
   private Task ChangeKpiFunction(ChangeEventArgs e)
   {
@@ -216,6 +237,7 @@
     WidgetTypes.Kpi => "M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z",
     WidgetTypes.Summary => "M3 5v14h18V5H3zm8 12H5v-3h6v3zm0-5H5V9h6v3zm8 5h-6v-3h6v3zm0-5h-6V9h6v3z",
     WidgetTypes.Table => "M4 14h4v-4H4v4zm0 5h4v-4H4v4zM4 9h4V5H4v4zm5 5h12v-4H9v4zm0 5h12v-4H9v4zM9 5v4h12V5H9z",
+    WidgetTypes.Monitoring => "M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z",
     _ => "M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"
   };
 }

@@ -1,0 +1,21 @@
+@namespace DataCollector.WebUI.Views.Components
+
+@* Стан правила моніторингу: кольорова позначка з підписом (норма, спрацювало, немає даних, вимкнено). *@
+
+<span class="state-pill state-pill--@RuleStates.Css(State) @(Compact ? "state-pill--compact" : "")" title="@Title">
+    <span class="state-pill__dot"></span>
+    @if (!Compact)
+    {
+        <span>@RuleStates.Label(State)</span>
+    }
+</span>
+
+@code {
+  /// <summary>Код стану (RuleStates).</summary>
+  [Parameter, EditorRequired] public string State { get; set; } = RuleStates.Unknown;
+
+  /// <summary>Лише кольорова крапка (підпис - у підказці).</summary>
+  [Parameter] public bool Compact { get; set; }
+
+  [Parameter] public string? Title { get; set; }
+}

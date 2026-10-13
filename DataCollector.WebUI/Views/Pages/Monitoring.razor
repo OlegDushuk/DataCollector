@@ -1,0 +1,364 @@
+@page "/monitoring"
+
+@inherits PageBase
+@implements IDisposable
+@inject MonitoringApiService MonitoringApi
+@inject DataCollector.WebUI.Services.MonitoringState MonitoringState
+
+@*
+    Моніторинг: правила з поточним станом і сповіщення про зміну стану. Правила перевіряє фоновий сервіс API,
+    тож сторінка сама оновлюється раз на 30 с - стан видно без перезавантаження.
+*@
+
+<PageHeader Title="Моніторинг">
+    <Subtitle>
+        @if (_rules is { Count: > 0 })
+        {
+            <span>@Summary()</span>
+        }
+        else
+        {
+            <span>Правила, за якими система сама стежить за даними і повідомляє про проблеми</span>
+        }
+    </Subtitle>
+    <Actions>
+        <Button Text="Нове правило" OnClick="@(() => Navigation.NavigateTo("/monitoring/rules/new"))" />
+    </Actions>
+</PageHeader>
+
+<div class="page page--scroll monitoring">
+    <Alert Message="@Error" OnClose="@(() => Error = null)" />
+
+    <div class="records-toolbar">
+        <div class="segmented">
+            <button type="button" class="segmented__item @(_tab == Tab.Rules ? "segmented__item--active" : "")"
+                    @onclick="@(() => SwitchTab(Tab.Rules))">
+                Правила@(_rules is { Count: > 0 } ? $" ({_rules.Count})" : "")
+            </button>
+            <button type="button" class="segmented__item @(_tab == Tab.Notifications ? "segmented__item--active" : "")"
+                    @onclick="@(() => SwitchTab(Tab.Notifications))">
+                Сповіщення
+                @if (MonitoringState.Unread > 0)
+                {
+                    <span class="nav-badge nav-badge--inline">@MonitoringState.Unread</span>
+                }
+            </button>
+        </div>
+
+        <div class="records-toolbar__right">
+            <span class="default-text">Оновлено о @_updatedAt.ToString("HH:mm:ss")</span>
+            <Button Text="Оновити" Variant="ButtonVariant.Secondary" OnClick="Reload" />
+        </div>
+    </div>
+
+    @if (_tab == Tab.Rules)
+    {
+        @if (_rules is null)
+        {
+            <div class="default-text">@(Error is null ? "Завантаження…" : "")</div>
+        }
+        else if (_rules.Count == 0)
+        {
+            <div class="empty-state">
+                <div class="empty-state__title">Ще немає жодного правила</div>
+                <div class="default-text default-text--multiline">
+                    Правило - це показник за останні N хвилин, порівняний з порогом: «середня температура за 15 хв > 30»,
+                    «за 2 години немає нових записів». Система перевіряє його сама і повідомляє, коли стан змінюється.
+                </div>
+                <Button Text="Створити правило" OnClick="@(() => Navigation.NavigateTo("/monitoring/rules/new"))" />
+            </div>
+        }
+        else
+        {
+            <div class="rule-list">
+                @foreach (var rule in _rules)
+                {
+                    <article class="rule-card rule-card--@RuleStates.Css(rule.DisplayState)" @key="rule.Id">
+                        <div class="rule-card__state">
+                            <StatePill State="@rule.DisplayState" />
+                            @if (rule.IsEnabled && rule.StateSince is { } since)
+                            {
+                                <span class="default-text" title="@Format.Date(since)">@Since(since)</span>
+                            }
+                        </div>
+
+                        <a class="rule-card__main" href="/monitoring/rules/@rule.Id">
+                            <div class="rule-card__name">@rule.Name</div>
+                            <div class="rule-card__condition">@rule.Condition</div>
+                            <div class="default-text">
+                                @rule.ConfigName@(rule.Filters.Count > 0 || !string.IsNullOrWhiteSpace(rule.Search) ? $" · {Format.Count(rule.Filters.Count + (string.IsNullOrWhiteSpace(rule.Search) ? 0 : 1), "умова", "умови", "умов")}" : "")
+                                · @(RuleForm.Intervals.FirstOrDefault(i => i.Seconds == rule.CheckIntervalSeconds).Label ?? $"кожні {rule.CheckIntervalSeconds} с")
+                            </div>
+                        </a>
+
+                        <div class="rule-card__value">
+                            <div class="rule-card__number" title="Значення на останній перевірці">@Value(rule)</div>
+                            <div class="default-text">
+                                @(rule.LastCheckedAt is { } at ? $"перевірено {Format.Date(at)}" : "ще не перевірялось")
+                            </div>
+                            @if (!string.IsNullOrEmpty(rule.LastError))
+                            {
+                                <div class="rule-card__error" title="@rule.LastError">@rule.LastError</div>
+                            }
+                        </div>
+
+                        <div class="rule-card__actions">
+                            <Button Text="Перевірити" Variant="ButtonVariant.Ghost" Small="true" Disabled="@(!rule.IsEnabled)" OnClick="@(() => CheckNow(rule))" />
+                            <Button Text="@(rule.IsEnabled ? "Вимкнути" : "Увімкнути")" Variant="ButtonVariant.Ghost" Small="true" OnClick="@(() => ToggleEnabled(rule))" />
+                            <IconButton Icon="edit" Title="Змінити" OnClick="@(() => Navigation.NavigateTo($"/monitoring/rules/{rule.Id}"))" />
+                            <IconButton Icon="delete" Title="Видалити" Danger="true" OnClick="@(() => { _deleteError = null; _toDelete = rule; })" />
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <div class="notification-toolbar">
+            <label class="check">
+                <input type="checkbox" checked="@_unreadOnly" @onchange="@(e => { _unreadOnly = e.Value is true; return LoadNotifications(); })" />
+                <span>Лише непрочитані</span>
+            </label>
+
+            @if (MonitoringState.Unread > 0)
+            {
+                <Button Text="Позначити всі прочитаними" Variant="ButtonVariant.Secondary" Small="true" OnClick="@(() => MarkRead(null))" />
+            }
+        </div>
+
+        @if (_notifications is null)
+        {
+            <div class="default-text">Завантаження…</div>
+        }
+        else if (_notifications.Count == 0)
+        {
+            <div class="empty-state">
+                <div class="empty-state__title">@(_unreadOnly ? "Непрочитаних сповіщень немає" : "Сповіщень ще не було")</div>
+                <div class="default-text">Сповіщення з'являється, коли правило переходить у інший стан: спрацювало, знову норма, немає даних.</div>
+            </div>
+        }
+        else
+        {
+            <ul class="notification-list">
+                @foreach (var n in _notifications)
+                {
+                    <li class="notification @(n.ReadAt is null ? "notification--unread" : "")" @key="n.Id">
+                        <StatePill State="@n.ToState" />
+                        <div class="notification__body">
+                            <div class="notification__message">@n.Message</div>
+                            <div class="default-text">
+                                @Format.Date(n.CreatedAt) · @n.ConfigName · було: @RuleStates.Label(n.FromState).ToLowerInvariant()
+                                @DeliveryText(n)
+                            </div>
+                        </div>
+                        <div class="notification__actions">
+                            <a class="button button--ghost button--small" href="/monitoring/rules/@n.RuleId">Правило</a>
+                            @if (n.ReadAt is null)
+                            {
+                                <Button Text="Прочитано" Variant="ButtonVariant.Ghost" Small="true" OnClick="@(() => MarkRead(n.Id))" />
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+
+            @if (_hasMore)
+            {
+                <div class="notification-more">
+                    <Button Text="Показати ще" Variant="ButtonVariant.Secondary" OnClick="LoadMore" />
+                </div>
+            }
+        }
+    }
+</div>
+
+<ConfirmDialog IsOpen="_toDelete != null"
+               Title="Видалити правило?"
+               Text="@($"Правило «{_toDelete?.Name}» буде видалено разом з його сповіщеннями.")"
+               Error="@_deleteError"
+               OnConfirm="Delete"
+               OnCancel="@(() => _toDelete = null)" />
+
+@code {
+  [SupplyParameterFromQuery(Name = "tab")] public string? TabQuery { get; set; }
+
+  private enum Tab
+  {
+    Rules,
+    Notifications
+  }
+
+  private const int PageSize = 50;
+
+  private Tab _tab = Tab.Rules;
+  private List<MonitoringRule>? _rules;
+  private List<NotificationItem>? _notifications;
+  private bool _unreadOnly;
+  private bool _hasMore;
+  private DateTime _updatedAt = DateTime.Now;
+
+  private MonitoringRule? _toDelete;
+  private string? _deleteError;
+
+  private PeriodicTimer? _timer;
+  private readonly CancellationTokenSource _cts = new();
+
+  protected override async Task OnInitializedAsync()
+  {
+    _tab = TabQuery == "notifications" ? Tab.Notifications : Tab.Rules;
+    MonitoringState.Changed += OnStateChanged;
+
+    await Reload();
+    _ = AutoRefresh();
+  }
+
+  /// <summary>Стан правил змінює фоновий сервіс - сторінка перечитує дані раз на 30 с.</summary>
+  private async Task AutoRefresh()
+  {
+    _timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+
+    try
+    {
+      while (await _timer.WaitForNextTickAsync(_cts.Token))
+        await InvokeAsync(async () =>
+        {
+          await Reload();
+          StateHasChanged();
+        });
+    }
+    catch (OperationCanceledException)
+    {
+    }
+  }
+
+  private async Task Reload()
+  {
+    await Try(async () => _rules = await MonitoringApi.GetRules(_cts.Token));
+    if (_tab == Tab.Notifications)
+      await LoadNotifications();
+
+    await MonitoringState.Refresh();
+    _updatedAt = DateTime.Now;
+  }
+
+  private async Task SwitchTab(Tab tab)
+  {
+    _tab = tab;
+    Navigation.NavigateTo(tab == Tab.Notifications ? "/monitoring?tab=notifications" : "/monitoring", replace: true);
+
+    if (tab == Tab.Notifications)
+      await LoadNotifications();
+  }
+
+  private async Task LoadNotifications()
+  {
+    await Try(async () =>
+    {
+      var page = await MonitoringApi.GetNotifications(PageSize, _unreadOnly);
+      _notifications = page;
+      _hasMore = page.Count == PageSize;
+    });
+  }
+
+  private async Task LoadMore()
+  {
+    if (_notifications is not { Count: > 0 } current)
+      return;
+
+    await Try(async () =>
+    {
+      var page = await MonitoringApi.GetNotifications(PageSize, _unreadOnly, before: current[^1].CreatedAt);
+      _notifications = [.. current, .. page];
+      _hasMore = page.Count == PageSize;
+    });
+  }
+
+  private async Task MarkRead(Guid? id)
+  {
+    if (!await Try(() => MonitoringApi.MarkRead(id)))
+      return;
+
+    await LoadNotifications();
+    await MonitoringState.Refresh();
+  }
+
+  private async Task CheckNow(MonitoringRule rule)
+  {
+    await Try(async () =>
+    {
+      var updated = await MonitoringApi.CheckNow(rule.Id);
+      _rules = _rules?.Select(r => r.Id == rule.Id ? updated : r).ToList();
+    });
+
+    await MonitoringState.Refresh();
+  }
+
+  private async Task ToggleEnabled(MonitoringRule rule)
+  {
+    if (await Try(() => MonitoringApi.SetEnabled(rule.Id, !rule.IsEnabled)))
+      await Reload();
+  }
+
+  private async Task Delete()
+  {
+    if (_toDelete is null)
+      return;
+
+    if (await Try(() => MonitoringApi.DeleteRule(_toDelete.Id), e => _deleteError = e))
+    {
+      _toDelete = null;
+      await Reload();
+    }
+  }
+
+  private string Summary()
+  {
+    var rules = _rules ?? [];
+    var parts = new List<string>();
+
+    void Add(int count, string label)
+    {
+      if (count > 0)
+        parts.Add($"{Format.Number(count)} {label}");
+    }
+
+    Add(rules.Count(r => r.DisplayState == RuleStates.Alert), "спрацювало");
+    Add(rules.Count(r => r.DisplayState == RuleStates.NoData), "без даних");
+    Add(rules.Count(r => r.DisplayState == RuleStates.Ok), "у нормі");
+    Add(rules.Count(r => r.DisplayState == RuleStates.Disabled), "вимкнено");
+    Add(rules.Count(r => r.DisplayState == RuleStates.Unknown), "ще не перевірено");
+
+    return string.Join(" · ", parts);
+  }
+
+  private static string Value(MonitoringRule rule)
+    => rule.LastValue is { } v ? FieldValue.Display(PropertyDataType.Number, v.ToString(System.Globalization.CultureInfo.InvariantCulture)) : "—";
+
+  /// <summary>Скільки триває поточний стан: «5 хв», «2 год», «3 дн.».</summary>
+  public static string Since(DateTime since)
+  {
+    var span = DateTime.UtcNow - since.ToUniversalTime();
+    return span.TotalMinutes < 1 ? "щойно"
+      : span.TotalHours < 1 ? $"{(int)span.TotalMinutes} хв"
+      : span.TotalDays < 1 ? $"{(int)span.TotalHours} год"
+      : $"{(int)span.TotalDays} дн.";
+  }
+
+  private static string DeliveryText(NotificationItem n) => n.Delivery switch
+  {
+    "sent" => " · надіслано",
+    "pending" => " · надсилається",
+    "failed" => string.IsNullOrWhiteSpace(n.DeliveryError) ? " · не надіслано" : $" · не надіслано: {n.DeliveryError}",
+    _ => ""
+  };
+
+  private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+  public void Dispose()
+  {
+    MonitoringState.Changed -= OnStateChanged;
+    _cts.Cancel();
+    _timer?.Dispose();
+  }
+}

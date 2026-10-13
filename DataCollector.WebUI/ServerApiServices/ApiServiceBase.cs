@@ -54,6 +54,12 @@ public abstract class ApiServiceBase(HttpClient httpClient)
     await Send(() => httpClient.PatchAsJsonAsync(url, body, JsonOptions));
   }
 
+  /// <summary>POST, відповідь на який - лише код успіху (204).</summary>
+  protected async Task PostNoContentAsync(string url, object body)
+  {
+    await Send(() => httpClient.PostAsJsonAsync(url, body, JsonOptions));
+  }
+
   protected async Task PutAsync(string url, object body)
   {
     await Send(() => httpClient.PutAsJsonAsync(url, body, JsonOptions));

@@ -76,7 +76,11 @@ public sealed class WidgetState
   public string TypeLabel => WidgetTypes.Find(Type).Label;
 
   /// <summary>Заголовок картки: власна назва або назва моделі.</summary>
-  public string DisplayTitle => !string.IsNullOrWhiteSpace(Title) ? Title! : Config?.Name ?? TypeLabel;
+  public string DisplayTitle => !string.IsNullOrWhiteSpace(Title)
+    ? Title!
+    : Type == WidgetTypes.Monitoring
+      ? Config is null ? TypeLabel : $"{TypeLabel}: {Config.Name}"
+      : Config?.Name ?? TypeLabel;
 
   /// <summary>
   /// Застосувати модель: збережені налаштування звіряються з її полями (зайве відкидається).
@@ -130,6 +134,20 @@ public sealed class WidgetState
     _saved = new WidgetSettings { Search = Search };
     Config = null;
     Bind(config);
+  }
+
+  /// <summary>Без моделі (для віджетів, де модель - необов'язковий фільтр, як «Стан правил»).</summary>
+  public void ClearModel()
+  {
+    if (ConfigId is null)
+      return;
+
+    _saved = new WidgetSettings();
+    Config = null;
+    ConfigId = null;
+    Fields = [];
+    Columns = null;
+    DataVersion++;
   }
 
   public void ChangeType(string type)

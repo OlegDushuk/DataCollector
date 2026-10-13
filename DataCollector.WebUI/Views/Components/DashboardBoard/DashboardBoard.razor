@@ -43,7 +43,12 @@
             </header>
 
             <div class="widget__body">
-                @if (widget.Config is not { } config)
+                @if (widget.Type == WidgetTypes.Monitoring)
+                {
+                    @* Стан правил не залежить від даних моделі: модель (якщо вибрана) - лише фільтр правил. *@
+                    <RulesWidget ConfigId="widget.ConfigId" Version="widget.DataVersion + RefreshVersion" />
+                }
+                else if (widget.Config is not { } config)
                 {
                     <div class="widget__empty default-text default-text--multiline">
                         @(widget.ConfigId is null

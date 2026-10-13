@@ -13,7 +13,10 @@ public enum DashboardWidgetType
   Chart,
 
   /// <summary>Одне число: показник (кількість, сума, середнє...) за умовами.</summary>
-  Kpi
+  Kpi,
+
+  /// <summary>Стан правил моніторингу (усіх або однієї моделі).</summary>
+  Monitoring
 }
 
 public static class DashboardWidgetTypes
@@ -23,6 +26,7 @@ public static class DashboardWidgetTypes
     DashboardWidgetType.Table => "table",
     DashboardWidgetType.Summary => "summary",
     DashboardWidgetType.Chart => "chart",
+    DashboardWidgetType.Monitoring => "monitoring",
     _ => "kpi"
   };
 
@@ -32,6 +36,7 @@ public static class DashboardWidgetTypes
     "summary" => DashboardWidgetType.Summary,
     "chart" => DashboardWidgetType.Chart,
     "kpi" => DashboardWidgetType.Kpi,
+    "monitoring" => DashboardWidgetType.Monitoring,
     _ => null
   };
 }

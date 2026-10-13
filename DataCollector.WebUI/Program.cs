@@ -13,6 +13,8 @@ builder.Services.AddScoped<DataCollector.WebUI.Services.BrowserStorage>();
 builder.Services.AddScoped<DataCollector.WebUI.Services.LayoutState>();
 builder.Services.AddHttpClient<EntityConfigApiService>(c => c.BaseAddress = new Uri(apiBaseUrl));
 builder.Services.AddHttpClient<DashboardApiService>(c => c.BaseAddress = new Uri(apiBaseUrl));
+builder.Services.AddHttpClient<MonitoringApiService>(c => c.BaseAddress = new Uri(apiBaseUrl));
+builder.Services.AddScoped<DataCollector.WebUI.Services.MonitoringState>();
 builder.Services.AddHttpClient<EntityRecordApiService>(c =>
 {
   c.BaseAddress = new Uri(apiBaseUrl);

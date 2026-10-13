@@ -106,6 +106,7 @@ public static class WidgetTypes
   public const string Summary = "summary";
   public const string Chart = "chart";
   public const string Kpi = "kpi";
+  public const string Monitoring = "monitoring";
 
   public sealed record Info(string Code, string Label, string Hint, int DefaultWidth, int DefaultHeight);
 
@@ -114,10 +115,14 @@ public static class WidgetTypes
     new(Chart, "Діаграма", "Лінії, стовпці, смуги, кільце або теплова карта", 6, 5),
     new(Kpi, "Показник", "Одне число: кількість, сума, середнє, мінімум або максимум", 3, 2),
     new(Summary, "Зведення", "Таблиця груп з показниками", 6, 5),
-    new(Table, "Таблиця", "Записи з вибраними колонками і сортуванням", 12, 7)
+    new(Table, "Таблиця", "Записи з вибраними колонками і сортуванням", 12, 7),
+    new(Monitoring, "Стан правил", "Правила моніторингу: що в нормі, а що спрацювало", 4, 5)
   ];
 
-  public static Info Find(string? code) => All.FirstOrDefault(t => t.Code == code) ?? All[^1];
+  /// <summary>Віджет бере дані не з моделі (модель - лише необов'язковий фільтр).</summary>
+  public static bool IsModelOptional(string type) => type == Monitoring;
+
+  public static Info Find(string? code) => All.FirstOrDefault(t => t.Code == code) ?? All.First(t => t.Code == Table);
 }
 
 /// <summary>

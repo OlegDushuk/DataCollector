@@ -1,0 +1,54 @@
+@namespace DataCollector.WebUI.Views.Components
+@implements IDisposable
+@inject DataCollector.WebUI.Services.MonitoringState State
+
+@* Лічильник непрочитаних сповіщень у меню. Перечитується раз на 30 с (стан правил змінює фоновий сервіс API). *@
+
+@if (State.Unread > 0)
+{
+    <span class="nav-badge" title="@Format.Count(State.Unread, "непрочитане сповіщення", "непрочитані сповіщення", "непрочитаних сповіщень")">
+        @(State.Unread > 99 ? "99+" : State.Unread.ToString())
+    </span>
+}
+
+@code {
+  private readonly CancellationTokenSource _cts = new();
+  private PeriodicTimer? _timer;
+
+  protected override void OnInitialized()
+  {
+    State.Changed += OnChanged;
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (!firstRender)
+      return;
+
+    await State.Refresh(_cts.Token);
+    _ = Poll();
+  }
+
+  private async Task Poll()
+  {
+    _timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+
+    try
+    {
+      while (await _timer.WaitForNextTickAsync(_cts.Token))
+        await InvokeAsync(() => State.Refresh(_cts.Token));
+    }
+    catch (OperationCanceledException)
+    {
+    }
+  }
+
+  private void OnChanged() => InvokeAsync(StateHasChanged);
+
+  public void Dispose()
+  {
+    State.Changed -= OnChanged;
+    _cts.Cancel();
+    _timer?.Dispose();
+  }
+}

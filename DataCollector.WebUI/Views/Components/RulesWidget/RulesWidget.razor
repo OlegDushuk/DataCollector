@@ -1,0 +1,101 @@
+@namespace DataCollector.WebUI.Views.Components
+@implements IDisposable
+@inject MonitoringApiService MonitoringApi
+
+@*
+    Віджет «Стан правил»: правила моніторингу (усі або однієї моделі) з поточним станом і значенням.
+    Спершу ті, що спрацювали, потім без даних. Оновлюється з дашбордом (Version).
+*@
+
+<div class="rules-widget">
+    @if (_error != null)
+    {
+        <div class="kpi__error default-text default-text--multiline">@_error</div>
+    }
+    else if (_rules is null)
+    {
+        <div class="widget__empty default-text">Завантаження…</div>
+    }
+    else if (_rules.Count == 0)
+    {
+        <div class="widget__empty default-text default-text--multiline">
+            Правил моніторингу @(ConfigId is null ? "ще немає" : "для цієї моделі немає").
+            <a href="/monitoring/rules/new">Створити правило</a>
+        </div>
+    }
+    else
+    {
+        <div class="rules-widget__summary">
+            @foreach (var group in _rules.GroupBy(r => r.DisplayState).OrderBy(g => Order(g.Key)))
+            {
+                <span class="state-pill state-pill--@RuleStates.Css(group.Key)">
+                    <span class="state-pill__dot"></span>
+                    <span>@RuleStates.Label(group.Key): @group.Count()</span>
+                </span>
+            }
+        </div>
+
+        @foreach (var rule in _rules)
+        {
+            <a class="rules-widget__row" href="/monitoring/rules/@rule.Id" @key="rule.Id">
+                <StatePill State="@rule.DisplayState" Compact="true" Title="@RuleStates.Label(rule.DisplayState)" />
+                <div class="rules-widget__text">
+                    <div class="rules-widget__name">@rule.Name</div>
+                    <div class="rules-widget__condition" title="@rule.Condition">@rule.Condition</div>
+                </div>
+                <span class="rules-widget__value">@(rule.LastValue is { } v ? FieldValue.Display(PropertyDataType.Number, v.ToString(System.Globalization.CultureInfo.InvariantCulture)) : "—")</span>
+            </a>
+        }
+    }
+</div>
+
+@code {
+  /// <summary>Лише правила цієї моделі; null - усі.</summary>
+  [Parameter] public Guid? ConfigId { get; set; }
+
+  [Parameter] public int Version { get; set; }
+
+  private List<MonitoringRule>? _rules;
+  private string? _error;
+  private int _loadedVersion = -1;
+  private Guid? _loadedConfig;
+  private readonly CancellationTokenSource _cts = new();
+
+  protected override async Task OnParametersSetAsync()
+  {
+    if (Version == _loadedVersion && ConfigId == _loadedConfig)
+      return;
+
+    _loadedVersion = Version;
+    _loadedConfig = ConfigId;
+
+    try
+    {
+      var rules = await MonitoringApi.GetRules(_cts.Token);
+      _rules = rules
+        .Where(r => ConfigId is null || r.ConfigId == ConfigId)
+        .OrderBy(r => Order(r.DisplayState))
+        .ThenBy(r => r.Name)
+        .ToList();
+      _error = null;
+    }
+    catch (OperationCanceledException)
+    {
+    }
+    catch (ApiException e)
+    {
+      _error = e.Message;
+    }
+  }
+
+  private static int Order(string state) => state switch
+  {
+    RuleStates.Alert => 0,
+    RuleStates.NoData => 1,
+    RuleStates.Unknown => 2,
+    RuleStates.Ok => 3,
+    _ => 4
+  };
+
+  public void Dispose() => _cts.Cancel();
+}

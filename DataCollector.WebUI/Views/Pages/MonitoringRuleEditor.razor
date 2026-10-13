@@ -1,0 +1,392 @@
+@page "/monitoring/rules/new"
+@page "/monitoring/rules/{Id:guid}"
+
+@inherits PageBase
+@inject MonitoringApiService MonitoringApi
+@inject EntityConfigApiService ConfigApi
+
+@*
+    Редактор правила моніторингу: що рахувати (модель, умови, показник, вікно часу), коли спрацьовувати
+    (умова і поріг) і як часто перевіряти. «Порахувати зараз» показує поточне значення і стан ще до збереження.
+*@
+
+<PageHeader Title="@(Id is null ? "Нове правило" : _form.Name is { Length: > 0 } name ? name : "Правило")" BackHref="/monitoring" BackTitle="До моніторингу">
+    <Subtitle>
+        @if (_rule != null)
+        {
+            <span>Зараз: @RuleStates.Label(_rule.DisplayState).ToLowerInvariant()@(_rule.LastCheckedAt is { } at ? $" · перевірено {Format.Date(at)}" : "")</span>
+        }
+        else
+        {
+            <span>Показник за останні N хвилин, порівняний з порогом</span>
+        }
+    </Subtitle>
+    <Actions>
+        @if (Id != null)
+        {
+            <a class="button button--secondary" href="/monitoring?tab=notifications">Сповіщення</a>
+        }
+        <Button Text="Скасувати" Variant="ButtonVariant.Secondary" OnClick="@(() => Navigation.NavigateTo("/monitoring"))" />
+        <Button Text="Зберегти" Disabled="@(_config is null || _saving)" OnClick="Save" />
+    </Actions>
+</PageHeader>
+
+<div class="page page--scroll">
+    <Alert Message="@Error" OnClose="@(() => Error = null)" />
+
+    @if (_configs is null)
+    {
+        <div class="default-text">@(Error is null ? "Завантаження…" : "")</div>
+    }
+    else if (_configs.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-state__title">Ще немає жодної моделі</div>
+            <div class="default-text">Правило стежить за даними моделі - спершу створіть модель.</div>
+            <a class="button button--primary" href="/management">Створити модель</a>
+        </div>
+    }
+    else
+    {
+        <div class="rule-editor">
+            <div class="rule-editor__main">
+                <section class="card rule-editor__card">
+                    <div class="card__title">Що рахувати</div>
+
+                    <div class="form">
+                        <div class="form__row">
+                            <label class="form__field">
+                                <span class="form__label">Назва правила</span>
+                                <input class="input" maxlength="128" placeholder="Наприклад, Перегрів складу" value="@_form.Name"
+                                       @oninput="@(e => _form.Name = e.Value?.ToString() ?? string.Empty)" />
+                            </label>
+
+                            <label class="form__field">
+                                <span class="form__label">Модель даних</span>
+                                <select class="select" value="@(_form.ConfigId?.ToString() ?? "")" @onchange="OnModelChange">
+                                    @if (_form.ConfigId is null)
+                                    {
+                                        <option value="">— виберіть модель —</option>
+                                    }
+                                    @foreach (var c in _configs)
+                                    {
+                                        <option value="@c.Id">@c.Name</option>
+                                    }
+                                </select>
+                            </label>
+                        </div>
+
+                        @if (_config != null)
+                        {
+                            <div class="form__row">
+                                <label class="form__field">
+                                    <span class="form__label">Показник</span>
+                                    <select class="select" value="@_form.Function" @onchange="OnFunctionChange">
+                                        @foreach (var f in AggregateCatalog.Functions)
+                                        {
+                                            <option value="@f.Code">@f.Label</option>
+                                        }
+                                    </select>
+                                </label>
+
+                                <label class="form__field">
+                                    <span class="form__label">@(_form.Function == "count" ? "Що рахувати" : "Поле")</span>
+                                    <select class="select" value="@_form.Field" @onchange="@(e => Changed(() => _form.Field = e.Value?.ToString() ?? string.Empty))">
+                                        @if (_form.Function == "count")
+                                        {
+                                            <option value="">записи</option>
+                                        }
+                                        @foreach (var f in RuleForm.MetricFields(_form.Function, _fields))
+                                        {
+                                            <option value="@f.Key">@(_form.Function == "count" ? $"заповнене поле «{f.Name}»" : f.Name)</option>
+                                        }
+                                    </select>
+                                </label>
+                            </div>
+
+                            <div class="form__row">
+                                <label class="form__field">
+                                    <span class="form__label">Вікно часу</span>
+                                    <select class="select" value="@_form.WindowMinutes" @onchange="@(e => Changed(() => _form.WindowMinutes = int.TryParse(e.Value?.ToString(), out var m) ? m : 60))">
+                                        @foreach (var (minutes, label) in RuleForm.Windows)
+                                        {
+                                            <option value="@minutes">@label</option>
+                                        }
+                                    </select>
+                                </label>
+
+                                @* Без вікна поле часу не потрібне - лишаємо порожнє місце, щоб рядок не стрибав. *@
+                                <label class="form__field @(_form.WindowMinutes == 0 ? "form__field--invisible" : "")">
+                                    <span class="form__label">Час запису - за полем</span>
+                                    <select class="select" value="@_form.TimeField" @onchange="@(e => Changed(() => _form.TimeField = e.Value?.ToString() ?? FilterField.CreatedAtKey))">
+                                        @foreach (var f in RuleForm.TimeFields(_fields))
+                                        {
+                                            <option value="@f.Key">@f.Name</option>
+                                        }
+                                    </select>
+                                </label>
+                            </div>
+
+                            @if (_form.Function != "count" && !RuleForm.MetricFields(_form.Function, _fields).Any())
+                            {
+                                <div class="default-text default-text--multiline rule-editor__warning">
+                                    У моделі немає числових полів - для неї доступна лише кількість.
+                                </div>
+                            }
+                        }
+                    </div>
+                </section>
+
+                @if (_config != null)
+                {
+                    <section class="card rule-editor__card">
+                        <div class="card__title">Коли спрацьовувати</div>
+
+                        <div class="form">
+                            <div class="rule-editor__condition">
+                                <span class="rule-editor__metric">@MetricLabel()</span>
+                                <select class="select" value="@_form.Operator" @onchange="@(e => Changed(() => _form.Operator = e.Value?.ToString() ?? "gt"))">
+                                    @foreach (var op in RuleForm.Operators)
+                                    {
+                                        <option value="@op.Code">@op.Label</option>
+                                    }
+                                </select>
+                                <ValueInput DataType="PropertyDataType.Number" Value="@_form.Threshold" Placeholder="Поріг, напр. 30"
+                                            ValueChanged="@(v => Changed(() => _form.Threshold = v))" />
+                            </div>
+
+                            <div class="form__row">
+                                <label class="form__field">
+                                    <span class="form__label">Перевіряти</span>
+                                    <select class="select" value="@_form.CheckIntervalSeconds" @onchange="@(e => Changed(() => _form.CheckIntervalSeconds = int.TryParse(e.Value?.ToString(), out var s) ? s : 60))">
+                                        @foreach (var (seconds, label) in RuleForm.Intervals)
+                                        {
+                                            <option value="@seconds">@label</option>
+                                        }
+                                    </select>
+                                </label>
+
+                                <label class="form__field" title="Стан змінюється, лише коли нове значення повторилось стільки перевірок поспіль - захист від частих сповіщень, коли значення коливається біля порогу">
+                                    <span class="form__label">Змінювати стан після</span>
+                                    <select class="select" value="@_form.ConsecutiveChecks" @onchange="@(e => Changed(() => _form.ConsecutiveChecks = int.TryParse(e.Value?.ToString(), out var n) ? n : 1))">
+                                        @foreach (var n in RuleForm.ConsecutiveOptions)
+                                        {
+                                            <option value="@n">@(n == 1 ? "першої ж перевірки" : $"{n} перевірок поспіль")</option>
+                                        }
+                                    </select>
+                                </label>
+                            </div>
+
+                            <label class="check">
+                                <input type="checkbox" checked="@_form.IsEnabled" @onchange="@(e => _form.IsEnabled = e.Value is true)" />
+                                <span>Правило увімкнене</span>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="card rule-editor__card rule-preview rule-preview--@RuleStates.Css(_preview?.State ?? RuleStates.Unknown)">
+                        <div class="rule-preview__header">
+                            <div class="card__title">Перевірка умови</div>
+                            <Button Text="Порахувати зараз" Variant="ButtonVariant.Secondary" Small="true" Disabled="_previewing" OnClick="Preview" />
+                        </div>
+
+                        @if (_previewing)
+                        {
+                            <div class="default-text">Рахуємо…</div>
+                        }
+                        else if (_preview is null)
+                        {
+                            <div class="default-text default-text--multiline">
+                                Порахує показник на поточних даних і покаже, яким був би стан правила, - без збереження.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="rule-preview__result">
+                                <StatePill State="@_preview.State" />
+                                <span class="rule-preview__value">
+                                    @_preview.MetricName = @(_preview.Value is { } v ? FieldValue.Display(PropertyDataType.Number, v.ToString(System.Globalization.CultureInfo.InvariantCulture)) : "—")
+                                </span>
+                            </div>
+                            <div class="default-text default-text--multiline">
+                                <div>Умова: @_preview.Condition</div>
+                                @if (_preview.Error != null)
+                                {
+                                    <div>@_preview.Error</div>
+                                }
+                                else if (_preview.Value is null)
+                                {
+                                    <div>Немає записів для розрахунку у вікні часу - правило буде в стані «Немає даних».</div>
+                                }
+                            </div>
+                            @if (_previewStale)
+                            {
+                                <div class="default-text rule-preview__stale">Параметри змінились - порахуйте ще раз.</div>
+                            }
+                        }
+                    </section>
+                }
+            </div>
+
+            @if (_config != null)
+            {
+                <aside class="card rule-editor__filters">
+                    <div class="card__title">Які записи враховувати</div>
+                    <div class="default-text default-text--multiline">
+                        Ті самі умови, що на сторінці записів. Без умов - усі записи моделі у вікні часу.
+                    </div>
+
+                    <div class="search-input search-input--wide">
+                        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        <input class="input" placeholder="Пошук у текстових полях" value="@_form.Search"
+                               @onchange="@(e => Changed(() => _form.Search = e.Value?.ToString()))" />
+                    </div>
+
+                    <RecordFilterPanel @key="_config.Id"
+                                       Fields="_fields"
+                                       Filters="_form.Filters"
+                                       OnApply="@(filters => Changed(() => _form.Filters = filters))" />
+                </aside>
+            }
+        </div>
+    }
+</div>
+
+@code {
+  [Parameter] public Guid? Id { get; set; }
+
+  /// <summary>Нове правило для моделі з адреси (?config=ключ).</summary>
+  [SupplyParameterFromQuery(Name = "config")] public string? ConfigQuery { get; set; }
+
+  private List<EntityConfigListItem>? _configs;
+  private EntityConfig? _config;
+  private List<FilterField> _fields = [];
+  private MonitoringRule? _rule;
+  private RuleForm _form = new();
+
+  private MonitoringPreview? _preview;
+  private bool _previewing;
+  private bool _previewStale;
+  private bool _saving;
+
+  protected override async Task OnParametersSetAsync()
+  {
+    await Try(async () => _configs = await ConfigApi.GetAll());
+    if (_configs is not { Count: > 0 })
+      return;
+
+    if (Id is { } id)
+    {
+      await Try(async () => _rule = await MonitoringApi.GetRule(id));
+      if (_rule is null)
+        return;
+
+      await LoadModel(_rule.ConfigId);
+      _form = RuleForm.From(_rule, _fields);
+    }
+    else
+    {
+      var initial = _configs.FirstOrDefault(c => string.Equals(c.Key, ConfigQuery, StringComparison.OrdinalIgnoreCase)) ?? _configs[0];
+      _form = new RuleForm { ConfigId = initial.Id };
+      await LoadModel(initial.Id);
+    }
+  }
+
+  private async Task LoadModel(Guid configId)
+  {
+    EntityConfig? loaded = null;
+    await Try(async () => loaded = await ConfigApi.Get(configId.ToString()));
+
+    _config = loaded;
+    _fields = loaded is null ? [] : FilterField.ForConfig(loaded);
+  }
+
+  private async Task OnModelChange(ChangeEventArgs e)
+  {
+    if (!Guid.TryParse(e.Value?.ToString(), out var id) || id == _config?.Id)
+      return;
+
+    _form.ConfigId = id;
+    await LoadModel(id);
+
+    // Поля іншої моделі: умови й поле показника не переносяться.
+    _form.Filters = [];
+    _form.Field = string.Empty;
+    _form.Function = "count";
+    _form.TimeField = FilterField.CreatedAtKey;
+    _preview = null;
+  }
+
+  private void OnFunctionChange(ChangeEventArgs e)
+  {
+    var function = e.Value?.ToString() ?? "count";
+    var fields = RuleForm.MetricFields(function, _fields).ToList();
+
+    Changed(() =>
+    {
+      // Немає числових полів - лишається кількість.
+      if (function != "count" && fields.Count == 0)
+        function = "count";
+
+      _form.Function = function;
+      if (function == "count")
+        _form.Field = string.Empty;
+      else if (fields.All(f => f.Key != _form.Field))
+        _form.Field = fields[0].Key;
+    });
+  }
+
+  private void Changed(Action change)
+  {
+    change();
+    if (_preview != null)
+      _previewStale = true;
+  }
+
+  private string MetricLabel()
+  {
+    var function = AggregateCatalog.Functions.FirstOrDefault(f => f.Code == _form.Function).Label ?? _form.Function;
+    var field = _fields.FirstOrDefault(f => f.Key == _form.Field)?.Name;
+    var window = RuleForm.Windows.FirstOrDefault(w => w.Minutes == _form.WindowMinutes).Label;
+
+    return field is null
+      ? $"{function} записів {window}"
+      : $"{function}: {field} {window}";
+  }
+
+  private async Task Preview()
+  {
+    _previewing = true;
+    _previewStale = false;
+
+    await Try(async () => _preview = await MonitoringApi.Preview(_form.ToApi(_fields)));
+    _previewing = false;
+  }
+
+  private async Task Save()
+  {
+    if (string.IsNullOrWhiteSpace(_form.Name))
+    {
+      Error = "Вкажіть назву правила";
+      return;
+    }
+
+    if (FieldValue.ParseNumber(_form.Threshold) is null)
+    {
+      Error = "Вкажіть поріг - число, з яким порівнюється показник";
+      return;
+    }
+
+    _saving = true;
+    var body = _form.ToApi(_fields);
+
+    var ok = Id is { } id
+      ? await Try(() => MonitoringApi.UpdateRule(id, body))
+      : await Try(() => MonitoringApi.CreateRule(body));
+
+    _saving = false;
+
+    if (ok)
+      Navigation.NavigateTo("/monitoring");
+  }
+}

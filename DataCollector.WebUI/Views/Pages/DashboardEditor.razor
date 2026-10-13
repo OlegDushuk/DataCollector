@@ -252,7 +252,10 @@ else
   /// <summary>Новий віджет - у кінець, з моделлю вибраного (або першою), і одразу вибраний.</summary>
   private async Task AddWidget(string type)
   {
-    var configId = Selected?.ConfigId ?? Widgets.LastOrDefault(w => w.ConfigId != null)?.ConfigId ?? _configs.FirstOrDefault()?.Id;
+    // «Стан правил» за замовчуванням - усі моделі; решта - модель вибраного віджета (або першу).
+    var configId = WidgetTypes.IsModelOptional(type)
+      ? null
+      : Selected?.ConfigId ?? Widgets.LastOrDefault(w => w.ConfigId != null)?.ConfigId ?? _configs.FirstOrDefault()?.Id;
     var widget = WidgetState.Create(type, configId);
 
     Widgets.Add(widget);

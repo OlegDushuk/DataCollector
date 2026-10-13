@@ -450,7 +450,7 @@ $grid-gap: 16px;
 // Вибір типу віджета: сітка кнопок зі значками (як типи діаграм).
 .widget-types {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
 
   &__item {
