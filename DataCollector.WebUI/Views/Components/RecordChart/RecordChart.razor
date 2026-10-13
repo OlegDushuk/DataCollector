@@ -1,0 +1,275 @@
+@namespace DataCollector.WebUI.Views.Components
+@implements IAsyncDisposable
+@inject EntityRecordApiService RecordApi
+@inject IJSRuntime JS
+
+@*
+    Діаграма за параметрами ChartSettings: лінії, стовпці, смуги, кільце або теплова карта.
+    Дані - records/aggregate (з тими ж фільтрами, що в таблиці), малює ECharts у браузері:
+    підказки, легенда, масштабування працюють без запитів до сервера.
+    Version - змінились дані (фільтри, вісь, показники, тип) - новий запит; StyleVersion - лише вигляд - перемалювати.
+*@
+
+<div class="chart">
+    <Alert Message="@_error" />
+
+    <div class="chart__header">
+        <div class="chart__title">
+            <span class="card__title">@Title</span>
+            @if (_data is { Categories.Count: > 0 } && _hint is null)
+            {
+                <span class="default-text">@Subtitle(_data)</span>
+            }
+        </div>
+
+        @if (_data is { Series.Count: > 0 } && _hint is null)
+        {
+            <Button Text="Зберегти PNG" Variant="ButtonVariant.Ghost" Small="true" OnClick="SavePng" />
+        }
+    </div>
+
+    <div class="chart__body @(_loading ? "chart__body--loading" : "")">
+        @* Контейнер ECharts завжди в DOM: діаграма живе в ньому між оновленнями і плавно анімує зміни. *@
+        <div class="chart__canvas @(HasChart ? "" : "chart__canvas--hidden")" @ref="_canvas"></div>
+
+        @if (_hint != null)
+        {
+            <div class="chart__empty default-text">@_hint</div>
+        }
+        else if (!HasChart)
+        {
+            <div class="chart__empty default-text">
+                @(_loading ? "Рахуємо…" : _data is null ? "" : "Немає записів для діаграми з такими умовами")
+            </div>
+        }
+    </div>
+
+    @if (_data is { Notes.Count: > 0 })
+    {
+        <div class="chart__notes">
+            @foreach (var note in _data.Notes)
+            {
+                <div class="default-text">@note</div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+  [Parameter, EditorRequired] public Guid ConfigId { get; set; }
+  [Parameter, EditorRequired] public IReadOnlyList<FilterField> Fields { get; set; } = [];
+  [Parameter] public IReadOnlyList<object> Filters { get; set; } = [];
+  [Parameter] public string? Search { get; set; }
+  [Parameter] public int Version { get; set; }
+  [Parameter] public int StyleVersion { get; set; }
+  [Parameter, EditorRequired] public ChartSettings Settings { get; set; } = new();
+
+  private ElementReference _canvas;
+  private AggregateResult? _result;
+  private ChartData? _data;
+  private bool _loading;
+  private string? _error;
+  private bool _needsRender;
+
+  private CancellationTokenSource? _cts;
+  private Guid _loadedConfig;
+  private int _loadedVersion = -1;
+  private int _renderedStyle = -1;
+
+  // Діаграму неможливо побудувати з такими параметрами (теплова карта без поля рядків) - пояснення замість неї.
+  private string? _hint;
+
+  private bool HasChart => _hint is null && _data is { Series.Count: > 0, Categories.Count: > 0 };
+
+  private string Title
+  {
+    get
+    {
+      var x = Fields.FirstOrDefault(f => f.Key == Settings.XField)?.Name ?? Settings.XField;
+      var split = Settings.UsesSplit ? Fields.FirstOrDefault(f => f.Key == Settings.SplitBy)?.Name : null;
+
+      return (Settings.Type, split) switch
+      {
+        (ChartTypes.Pie, _) => $"Частки за полем «{x}»",
+        (ChartTypes.Heatmap, { } rows) => $"«{rows}» × «{x}»",
+        (_, { } by) => $"За полем «{x}», розбито за «{by}»",
+        _ => $"За полем «{x}»"
+      };
+    }
+  }
+
+  private static string Subtitle(ChartData data)
+  {
+    var metric = data.Series.Count > 0 ? data.Series[0].Name : string.Empty;
+    var points = Points(data.Categories.Count);
+
+    return data.Series.Count > 1
+      ? $"{points} · {data.Series.Count} {Lines(data.Series.Count)}"
+      : $"{points} · {metric}";
+  }
+
+  private static string Points(int count)
+  {
+    var word = count % 10 == 1 && count % 100 != 11
+      ? "точка"
+      : count % 10 is >= 2 and <= 4 && count % 100 is < 12 or > 14 ? "точки" : "точок";
+
+    return $"{count.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("uk-UA"))} {word}";
+  }
+
+  private static string Lines(int count) => count % 10 == 1 && count % 100 != 11
+    ? "серія"
+    : count % 10 is >= 2 and <= 4 && count % 100 is < 12 or > 14 ? "серії" : "серій";
+
+  protected override async Task OnParametersSetAsync()
+  {
+    if (ConfigId != _loadedConfig || Version != _loadedVersion)
+    {
+      if (ConfigId != _loadedConfig)
+      {
+        _result = null;
+        _data = null;
+      }
+
+      _loadedConfig = ConfigId;
+      _loadedVersion = Version;
+      _renderedStyle = StyleVersion;
+      await Load();
+      return;
+    }
+
+    // Змінився лише вигляд (тип серед ліній/стовпців/смуг, згладжування, сортування...) - ті самі дані,
+    // нова побудова без запиту. Виняток - даних ще немає (раніше була теплова карта без поля рядків).
+    if (StyleVersion != _renderedStyle)
+    {
+      _renderedStyle = StyleVersion;
+      UpdateHint();
+
+      if (_hint is null && _result is null)
+        await Load();
+      else
+        Rebuild();
+    }
+  }
+
+  private async Task Load()
+  {
+    _cts?.Cancel();
+
+    UpdateHint();
+
+    if (_hint != null)
+    {
+      _result = null;
+      _data = null;
+      _loading = false;
+      return;
+    }
+
+    var cts = _cts = new CancellationTokenSource();
+
+    _loading = true;
+    _error = null;
+
+    try
+    {
+      _result = await RecordApi.Aggregate(
+        ConfigId, Filters, Search, Settings.ApiDimensions(Fields), Settings.ApiMetrics(), "keys", cts.Token,
+        limit: ChartSettings.MaxPoints * ChartSettings.MaxSeries);
+      Rebuild();
+    }
+    catch (OperationCanceledException) when (cts.IsCancellationRequested)
+    {
+      // Параметри змінились ще раз - відповідь на цей запит уже не потрібна.
+      return;
+    }
+    catch (ApiException e)
+    {
+      _error = e.Message;
+    }
+    finally
+    {
+      if (_cts == cts)
+        _cts = null;
+
+      cts.Dispose();
+    }
+
+    _loading = false;
+  }
+
+  /// <summary>Теплова карта - це два поля; без другого будувати нічого (і запит не потрібен).</summary>
+  private void UpdateHint()
+  {
+    _hint = Settings.Type == ChartTypes.Heatmap && !Settings.UsesSplit
+      ? "Для теплової карти виберіть у панелі поле для рядків (перелік або так/ні)."
+      : null;
+  }
+
+  private void Rebuild()
+  {
+    if (_result is null || _hint != null)
+      return;
+
+    var x = Fields.FirstOrDefault(f => f.Key == Settings.XField);
+    _data = ChartData.Build(_result, Settings, x, Fields.FirstOrDefault(f => f.Key == Settings.SplitBy));
+
+    if (Settings.SortByValue && Settings.CanSortByValue(x))
+      _data.SortByTotal();
+
+    _needsRender = true;
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (!_needsRender || _data is null || _hint != null)
+      return;
+
+    _needsRender = false;
+
+    try
+    {
+      var rendered = await JS.InvokeAsync<bool>("dataCollector.charts.render", _canvas, ChartOptions.Build(_data, Settings));
+      if (!rendered)
+      {
+        _error = "Бібліотека діаграм не завантажилась. Виконайте npm install і npx gulp у DataCollector.WebUI та оновіть сторінку.";
+        StateHasChanged();
+      }
+    }
+    catch (JSException e)
+    {
+      _error = "Не вдалося намалювати діаграму: " + e.Message;
+      StateHasChanged();
+    }
+    catch (JSDisconnectedException)
+    {
+      // Користувач уже пішов зі сторінки.
+    }
+  }
+
+  private async Task SavePng()
+  {
+    try
+    {
+      await JS.InvokeVoidAsync("dataCollector.charts.savePng", _canvas, $"chart-{DateTime.Now:yyyyMMdd-HHmm}.png");
+    }
+    catch (JSException e)
+    {
+      _error = "Не вдалося зберегти зображення: " + e.Message;
+    }
+  }
+
+  public async ValueTask DisposeAsync()
+  {
+    _cts?.Cancel();
+
+    try
+    {
+      await JS.InvokeVoidAsync("dataCollector.charts.dispose", _canvas);
+    }
+    catch (Exception e) when (e is JSException or JSDisconnectedException or InvalidOperationException)
+    {
+      // З'єднання з браузером уже немає - разом з ним зникла і діаграма.
+    }
+  }
+}

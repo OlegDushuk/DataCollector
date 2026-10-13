@@ -15,6 +15,11 @@ const paths = {
   js: {
     src: 'Assets/Js/**/*.js',
     dest: 'wwwroot/dist'
+  },
+  // Готові мінімізовані бібліотеки з node_modules - лише копіюються (npm install ставить їх).
+  vendor: {
+    src: ['node_modules/echarts/dist/echarts.min.js'],
+    dest: 'wwwroot/dist/vendor'
   }
 };
 
@@ -40,6 +45,10 @@ function buildJs() {
     .pipe(dest(paths.js.dest));
 }
 
+function copyVendor() {
+  return src(paths.vendor.src, { allowEmpty: false }).pipe(dest(paths.vendor.dest));
+}
+
 function watcher() {
   watch(paths.scss.src, buildScss);
   watch(paths.js.src, buildJs);
@@ -47,6 +56,7 @@ function watcher() {
 
 exports.scss = buildScss;
 exports.js = buildJs;
-exports.build = parallel(buildScss, buildJs);
+exports.vendor = copyVendor;
+exports.build = parallel(buildScss, buildJs, copyVendor);
 exports.watch = series(exports.build, watcher);
 exports.default = exports.build;

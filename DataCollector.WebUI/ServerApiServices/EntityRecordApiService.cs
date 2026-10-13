@@ -47,7 +47,8 @@ public class EntityRecordApiService(HttpClient httpClient) : ApiServiceBase(http
     IEnumerable<object> groupBy,
     IEnumerable<object> metrics,
     string orderBy,
-    CancellationToken cancellationToken = default)
+    CancellationToken cancellationToken = default,
+    int limit = 500)
   {
     var body = new
     {
@@ -56,7 +57,7 @@ public class EntityRecordApiService(HttpClient httpClient) : ApiServiceBase(http
       groupBy,
       metrics,
       orderBy,
-      limit = 500,
+      limit,
       timeZone = TimeZoneInfo.Local.Id
     };
 

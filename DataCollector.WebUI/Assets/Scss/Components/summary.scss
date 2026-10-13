@@ -142,6 +142,11 @@
     border: 1px solid variables.$border-color;
     border-radius: variables.$radius-md;
     background: variables.$bg-color;
+
+    // Налаштоване, але зараз не використовується (наприклад, друга лінія при розбитті за полем).
+    &--inactive {
+      opacity: 0.5;
+    }
   }
 
   &__line {

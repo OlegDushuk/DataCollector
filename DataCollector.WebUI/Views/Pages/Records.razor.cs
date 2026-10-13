@@ -54,8 +54,12 @@ public partial class Records : PageBase, IDisposable
   private enum RecordsView
   {
     Table,
-    Summary
+    Summary,
+    Chart
   }
+
+  /// <summary>Подання, що працюють від агрегації (зведення, діаграма): параметри - у бічній панелі.</summary>
+  private bool IsAggregateView => _view is RecordsView.Summary or RecordsView.Chart;
 
   private RecordsView _view = RecordsView.Table;
 
@@ -79,6 +83,10 @@ public partial class Records : PageBase, IDisposable
   private string? _notice;
   private const string ActionsColumnKey = "__actions";
   private readonly SummarySettings _summarySettings = new();
+  private readonly ChartSettings _chartSettings = new();
+
+  // Змінився лише вигляд діаграми (згладжування, заливка) - перемалювати без нового запиту.
+  private int _chartStyleVersion;
 
   // Збільшується при кожній зміні фільтрів або пошуку - за ним зведення розуміє, що треба перерахувати.
   private int _filtersVersion;
@@ -131,6 +139,7 @@ public partial class Records : PageBase, IDisposable
     {
       _filterFields = FilterField.ForConfig(_config);
       _summarySettings.ResetFor(_config.Id);
+      _chartSettings.ResetFor(_config.Id);
       _columns = TableColumns.For(_config, await Storage.GetString(TableColumns.StorageKey(_config.Id)));
 
       // Таблиця створюється вже з відновленими сортуванням, розміром сторінки й фільтрами,
@@ -147,7 +156,12 @@ public partial class Records : PageBase, IDisposable
     if (saved?.Version != RecordsPageSettings.CurrentVersion)
       saved = new RecordsPageSettings();
 
-    _view = saved.View == "summary" ? RecordsView.Summary : RecordsView.Table;
+    _view = saved.View switch
+    {
+      "summary" => RecordsView.Summary,
+      "chart" => RecordsView.Chart,
+      _ => RecordsView.Table
+    };
     _isPanelOpen = saved.PanelOpen;
     _panelTab = saved.PanelTab == "columns" ? PanelTab.Columns : PanelTab.Filters;
 
@@ -160,6 +174,7 @@ public partial class Records : PageBase, IDisposable
     _pageSize = saved.PageSize is { } size && PageSizes.Contains(size) ? size : 10;
 
     saved.RestoreSummary(_summarySettings, _filterFields);
+    saved.RestoreChart(_chartSettings, _filterFields);
 
     _savedSettingsJson = BrowserStorage.Serialize(CurrentSettings());
     _settingsRestored = true;
@@ -167,7 +182,12 @@ public partial class Records : PageBase, IDisposable
 
   private RecordsPageSettings CurrentSettings() => new()
   {
-    View = _view == RecordsView.Summary ? "summary" : "table",
+    View = _view switch
+    {
+      RecordsView.Summary => "summary",
+      RecordsView.Chart => "chart",
+      _ => "table"
+    },
     PanelOpen = _isPanelOpen,
     PanelTab = _panelTab == PanelTab.Columns ? "columns" : "filters",
     Search = string.IsNullOrWhiteSpace(_search) ? null : _search,
@@ -175,7 +195,8 @@ public partial class Records : PageBase, IDisposable
     SortKey = _sortKey,
     SortDescending = _sortDescending,
     PageSize = _pageSize,
-    Summary = RecordsPageSettings.Save(_summarySettings)
+    Summary = RecordsPageSettings.Save(_summarySettings),
+    Chart = RecordsPageSettings.Save(_chartSettings)
   };
 
   /// <summary>
@@ -299,8 +320,8 @@ public partial class Records : PageBase, IDisposable
   }
 
   /// <summary>
-  /// Перемикання "Таблиця / Зведення". Параметри зведення живуть у бічній панелі, тож при переході
-  /// до зведення панель відкривається.
+  /// Перемикання "Таблиця / Зведення / Діаграма". Параметри зведення й діаграми живуть у бічній панелі,
+  /// тож при переході до них панель відкривається.
   /// </summary>
   private void SwitchView(RecordsView view)
   {
@@ -308,8 +329,17 @@ public partial class Records : PageBase, IDisposable
       return;
 
     _view = view;
-    if (view == RecordsView.Summary)
+    if (IsAggregateView)
       _isPanelOpen = true;
+  }
+
+  /// <param name="needsData">true - змінились вісь чи лінії (новий запит), false - лише вигляд.</param>
+  private void OnChartSettingsChanged(bool needsData)
+  {
+    if (needsData)
+      _filtersVersion++;
+    else
+      _chartStyleVersion++;
   }
 
   /// <summary>Значок фільтра в заголовку колонки: відкрити панель з умовою для цього поля.</summary>
@@ -373,13 +403,18 @@ public partial class Records : PageBase, IDisposable
   {
     _filtersVersion++;
 
-    // У режимі зведення таблиці немає (воно перераховується саме за _filtersVersion).
+    // У режимах зведення й діаграми таблиці немає (вони перераховуються самі за _filtersVersion).
     return _view == RecordsView.Table && _table != null ? _table.Reload(toFirstPage: true) : Task.CompletedTask;
   }
 
-  private string ExportCaption => _view == RecordsView.Summary
-    ? "Зведення з поточними групуваннями, показниками й фільтрами"
-    : HasFilters
+  private string ExportCaption => _view switch
+  {
+    RecordsView.Summary => "Зведення з поточними групуваннями, показниками й фільтрами",
+    RecordsView.Chart => "Дані діаграми: точки осі X і значення ліній",
+    _ => TableExportCaption
+  };
+
+  private string TableExportCaption => HasFilters
       ? $"Знайдені записи ({_totalCount:N0}), видимі колонки і сортування"
       : $"Усі записи ({_totalCount:N0}), видимі колонки і сортування";
 
@@ -402,13 +437,18 @@ public partial class Records : PageBase, IDisposable
 
       var ok = await Try(async () =>
       {
-        file = _view == RecordsView.Summary
-          ? await RecordApi.ExportAggregate(
+        file = _view switch
+        {
+          RecordsView.Summary => await RecordApi.ExportAggregate(
             _config.Id, format, ApiFilters(), _search,
-            _summarySettings.ApiDimensions(_filterFields), _summarySettings.ApiMetrics(), _summarySettings.Order)
-          : await RecordApi.ExportRecords(
+            _summarySettings.ApiDimensions(_filterFields), _summarySettings.ApiMetrics(), _summarySettings.Order),
+          RecordsView.Chart => await RecordApi.ExportAggregate(
+            _config.Id, format, ApiFilters(), _search,
+            _chartSettings.ApiDimensions(_filterFields), _chartSettings.ApiMetrics(), "keys"),
+          _ => await RecordApi.ExportRecords(
             _config.Id, format, ApiFilters(), _search, _sortKey, _sortDescending,
-            _columns?.Visible.Select(c => c.Key).ToList());
+            _columns?.Visible.Select(c => c.Key).ToList())
+        };
       });
 
       if (!ok || file is null)
@@ -524,7 +564,7 @@ public partial class Records : PageBase, IDisposable
   /// <summary>Дані змінились: перечитати таблицю або перерахувати зведення - залежно від того, що відкрито.</summary>
   private Task RefreshData(bool toFirstPage)
   {
-    if (_view == RecordsView.Summary || _table is null)
+    if (IsAggregateView || _table is null)
     {
       _filtersVersion++;
       return Task.CompletedTask;

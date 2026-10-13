@@ -1,0 +1,274 @@
+@namespace DataCollector.WebUI.Views.Components
+
+@*
+    Параметри діаграми в бічній панелі: тип, вісь X (категорії), показники, друге поле (розбиття / рядки), вигляд.
+    OnChanged(true) - змінився запит (потрібні нові дані з сервера); OnChanged(false) - лише вигляд (перемалювати).
+    Що саме змінилось, редактор визначає сам - порівнює запит до і після зміни.
+*@
+
+<div class="summary-editor">
+    <div class="summary-editor__block">
+        <span class="form__label">Тип діаграми</span>
+
+        <div class="chart-types">
+            @foreach (var (code, label, hint) in ChartTypes.All)
+            {
+                <button type="button" class="chart-types__item @(Settings.Type == code ? "chart-types__item--active" : "")"
+                        title="@hint" @onclick="@(() => ChangeType(code))">
+                    <svg viewBox="0 0 24 24"><path d="@TypeIcon(code)" /></svg>
+                    <span>@label</span>
+                </button>
+            }
+        </div>
+    </div>
+    <div class="summary-editor__block">
+        <span class="form__label">@(Settings.Type switch { ChartTypes.Pie => "Частини (поле)", ChartTypes.BarHorizontal => "Категорії (поле)", _ => "Вісь X" })</span>
+
+        <div class="summary-editor__item">
+            <select class="select" value="@Settings.XField" @onchange="@(e => ChangeX(e.Value?.ToString()))">
+                @foreach (var f in Fields)
+                {
+                    <option value="@f.Key">@f.Name</option>
+                }
+            </select>
+
+            @if (XField is { } x && AggregateDimensionForm.IsDate(x))
+            {
+                <select class="select" value="@Settings.Interval" @onchange="@(e => Change(() => Settings.Interval = e.Value?.ToString() ?? "day"))">
+                    @foreach (var (value, label) in AggregateCatalog.IntervalsFor(x))
+                    {
+                        <option value="@value">@label</option>
+                    }
+                </select>
+            }
+            else if (XField is { DataType: PropertyDataType.Number, IsSystem: false })
+            {
+                <input class="input" type="number" min="0" step="any" placeholder="Крок, напр. 100 (порожньо - точні значення)"
+                       title="Ширина діапазону: 100 - точки 0–100, 100–200... (межа входить у наступний)"
+                       value="@Settings.Step" @onchange="@(e => Change(() => Settings.Step = e.Value?.ToString()))" />
+            }
+        </div>
+    </div>
+
+    <div class="summary-editor__block">
+        <span class="form__label">@(Settings.SingleMetric ? "Показник" : Settings.Type == ChartTypes.Line ? "Лінії" : "Показники")</span>
+
+        @for (var i = 0; i < Settings.Lines.Count; i++)
+        {
+            var line = Settings.Lines[i];
+            var isInactive = Settings.SingleMetric && i > 0;
+
+            <div class="summary-editor__item @(isInactive ? "summary-editor__item--inactive" : "")">
+                <div class="summary-editor__line">
+                    <select class="select" value="@line.Function" @onchange="@(e => ChangeFunction(line, e.Value?.ToString()))">
+                        @foreach (var (value, label) in AggregateCatalog.Functions)
+                        {
+                            <option value="@value" disabled="@(!Settings.AllowsFunction(value) || !ChartSettings.FieldsForLine(value, Fields).Any())">@label</option>
+                        }
+                    </select>
+
+                    @if (Settings.Lines.Count > 1)
+                    {
+                        <IconButton Icon="delete" Title="Прибрати показник" Danger="true"
+                                    OnClick="@(() => Change(() => Settings.Lines.Remove(line)))" />
+                    }
+                </div>
+
+                <select class="select" value="@line.Field" @onchange="@(e => Change(() => line.Field = e.Value?.ToString() ?? ""))">
+                    @if (line.Function == "count")
+                    {
+                        <option value="">записів</option>
+                    }
+                    @foreach (var f in ChartSettings.FieldsForLine(line.Function, Fields))
+                    {
+                        <option value="@f.Key">@(line.Function == "count" ? $"заповнених «{f.Name}»" : f.Name)</option>
+                    }
+                </select>
+            </div>
+        }
+
+        @if (Settings.SingleMetric && Settings.Lines.Count > 1)
+        {
+            <div class="default-text summary-editor__hint">@(Settings.Type switch
+            {
+                ChartTypes.Pie => "Кільце показує частки одного показника - використовується перший.",
+                ChartTypes.Heatmap => "Колір клітинки - перший показник.",
+                _ => "При розбитті за полем показується лише перший показник."
+            })</div>
+        }
+        else if (Settings.Lines.Count > 1)
+        {
+            @* Одна вісь Y на всі лінії: друга вісь легко вводить в оману, тож краще порівнювати сумірні величини. *@
+            <div class="default-text summary-editor__hint">Усі лінії на одній осі: поєднуйте величини одного порядку (наприклад, суму й середнє ціни), інакше менша лінія стане пласкою.</div>
+        }
+
+        @if (Settings.Type == ChartTypes.Pie && !ChartSettings.IsAdditive(Settings.Lines[0].Function))
+        {
+            <div class="default-text summary-editor__hint">Частки мають сенс лише для кількості й суми.</div>
+        }
+
+        @if (Settings.Lines.Count < ChartSettings.MaxLines && !Settings.SingleMetric)
+        {
+            <Button Text="@(Settings.Type == ChartTypes.Line ? "+ Лінія" : "+ Показник")" Variant="ButtonVariant.Ghost" Small="true" OnClick="AddLine" />
+        }
+    </div>
+
+    @{ var splitFields = ChartSettings.FieldsForSplit(Fields, Settings.XField).ToList(); }
+    @if (Settings.Type != ChartTypes.Pie && splitFields.Count > 0)
+    {
+        <div class="summary-editor__block">
+            <span class="form__label">@(Settings.Type switch
+            {
+                ChartTypes.Heatmap => "Рядки (поле)",
+                ChartTypes.Line => "Розбити на лінії за",
+                _ => "Розбити на серії за"
+            })</span>
+            <select class="select" value="@(Settings.SplitBy ?? "")"
+                    @onchange="@(e => Change(() => Settings.SplitBy = string.IsNullOrEmpty(e.Value?.ToString()) ? null : e.Value!.ToString()))">
+                <option value="">@(Settings.Type == ChartTypes.Heatmap ? "Виберіть поле…" : "Не розбивати")</option>
+                @foreach (var f in splitFields)
+                {
+                    <option value="@f.Key">@f.Name</option>
+                }
+            </select>
+            <div class="default-text summary-editor__hint">@(Settings.Type == ChartTypes.Heatmap
+                ? "Кожне значення поля - рядок, колір клітинки - величина показника."
+                : $"Кожне значення поля - окрема серія (до {ChartSettings.MaxSeries}).")</div>
+        </div>
+    }
+    else if (Settings.Type == ChartTypes.Heatmap)
+    {
+        <div class="default-text summary-editor__hint">Теплова карта потребує поля-переліку або так/ні для рядків, а в моделі такого немає.</div>
+    }
+
+    @{ var xField = XField; }
+    @if (Settings.Type != ChartTypes.Pie)
+    {
+        <div class="summary-editor__block">
+            <span class="form__label">Вигляд</span>
+
+            @if (Settings.Type == ChartTypes.Line)
+            {
+                <label class="check">
+                    <input type="checkbox" checked="@Settings.Smooth" @onchange="@(() => Change(() => Settings.Smooth = !Settings.Smooth))" />
+                    <span>Згладжені лінії</span>
+                </label>
+                <label class="check">
+                    <input type="checkbox" checked="@Settings.Area" @onchange="@(() => Change(() => Settings.Area = !Settings.Area))" />
+                    <span>Заливка під лініями</span>
+                </label>
+            }
+
+            @if (Settings.CanStack)
+            {
+                <label class="check" title="Серії одна над одною: видно і частини, і ціле">
+                    <input type="checkbox" checked="@Settings.Stack" @onchange="@(() => Change(() => Settings.Stack = !Settings.Stack))" />
+                    <span>Накопичувати (частини цілого)</span>
+                </label>
+            }
+
+            @if (Settings.CanSortByValue(xField))
+            {
+                <label class="check">
+                    <input type="checkbox" checked="@Settings.SortByValue" @onchange="@(() => Change(() => Settings.SortByValue = !Settings.SortByValue))" />
+                    <span>Сортувати за значенням (рейтинг)</span>
+                </label>
+            }
+
+            <label class="check" title="Дні (кроки, варіанти) без записів: кількість і сума - 0, середнє, мінімум і максимум - порожньо">
+                <input type="checkbox" checked="@Settings.FillGaps" @onchange="@(() => Change(() => Settings.FillGaps = !Settings.FillGaps))" />
+                <span>Показувати періоди без записів</span>
+            </label>
+        </div>
+    }
+</div>
+
+@code {
+  [Parameter, EditorRequired] public IReadOnlyList<FilterField> Fields { get; set; } = [];
+  [Parameter, EditorRequired] public ChartSettings Settings { get; set; } = new();
+
+  /// <summary>Параметри змінились. true - потрібен новий запит агрегації, false - лише перемалювати.</summary>
+  [Parameter] public EventCallback<bool> OnChanged { get; set; }
+
+  private FilterField? XField => Fields.FirstOrDefault(f => f.Key == Settings.XField);
+
+  /// <summary>
+  /// Зміна параметрів. Новий запит потрібен, лише якщо змінився сам запит агрегації (групування, показники);
+  /// тип лінії/стовпці/смуги, згладжування, сортування тощо - перемальовування тих самих даних.
+  /// </summary>
+  private Task Change(Action change)
+  {
+    var before = QuerySignature();
+    change();
+    return OnChanged.InvokeAsync(QuerySignature() != before);
+  }
+
+  private string QuerySignature()
+    => System.Text.Json.JsonSerializer.Serialize(new { d = Settings.ApiDimensions(Fields), m = Settings.ApiMetrics() });
+
+  private Task ChangeType(string type) => Change(() =>
+  {
+    Settings.Type = type;
+
+    // Кільце - частки, тож показник має додаватися: середнє/мінімум/максимум замінюємо на кількість записів.
+    if (type == ChartTypes.Pie && !ChartSettings.IsAdditive(Settings.Lines[0].Function))
+      Settings.Lines[0] = new AggregateMetricForm();
+  });
+
+  /// <summary>Значки типів (Material Icons, 24×24).</summary>
+  private static string TypeIcon(string type) => type switch
+  {
+    ChartTypes.Bar => "M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z",
+    ChartTypes.BarHorizontal => "M4 5h10v3H4zm0 5.5h16v3H4zM4 16h7v3H4z",
+    ChartTypes.Pie => "M11 2v20c-5.07-.5-9-4.79-9-10s3.93-9.5 9-10zm2.03 0v8.99H22c-.47-4.74-4.24-8.52-8.97-8.99zm0 11.01V22c4.74-.47 8.5-4.25 8.97-8.99h-8.97z",
+    ChartTypes.Heatmap => "M3 3h5v5H3zm6.5 0h5v5h-5zM16 3h5v5h-5zM3 9.5h5v5H3zm6.5 0h5v5h-5zM16 9.5h5v5h-5zM3 16h5v5H3zm6.5 0h5v5h-5zM16 16h5v5h-5z",
+    _ => "M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"
+  };
+
+  private Task ChangeX(string? key)
+  {
+    if (Fields.FirstOrDefault(f => f.Key == key) is not { } field)
+      return Task.CompletedTask;
+
+    return Change(() =>
+    {
+      Settings.XField = field.Key;
+      Settings.Step = null;
+
+      if (AggregateDimensionForm.IsDate(field) && AggregateCatalog.IntervalsFor(field).All(i => i.Code != Settings.Interval))
+        Settings.Interval = "day";
+
+      // Поле не може бути водночас віссю і розбиттям.
+      if (Settings.SplitBy == field.Key)
+        Settings.SplitBy = null;
+    });
+  }
+
+  private Task AddLine()
+  {
+    var number = ChartSettings.FieldsForLine("sum", Fields).FirstOrDefault();
+    var line = number is null
+      ? new AggregateMetricForm()
+      : new AggregateMetricForm { Function = "sum", Field = number.Key };
+
+    return Change(() => Settings.Lines.Add(line));
+  }
+
+  private Task ChangeFunction(AggregateMetricForm line, string? function)
+  {
+    if (function is null)
+      return Task.CompletedTask;
+
+    return Change(() =>
+    {
+      line.Function = function;
+
+      if (line.Field == "" && function == "count")
+        return;
+
+      var allowed = ChartSettings.FieldsForLine(function, Fields).Select(f => f.Key).ToList();
+      if (!allowed.Contains(line.Field))
+        line.Field = function == "count" ? "" : allowed.FirstOrDefault() ?? "";
+    });
+  }
+}

@@ -52,7 +52,7 @@
                 <span class="default-text">Ключ для API: <span class="code">@_config.Key</span></span>
 
                 <ExportMenu Caption="@ExportCaption"
-                            Hint="@(_view == RecordsView.Summary ? "Зберегти зведення у файл" : "Зберегти записи у файл")"
+                            Hint="@(_view switch { RecordsView.Summary => "Зберегти зведення у файл", RecordsView.Chart => "Зберегти дані діаграми у файл", _ => "Зберегти записи у файл" })"
                             IsBusy="_isExporting"
                             OnExport="Export" />
 
@@ -61,6 +61,8 @@
                             @onclick="@(() => SwitchView(RecordsView.Table))">Таблиця</button>
                     <button type="button" class="segmented__item @(_view == RecordsView.Summary ? "segmented__item--active" : "")"
                             @onclick="@(() => SwitchView(RecordsView.Summary))">Зведення</button>
+                    <button type="button" class="segmented__item @(_view == RecordsView.Chart ? "segmented__item--active" : "")"
+                            @onclick="@(() => SwitchView(RecordsView.Chart))">Діаграма</button>
                 </div>
 
                 <button type="button" class="panel-toggle @(_isPanelOpen ? "panel-toggle--active" : "")"
@@ -108,7 +110,17 @@
         @* Робоча область: дані займають усе місце, параметри - у бічній панелі, яку можна сховати. *@
         <div class="workspace">
             <div class="workspace__main">
-                @if (_view == RecordsView.Summary)
+                @if (_view == RecordsView.Chart)
+                {
+                    <RecordChart ConfigId="_config.Id"
+                                 Fields="_filterFields"
+                                 Filters="ApiFilters()"
+                                 Search="@_search"
+                                 Version="_filtersVersion"
+                                 StyleVersion="_chartStyleVersion"
+                                 Settings="_chartSettings" />
+                }
+                else if (_view == RecordsView.Summary)
                 {
                     <RecordSummary ConfigId="_config.Id"
                                    Fields="_filterFields"
@@ -189,7 +201,7 @@
             {
                 <aside class="side-panel">
                     <div class="side-panel__header">
-                        <div class="card__title">@(_view == RecordsView.Summary ? "Параметри зведення" : "Параметри таблиці")</div>
+                        <div class="card__title">@(_view switch { RecordsView.Summary => "Параметри зведення", RecordsView.Chart => "Параметри діаграми", _ => "Параметри таблиці" })</div>
                         <button type="button" class="side-panel__close" title="Сховати панель" @onclick="TogglePanel">
                             <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
                         </button>
@@ -218,6 +230,15 @@
                                 <ColumnChooser Config="_config" Columns="_columns" OnChanged="OnColumnsChanged" />
                             </section>
                         }
+                        else if (_view == RecordsView.Chart)
+                        {
+                            <section class="side-panel__section">
+                                <div class="side-panel__section-title subtitle">Діаграма</div>
+                                <ChartSettingsEditor Fields="_filterFields"
+                                                     Settings="_chartSettings"
+                                                     OnChanged="OnChartSettingsChanged" />
+                            </section>
+                        }
                         else if (_view == RecordsView.Summary)
                         {
                             <section class="side-panel__section">
@@ -230,7 +251,7 @@
 
                         @* Фільтри лише ховаються (не прибираються), щоб не загубити незастосовані умови при перемиканні вкладок. *@
                         <section class="side-panel__section" hidden="@(_view == RecordsView.Table && _panelTab == PanelTab.Columns)">
-                            @if (_view == RecordsView.Summary)
+                            @if (IsAggregateView)
                             {
                                 <div class="side-panel__section-title subtitle">Фільтри</div>
                             }

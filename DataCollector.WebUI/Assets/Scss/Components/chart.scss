@@ -1,0 +1,135 @@
+@use "../variables";
+
+// Лінійна діаграма записів (режим «Діаграма»): заголовок, полотно ECharts на всю висоту, примітки.
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: variables.$pad-md;
+  flex: 1;
+  min-height: 0;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: variables.$pad-md;
+  }
+
+  &__title {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  &__body {
+    position: relative;
+    flex: 1;
+    min-height: 320px;
+    padding: variables.$pad-md;
+    background: variables.$surface-color;
+    border: 1px solid variables.$border-color;
+    border-radius: variables.$radius-lg;
+    transition: opacity 0.2s;
+
+    &--loading {
+      opacity: 0.5;
+    }
+  }
+
+  // ECharts бере розмір контейнера: полотно розтягнуте на всю картку (мінус відступи).
+  &__canvas {
+    position: absolute;
+    inset: variables.$pad-md;
+
+    // Не display: none - ECharts не може виміряти прихований елемент.
+    &--hidden {
+      visibility: hidden;
+    }
+  }
+
+  &__empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: variables.$pad-md;
+    text-align: center;
+  }
+
+  &__notes {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+  }
+}
+
+// Прапорець з підписом (параметри вигляду в бічній панелі).
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: variables.$title-text-color;
+  cursor: pointer;
+
+  input {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: variables.$accent-color;
+    cursor: pointer;
+  }
+}
+
+// Вибір типу діаграми: сітка кнопок зі значками.
+.chart-types {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    padding: 8px 2px 6px;
+    border: 1px solid variables.$border-color;
+    border-radius: variables.$radius-md;
+    background: variables.$surface-color;
+    color: variables.$button-text-color;
+    font-size: 11px;
+    line-height: 13px;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.2s;
+
+    svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    span {
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+
+    &:hover {
+      color: variables.$accent-color;
+      border-color: variables.$accent-inactive-color;
+    }
+
+    &--active,
+    &--active:hover {
+      color: variables.$accent-color;
+      border-color: variables.$accent-color;
+      background: variables.$accent-light-color;
+    }
+  }
+}
