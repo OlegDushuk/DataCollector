@@ -29,7 +29,7 @@
     &--active,
     &--active:hover {
       background: variables.$accent-color;
-      color: variables.$surface-color;
+      color: variables.$on-accent-color;
     }
   }
 
@@ -89,7 +89,7 @@
     padding: 0 6px;
     border-radius: 10px;
     background: variables.$accent-color;
-    color: variables.$surface-color;
+    color: variables.$on-accent-color;
     font-size: 12px;
     line-height: 20px;
     text-align: center;

@@ -1,0 +1,120 @@
+﻿// Теми інтерфейсу. Атрибут data-theme на <html> ставить скрипт у Views/App.razor ще до показу сторінки
+// (без «спалаху» світлої теми), а перемикач у меню змінює його через Assets/Js/theme.js.
+// Режим «Як у системі» - той самий атрибут, обчислений з prefers-color-scheme.
+
+:root {
+  color-scheme: light;
+
+  --bg-color: #F5F4FB;
+  --surface-color: #FFFFFF;
+  --border-color: #EDECF9;
+
+  --accent-color: #5248C8;
+  --accent-hover-color: #4239B0;
+  --accent-light-color: #EEEDFE;
+  --accent-transparent-color: #4F46E519;
+  --accent-inactive-color: #D9D9D9;
+  --on-accent-color: #FFFFFF;
+
+  --danger-color: #D9434F;
+  --danger-light-color: #FDECEE;
+  --success-color: #2E9E6A;
+  --success-light-color: #E7F6EF;
+
+  --title-text-color: #2F2B63;
+  --button-text-color: #6B6898;
+  --subtitle-text-color: #A9A7C8;
+
+  --shadow-color: rgba(47, 43, 99, 0.12);
+  --overlay-color: rgba(47, 43, 99, 0.35);
+
+  // Діаграми (ECharts малює на canvas і CSS-змінних не бачить - charts.js читає ці значення).
+  --chart-axis-color: #8C89B0;
+  --chart-grid-color: #EDECF9;
+  --chart-tooltip-bg: #FFFFFF;
+  --chart-zoom-fill: rgba(82, 72, 200, 0.12);
+  --chart-other: #C8C6DC;
+
+  // Категорії (перевірено на розрізнення при порушеннях кольорового зору).
+  --chart-1: #5248C8;
+  --chart-2: #EB6834;
+  --chart-3: #1BAF7A;
+  --chart-4: #EDA100;
+  --chart-5: #E87BA4;
+  --chart-6: #008300;
+  --chart-7: #2A78D6;
+  --chart-8: #E34948;
+
+  // Теплова карта: від «менше» до «більше».
+  --chart-seq-1: #F1F0FD;
+  --chart-seq-2: #C9C5F1;
+  --chart-seq-3: #9890E0;
+  --chart-seq-4: #6A61D3;
+  --chart-seq-5: #5248C8;
+  --chart-seq-6: #2F2B63;
+}
+
+// Темна тема: темно-фіолетові поверхні в тон акценту (не чисто чорні), акцент світліший -
+// щоб текст і лінії на ньому лишались контрастними (WCAG AA для основного тексту).
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-color: #13121D;
+  --surface-color: #1C1B2A;
+  --border-color: #2C2A42;
+
+  --accent-color: #7C73F2;
+  --accent-hover-color: #9189F6;
+  --accent-light-color: #2B2852;
+  --accent-transparent-color: #7C73F233;
+  --accent-inactive-color: #45425F;
+  --on-accent-color: #FFFFFF;
+
+  --danger-color: #F06B75;
+  --danger-light-color: #3B1F28;
+  --success-color: #45C98E;
+  --success-light-color: #17322A;
+
+  --title-text-color: #E8E6FA;
+  --button-text-color: #A9A6CC;
+  --subtitle-text-color: #75729A;
+
+  --shadow-color: rgba(0, 0, 0, 0.45);
+  --overlay-color: rgba(5, 4, 12, 0.6);
+
+  --chart-axis-color: #8A87AE;
+  --chart-grid-color: #2C2A42;
+  --chart-tooltip-bg: #24233A;
+  --chart-zoom-fill: rgba(124, 115, 242, 0.2);
+  --chart-other: #4A4866;
+
+  // Ті самі відтінки, світліші: на темному тлі темно-синій і темно-зелений майже зливаються з фоном.
+  --chart-1: #7C73F2;
+  --chart-2: #F07F4F;
+  --chart-3: #2EC48D;
+  --chart-4: #F2B21B;
+  --chart-5: #EE8FB3;
+  --chart-6: #4CB050;
+  --chart-7: #4E95EA;
+  --chart-8: #EF6668;
+
+  // Теплова карта: темне (менше) -> світле (більше) - яскравіше означає більше, як на світлому тлі темніше.
+  --chart-seq-1: #26233F;
+  --chart-seq-2: #3A3570;
+  --chart-seq-3: #524AA0;
+  --chart-seq-4: #6E65CF;
+  --chart-seq-5: #948DEB;
+  --chart-seq-6: #CBC7F8;
+}
+
+html,
+body {
+  background: var(--bg-color);
+  color: var(--title-text-color);
+}
+
+// Плавна зміна кольорів лише в момент перемикання (клас ставить theme.js), а не при кожному наведенні.
+.theme-switching,
+.theme-switching * {
+  transition: background-color 0.25s, border-color 0.25s, color 0.25s, fill 0.25s !important;
+}

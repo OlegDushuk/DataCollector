@@ -5,6 +5,17 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <base href="/"/>
+  @* Тема - до завантаження стилів, щоб темна тема не «блимала» світлою (повна логіка - Assets/Js/theme.js). *@
+  <script>
+    (function () {
+      var dark = false;
+      try {
+        var mode = localStorage.getItem('datacollector.theme');
+        dark = mode === 'dark' || (mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      } catch (e) { }
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" />

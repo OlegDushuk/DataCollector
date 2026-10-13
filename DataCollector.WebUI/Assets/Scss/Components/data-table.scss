@@ -235,11 +235,11 @@ $column-min-width: 150px;
 
     &--active {
       background: variables.$accent-color;
-      color: variables.$surface-color;
+      color: variables.$on-accent-color;
 
       &:hover:not(:disabled) {
         background: variables.$accent-color;
-        color: variables.$surface-color;
+        color: variables.$on-accent-color;
       }
     }
 

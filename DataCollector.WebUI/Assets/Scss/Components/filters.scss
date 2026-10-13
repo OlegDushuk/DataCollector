@@ -67,10 +67,10 @@
     &--selected {
       background: variables.$accent-color;
       border-color: variables.$accent-color;
-      color: variables.$surface-color;
+      color: variables.$on-accent-color;
 
       &:hover {
-        color: variables.$surface-color;
+        color: variables.$on-accent-color;
       }
     }
   }

@@ -41,6 +41,8 @@ $logo-container-height: 80px;
 }
 
 .sidebar {
+  display: flex;
+  flex-direction: column;
   background-color: variables.$surface-color;
   border-right: 1px solid variables.$border-color;
   
@@ -53,7 +55,16 @@ $logo-container-height: 80px;
   }
   
   &__main {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
     padding: variables.$pad-md;
+  }
+
+  // Унизу меню: перемикач теми.
+  &__bottom {
+    padding: variables.$pad-md;
+    border-top: 1px solid variables.$border-color;
   }
   
   &__header {
@@ -78,7 +89,7 @@ $logo-container-height: 80px;
     height: 34px;
     border-radius: variables.$radius-md;
     background: variables.$accent-color;
-    color: variables.$surface-color;
+    color: variables.$on-accent-color;
     font-size: 13px;
     font-weight: 700;
   }
@@ -161,5 +172,49 @@ $logo-container-height: 80px;
     align-items: center;
     gap: variables.$pad-sm;
     flex-shrink: 0;
+  }
+}
+
+// Перемикач теми: три кнопки в рамці, як segmented.
+.theme-switcher {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid variables.$border-color;
+  border-radius: variables.$radius-md;
+  background: variables.$bg-color;
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    padding: 7px 2px 6px;
+    border-radius: variables.$radius-sm;
+    color: variables.$button-text-color;
+    font-size: 11px;
+    line-height: 13px;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.2s;
+
+    svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    &:hover {
+      color: variables.$accent-color;
+    }
+
+    &--active,
+    &--active:hover {
+      background: variables.$surface-color;
+      color: variables.$accent-color;
+      box-shadow: 0 1px 4px variables.$shadow-color;
+    }
   }
 }

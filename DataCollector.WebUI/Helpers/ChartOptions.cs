@@ -17,24 +17,27 @@ namespace DataCollector.WebUI.Helpers;
 /// </remarks>
 public static class ChartOptions
 {
+  // Кольори - посилання на CSS-змінні теми (Assets/Scss/theme.scss): ECharts малює на canvas і змінних не розуміє,
+  // тож charts.js підставляє їхні поточні значення перед малюванням і перемальовує діаграми при зміні теми.
+
   /// <summary>
   /// Кольори категорій у фіксованому порядку (перший - акцент інтерфейсу). Палітра перевірена на розрізнення
-  /// при порушеннях кольорового зору; три світлі кольори мають слабкий контраст з білим, тож серії
-  /// підписуються (легенда, підписи), а не розрізняються лише кольором.
+  /// при порушеннях кольорового зору; у темній темі ті самі відтінки світліші. Серії підписуються
+  /// (легенда, підписи), а не розрізняються лише кольором.
   /// </summary>
-  public static readonly string[] Palette =
-    ["#5248C8", "#EB6834", "#1BAF7A", "#EDA100", "#E87BA4", "#008300", "#2A78D6", "#E34948"];
+  public static readonly string[] Palette = Enumerable.Range(1, 8).Select(i => $"var(--chart-{i})").ToArray();
 
-  /// <summary>Послідовна шкала теплової карти: один відтінок (акцент), світліше - менше.</summary>
-  public static readonly string[] Sequential = ["#F1F0FD", "#C9C5F1", "#9890E0", "#6A61D3", "#5248C8", "#2F2B63"];
+  /// <summary>Послідовна шкала теплової карти: один відтінок (акцент), від «менше» до «більше».</summary>
+  public static readonly string[] Sequential = Enumerable.Range(1, 6).Select(i => $"var(--chart-seq-{i})").ToArray();
 
   /// <summary>Колір «Інші» в кільці - нейтральний, щоб не сперечатися з категоріями.</summary>
-  private const string OtherColor = "#C8C6DC";
+  private const string OtherColor = "var(--chart-other)";
 
-  private const string Surface = "#FFFFFF";
-  private const string GridColor = "#EDECF9";
-  private const string AxisTextColor = "#A9A7C8";
-  private const string LegendTextColor = "#6B6898";
+  private const string Surface = "var(--surface-color)";
+  private const string GridColor = "var(--chart-grid-color)";
+  private const string AxisTextColor = "var(--chart-axis-color)";
+  private const string LegendTextColor = "var(--button-text-color)";
+  private const string StrongTextColor = "var(--title-text-color)";
 
   /// <summary>Точок на осі категорій більше - вмикається масштабування (колесо миші й повзунок).</summary>
   public const int ZoomFrom = 60;
@@ -126,7 +129,7 @@ public static class ChartOptions
         : new object[]
         {
           new { type = "inside" },
-          new { type = "slider", height = 18, bottom = 8, borderColor = GridColor, fillerColor = "rgba(82,72,200,0.12)" }
+          new { type = "slider", height = 18, bottom = 8, borderColor = GridColor, fillerColor = "var(--chart-zoom-fill)" }
         };
     }
 
@@ -323,7 +326,7 @@ public static class ChartOptions
         ["label"] = new { show = showLabels, fontSize = 11 },
         // 2px проміжок кольору тла між клітинками.
         ["itemStyle"] = new { borderColor = Surface, borderWidth = 2, borderRadius = 2 },
-        ["emphasis"] = new { itemStyle = new { borderColor = "#2F2B63", borderWidth = 1 } }
+        ["emphasis"] = new { itemStyle = new { borderColor = StrongTextColor, borderWidth = 1 } }
       }
     };
 
@@ -339,7 +342,7 @@ public static class ChartOptions
     {
       ["color"] = Palette,
       ["animationDuration"] = 400,
-      ["textStyle"] = new { fontFamily = "Inter, sans-serif" }
+      ["textStyle"] = new { fontFamily = "Inter, sans-serif", color = LegendTextColor }
     };
 
     if (showLegend)
