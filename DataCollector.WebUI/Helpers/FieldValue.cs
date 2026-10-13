@@ -61,8 +61,23 @@ public static class FieldValue
       return local.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss'Z'", CultureInfo.InvariantCulture);
     }
 
+    // Число: кома або крапка, пробіли між розрядами (у т. ч. нерозривні - так його показує таблиця) прибираються.
+    if (type == PropertyDataType.Number)
+      return NormalizeNumber(form);
+
     return form.Trim();
   }
+
+  /// <summary>Число з поля форми в інваріантному вигляді: "1 882,31" -> "1882.31".</summary>
+  public static string NormalizeNumber(string value)
+    => new string(value.Where(c => !char.IsWhiteSpace(c) && c != '\u202F').ToArray()).Replace(',', '.');
+
+  /// <summary>Розбір числа з поля форми (кома або крапка); null - не число.</summary>
+  public static decimal? ParseNumber(string? value)
+    => !string.IsNullOrWhiteSpace(value) &&
+       decimal.TryParse(NormalizeNumber(value), NumberStyles.Float, CultureInfo.InvariantCulture, out var number)
+      ? number
+      : null;
 
   /// <summary>Значення з API -> текст для таблиці.</summary>
   public static string Display(PropertyDataType type, string? raw)

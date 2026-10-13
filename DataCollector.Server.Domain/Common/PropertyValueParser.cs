@@ -75,7 +75,8 @@ public static class PropertyValueParser
 
   private static decimal ParseNumber(string field, string value)
   {
-    var normalized = value.Replace(',', '.');
+    // Кома або крапка; пробіли між розрядами (у т. ч. нерозривні: "1 882,31") прибираються.
+    var normalized = new string(value.Where(c => !char.IsWhiteSpace(c) && c != '\u202F').ToArray()).Replace(',', '.');
     if (!decimal.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
       throw new DomainValidationException($"Поле '{field}': '{value}' не є числом");
 

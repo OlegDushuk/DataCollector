@@ -28,6 +28,17 @@
   }
 }
 
+// Значення, яке не пройде перевірку (наприклад, не число) - підказка в title поля.
+.input--invalid,
+.input--invalid:hover,
+.input--invalid:focus {
+  border-color: variables.$danger-color;
+}
+
+.input--invalid:focus {
+  box-shadow: 0 0 0 3px variables.$danger-light-color;
+}
+
 .textarea {
   height: auto;
   min-height: 80px;

@@ -5,7 +5,12 @@
 @switch (DataType)
 {
     case PropertyDataType.Number:
-        <input class="input" type="number" step="any" min="@Min" max="@Max" placeholder="@Placeholder"
+        @* Не type="number": браузер для нього повертає порожнє значення, поки введене число «неповне» (12, або 12.),
+           і залежно від мови системи не приймає то кому, то крапку. Текстове поле з цифровою клавіатурою
+           приймає обидва роздільники; остаточна перевірка й межі - на сервері, тут лише підказка. *@
+        var numberError = NumberError(Value);
+        <input class="input @(numberError != null ? "input--invalid" : "")" type="text" inputmode="decimal" autocomplete="off"
+               placeholder="@(Placeholder ?? NumberPlaceholder)" title="@(numberError ?? NumberPlaceholder)"
                value="@Value" @oninput="OnInput" />
         break;
 
@@ -58,6 +63,32 @@
   [Parameter] public string? Max { get; set; }
   [Parameter] public int? MaxLength { get; set; }
   [Parameter] public string? Placeholder { get; set; }
+
+  private string NumberPlaceholder => (Min, Max) switch
+  {
+    ({ } min, { } max) => $"Число від {min} до {max}",
+    ({ } min, null) => $"Число, не менше {min}",
+    (null, { } max) => $"Число, не більше {max}",
+    _ => "Число, напр. 12,5"
+  };
+
+  /// <summary>Підказка, якщо введене не схоже на число або виходить за межі (null - усе гаразд або порожньо).</summary>
+  private string? NumberError(string? value)
+  {
+    if (string.IsNullOrWhiteSpace(value))
+      return null;
+
+    if (FieldValue.ParseNumber(value) is not { } number)
+      return "Не схоже на число. Дробову частину відділяйте комою або крапкою: 12,5";
+
+    if (FieldValue.ParseNumber(Min) is { } min && number < min)
+      return $"Менше за мінімум {Min}";
+
+    if (FieldValue.ParseNumber(Max) is { } max && number > max)
+      return $"Більше за максимум {Max}";
+
+    return null;
+  }
 
   private Task OnInput(ChangeEventArgs e)
   {
