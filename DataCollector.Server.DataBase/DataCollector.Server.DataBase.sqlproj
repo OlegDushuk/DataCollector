@@ -7,7 +7,4 @@
         <ModelCollation>1033, CI</ModelCollation>
         <RootNamespace>DataCollector.DataBase</RootNamespace>
     </PropertyGroup>
-    <ItemGroup>
-      <Folder Include="Scripts\" />
-    </ItemGroup>
 </Project>
