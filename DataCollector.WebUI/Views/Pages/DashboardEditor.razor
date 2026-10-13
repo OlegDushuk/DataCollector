@@ -1,0 +1,376 @@
+@page "/dashboards/{Id:guid}/edit"
+
+@inherits DashboardPageBase
+@inject IJSRuntime JS
+
+@*
+    Редактор дашборду: сітка віджетів з живими даними і бічна панель параметрів вибраного віджета
+    (або всього дашборду, якщо нічого не вибрано). Зміни зберігаються кнопкою «Зберегти» одним запитом.
+*@
+
+<NavigationLock ConfirmExternalNavigation="_dirty" OnBeforeInternalNavigation="OnBeforeNavigation" />
+
+@if (NotFound)
+{
+    <PageHeader Title="Дашборд не знайдено" BackHref="/dashboards" BackTitle="До списку дашбордів" />
+    <div class="page">
+        <div class="empty-state">
+            <div class="empty-state__title">Такого дашборду немає</div>
+            <a class="button button--secondary" href="/dashboards">До списку дашбордів</a>
+        </div>
+    </div>
+}
+else
+{
+    <PageHeader Title="@($"Редагування: {_name}")" BackHref="@($"/dashboards/{Id}")" BackTitle="До перегляду">
+        <Subtitle>
+            <span>@(_dirty ? "Є незбережені зміни" : "Усі зміни збережено")</span>
+        </Subtitle>
+        <Actions>
+            @if (Dashboard != null)
+            {
+                <Button Text="Скасувати зміни" Variant="ButtonVariant.Secondary" Disabled="@(!_dirty)" OnClick="@(() => _confirmDiscard = true)" />
+                <Button Text="Зберегти" Variant="ButtonVariant.Secondary" Disabled="@(!_dirty || _saving)" OnClick="@(() => Save(open: false))" />
+                <Button Text="Зберегти й відкрити" Disabled="_saving" OnClick="@(() => Save(open: true))" />
+            }
+        </Actions>
+    </PageHeader>
+
+    <div class="page">
+        <Alert Message="@Error" OnClose="@(() => Error = null)" />
+        <Alert Message="@_notice" Success="true" OnClose="@(() => _notice = null)" />
+
+        @if (Dashboard is null)
+        {
+            <div class="default-text">@(Error is null ? "Завантаження…" : "")</div>
+        }
+        else
+        {
+            <div class="workspace">
+                <div class="workspace__main dashboard-editor">
+                    <div class="dashboard-editor__toolbar">
+                        <span class="subtitle">Додати</span>
+                        @foreach (var type in WidgetTypes.All)
+                        {
+                            <Button Text="@type.Label" Variant="ButtonVariant.Secondary" Small="true"
+                                    OnClick="@(() => AddWidget(type.Code))" />
+                        }
+                        <span class="dashboard-editor__hint default-text">Натисніть на віджет, щоб змінити його параметри</span>
+                    </div>
+
+                    <div class="dashboard-editor__canvas" @onclick="@(() => _selectedId = null)">
+                        @if (Widgets.Count == 0)
+                        {
+                            <div class="empty-state">
+                                <div class="empty-state__title">Дашборд порожній</div>
+                                <div class="default-text default-text--multiline">
+                                    Почніть з діаграми або показника: віджет з'явиться тут, а його параметри - у панелі праворуч.
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div @onclick:stopPropagation="true">
+                                <DashboardBoard Widgets="Widgets"
+                                                IsEditing="true"
+                                                Loading="LoadingModels"
+                                                SelectedId="_selectedId"
+                                                OnSelect="@(w => _selectedId = w.Id)"
+                                                OnMove="Move"
+                                                OnDuplicate="Duplicate"
+                                                OnRemove="Remove"
+                                                OnWidgetChanged="MarkDirty" />
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <aside class="side-panel">
+                    @if (Selected is { } widget)
+                    {
+                        <div class="side-panel__header">
+                            <div class="card__title side-panel__title" title="@widget.DisplayTitle">@widget.DisplayTitle</div>
+                            <button type="button" class="side-panel__close" title="Параметри дашборду" @onclick="@(() => _selectedId = null)">
+                                <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                            </button>
+                        </div>
+                        <div class="side-panel__body">
+                            <WidgetSettingsPanel @key="widget.Id"
+                                                 Widget="widget"
+                                                 Configs="_configs"
+                                                 OnModelSelected="@(id => ChangeModel(widget, id))"
+                                                 OnChanged="MarkDirty" />
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="side-panel__header">
+                            <div class="card__title">Параметри дашборду</div>
+                        </div>
+                        <div class="side-panel__body">
+                            <section class="side-panel__section">
+                                <label class="form__field">
+                                    <span class="form__label">Назва</span>
+                                    <input class="input" maxlength="128" value="@_name"
+                                           @oninput="@(e => { _name = e.Value?.ToString() ?? ""; MarkDirty(); })" />
+                                </label>
+
+                                <label class="form__field">
+                                    <span class="form__label">Опис <span class="form__label-hint">необов'язково</span></span>
+                                    <textarea class="textarea" maxlength="512" value="@_description"
+                                              @oninput="@(e => { _description = e.Value?.ToString(); MarkDirty(); })"></textarea>
+                                </label>
+
+                                <label class="form__field">
+                                    <span class="form__label">Автооновлення в перегляді</span>
+                                    <select class="select" value="@_refreshSeconds"
+                                            @onchange="@(e => { _refreshSeconds = int.TryParse(e.Value?.ToString(), out var s) ? s : 0; MarkDirty(); })">
+                                        @foreach (var (value, label) in DashboardGrid.RefreshOptions)
+                                        {
+                                            <option value="@value">@label</option>
+                                        }
+                                    </select>
+                                </label>
+                            </section>
+
+                            <section class="side-panel__section">
+                                <div class="side-panel__section-title subtitle">Віджети</div>
+                                @if (Widgets.Count == 0)
+                                {
+                                    <div class="default-text default-text--multiline">Додайте перший віджет кнопками над сіткою.</div>
+                                }
+                                else
+                                {
+                                    <ul class="widget-outline">
+                                        @foreach (var w in Widgets)
+                                        {
+                                            <li @key="w.Id">
+                                                <button type="button" class="widget-outline__item" @onclick="@(() => _selectedId = w.Id)">
+                                                    <span class="widget-outline__name">@w.DisplayTitle</span>
+                                                    <span class="default-text">@w.TypeLabel · @DashboardGrid.Widths.First(x => x.Value == w.W).Label.ToLowerInvariant()</span>
+                                                </button>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            </section>
+
+                            <div class="side-panel__footer">
+                                <span class="default-text default-text--multiline">
+                                    Віджети розкладаються по черзі зліва направо в сітці на 12 колонок.
+                                    Порядок змінюють стрілки на картці, розмір - параметри віджета.
+                                </span>
+                            </div>
+                        </div>
+                    }
+                </aside>
+            </div>
+        }
+    </div>
+}
+
+<ConfirmDialog IsOpen="_confirmDiscard"
+               Title="Скасувати зміни?"
+               Text="Незбережені зміни буде втрачено, дашборд повернеться до останнього збереженого стану."
+               ConfirmText="Скасувати зміни"
+               OnConfirm="Discard"
+               OnCancel="@(() => _confirmDiscard = false)" />
+
+<ConfirmDialog IsOpen="_pendingNavigation != null"
+               Title="Вийти без збереження?"
+               Text="На дашборді є незбережені зміни. Якщо вийти, їх буде втрачено."
+               ConfirmText="Вийти без збереження"
+               OnConfirm="LeaveWithoutSaving"
+               OnCancel="@(() => _pendingNavigation = null)" />
+
+@code {
+  private List<EntityConfigListItem> _configs = [];
+  private Guid? _selectedId;
+
+  private string _name = string.Empty;
+  private string? _description;
+  private int _refreshSeconds;
+
+  private bool _dirty;
+  private bool _saving;
+  private string? _notice;
+  private bool _confirmDiscard;
+  private string? _pendingNavigation;
+
+  // Віджет, що щойно з'явився, - прокрутити до нього після рендеру.
+  private Guid? _scrollTo;
+
+  private WidgetState? Selected => Widgets.FirstOrDefault(w => w.Id == _selectedId);
+
+  protected override async Task OnParametersSetAsync()
+  {
+    if (Dashboard?.Id == Id)
+      return;
+
+    await Load();
+  }
+
+  private async Task Load()
+  {
+    Dashboard = null;
+    _selectedId = null;
+    _dirty = false;
+
+    await Try(async () => _configs = await ConfigApi.GetAll());
+    await LoadDashboard();
+
+    if (Dashboard != null)
+    {
+      _name = Dashboard.Name;
+      _description = Dashboard.Description;
+      _refreshSeconds = Dashboard.RefreshSeconds;
+    }
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (_scrollTo is not { } id)
+      return;
+
+    _scrollTo = null;
+
+    try
+    {
+      await JS.InvokeVoidAsync("dataCollector.scrollIntoView", $"[data-widget='{id}']");
+    }
+    catch (JSException)
+    {
+    }
+  }
+
+  private void MarkDirty()
+  {
+    _dirty = true;
+    _notice = null;
+  }
+
+  /// <summary>Новий віджет - у кінець, з моделлю вибраного (або першою), і одразу вибраний.</summary>
+  private async Task AddWidget(string type)
+  {
+    var configId = Selected?.ConfigId ?? Widgets.LastOrDefault(w => w.ConfigId != null)?.ConfigId ?? _configs.FirstOrDefault()?.Id;
+    var widget = WidgetState.Create(type, configId);
+
+    Widgets.Add(widget);
+    _selectedId = widget.Id;
+    _scrollTo = widget.Id;
+    MarkDirty();
+
+    if (configId is { } id)
+      widget.Bind(await LoadConfig(id));
+  }
+
+  private async Task ChangeModel(WidgetState widget, Guid configId)
+  {
+    if (await LoadConfig(configId) is { } config)
+    {
+      widget.ChangeModel(config);
+      MarkDirty();
+    }
+  }
+
+  private void Move((WidgetState Widget, int Offset) move)
+  {
+    var from = Widgets.IndexOf(move.Widget);
+    var to = from + move.Offset;
+    if (from < 0 || to < 0 || to >= Widgets.Count)
+      return;
+
+    Widgets.RemoveAt(from);
+    Widgets.Insert(to, move.Widget);
+    _selectedId = move.Widget.Id;
+    MarkDirty();
+  }
+
+  private void Duplicate(WidgetState widget)
+  {
+    var copy = widget.Clone();
+    Widgets.Insert(Widgets.IndexOf(widget) + 1, copy);
+    _selectedId = copy.Id;
+    _scrollTo = copy.Id;
+    MarkDirty();
+  }
+
+  private void Remove(WidgetState widget)
+  {
+    Widgets.Remove(widget);
+    if (_selectedId == widget.Id)
+      _selectedId = null;
+
+    MarkDirty();
+  }
+
+  private async Task Save(bool open)
+  {
+    if (Dashboard is null)
+      return;
+
+    if (string.IsNullOrWhiteSpace(_name))
+    {
+      Error = "Вкажіть назву дашборду";
+      _selectedId = null;
+      return;
+    }
+
+    // Збережені координати - ті самі, що бачить користувач (див. DashboardGrid.Arrange).
+    var positions = DashboardGrid.Arrange(Widgets.Select(w => (w.W, w.H)));
+    var dashboard = new Dashboard
+    {
+      Id = Dashboard.Id,
+      Name = _name.Trim(),
+      Description = string.IsNullOrWhiteSpace(_description) ? null : _description.Trim(),
+      RefreshSeconds = _refreshSeconds,
+      Widgets = Widgets.Select((w, i) => w.ToApi(positions[i].X, positions[i].Y)).ToList()
+    };
+
+    _saving = true;
+    Error = null;
+
+    try
+    {
+      if (!await Try(() => DashboardApi.Save(dashboard)))
+        return;
+    }
+    finally
+    {
+      _saving = false;
+    }
+
+    Dashboard.Name = dashboard.Name;
+    _dirty = false;
+
+    if (open)
+      Navigation.NavigateTo($"/dashboards/{Id}");
+    else
+      _notice = "Дашборд збережено";
+  }
+
+  private async Task Discard()
+  {
+    _confirmDiscard = false;
+    await Load();
+  }
+
+  private void OnBeforeNavigation(LocationChangingContext context)
+  {
+    if (!_dirty)
+      return;
+
+    context.PreventNavigation();
+    _pendingNavigation = context.TargetLocation;
+  }
+
+  private void LeaveWithoutSaving()
+  {
+    var target = _pendingNavigation;
+    _pendingNavigation = null;
+    _dirty = false;
+
+    if (target != null)
+      Navigation.NavigateTo(target);
+  }
+}

@@ -41,7 +41,10 @@ public sealed class TableColumns
   /// Колонки для моделі: збережений вибір (JSON з браузера), доповнений новими полями моделі.
   /// Поля, яких у моделі вже немає, відкидаються. Без збереженого вибору - усі поля і дата створення.
   /// </summary>
-  public static TableColumns For(EntityConfig config, string? savedJson)
+  public static TableColumns For(EntityConfig config, string? savedJson) => For(config, Parse(savedJson));
+
+  /// <inheritdoc cref="For(EntityConfig, string?)"/>
+  public static TableColumns For(EntityConfig config, IReadOnlyList<TableColumnState>? saved)
   {
     var all = config.Properties
       .Select(p => new TableColumn { Key = p.Key, Name = p.Name, IsVisible = true })
@@ -52,7 +55,7 @@ public sealed class TableColumns
     var result = new TableColumns { ConfigId = config.Id, Items = all };
     result._defaultJson = result.ToJson();
 
-    if (Parse(savedJson) is not { } saved)
+    if (saved is null || saved.Count == 0)
       return result;
 
     var byKey = all.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
@@ -83,8 +86,10 @@ public sealed class TableColumns
     return result;
   }
 
-  public string ToJson()
-    => JsonSerializer.Serialize(Items.Select(c => new SavedColumn { Key = c.Key, Visible = c.IsVisible }));
+  public string ToJson() => JsonSerializer.Serialize(ToStates());
+
+  /// <summary>Видимість і порядок колонок для збереження (у браузері або в налаштуваннях віджета дашборду).</summary>
+  public List<TableColumnState> ToStates() => Items.Select(c => new TableColumnState { Key = c.Key, Visible = c.IsVisible }).ToList();
 
   /// <summary>Показати або сховати колонку. Останню видиму сховати не можна.</summary>
   public bool Toggle(TableColumn column)
@@ -112,16 +117,16 @@ public sealed class TableColumns
   public void ShowAll() => Items.ForEach(c => c.IsVisible = true);
 
   /// <summary>Порядок і видимість за замовчуванням.</summary>
-  public void Reset(EntityConfig config) => Items = For(config, null).Items;
+  public void Reset(EntityConfig config) => Items = For(config, (string?)null).Items;
 
-  private static List<SavedColumn>? Parse(string? json)
+  private static List<TableColumnState>? Parse(string? json)
   {
     if (string.IsNullOrWhiteSpace(json))
       return null;
 
     try
     {
-      return JsonSerializer.Deserialize<List<SavedColumn>>(json);
+      return JsonSerializer.Deserialize<List<TableColumnState>>(json);
     }
     catch (JsonException)
     {
@@ -129,10 +134,11 @@ public sealed class TableColumns
       return null;
     }
   }
+}
 
-  private sealed class SavedColumn
-  {
-    public string? Key { get; set; }
-    public bool Visible { get; set; }
-  }
+/// <summary>Збережений стан колонки: ключ і видимість (порядок - порядком у списку).</summary>
+public sealed class TableColumnState
+{
+  public string? Key { get; set; }
+  public bool Visible { get; set; }
 }

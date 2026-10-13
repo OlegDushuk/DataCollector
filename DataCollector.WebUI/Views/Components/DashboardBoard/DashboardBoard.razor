@@ -1,0 +1,128 @@
+@namespace DataCollector.WebUI.Views.Components
+
+@*
+    Сітка дашборду на 12 колонок: кожен віджет займає свою частку ширини (W) і кількість рядів (H)
+    у позиції, обчисленій DashboardGrid.Arrange (у тому ж порядку, що й список). Ті самі картки - у перегляді
+    і в редакторі; у редакторі картку можна вибрати, пересунути, скопіювати чи видалити.
+*@
+
+<div class="dashboard-grid @(IsEditing ? "dashboard-grid--editing" : "")">
+    @{ var positions = DashboardGrid.Arrange(Widgets.Select(w => (w.W, w.H))); }
+
+    @for (var i = 0; i < Widgets.Count; i++)
+    {
+        var widget = Widgets[i];
+        var index = i;
+        var (x, y) = positions[i];
+        var selected = IsEditing && widget.Id == SelectedId;
+        var style = $"grid-column: {x + 1} / span {widget.W}; grid-row: {y + 1} / span {widget.H}; --rows: {widget.H};";
+
+        <section @key="widget.Id"
+                 data-widget="@widget.Id"
+                 class="widget widget--@widget.Type @(selected ? "widget--selected" : "")"
+                 style="@style"
+                 @onclick="@(() => Select(widget))">
+            <header class="widget__header">
+                <div class="widget__titles">
+                    <div class="widget__title" title="@widget.DisplayTitle">@widget.DisplayTitle</div>
+                    @if (Caption(widget) is { } caption)
+                    {
+                        <div class="widget__caption" title="@caption">@caption</div>
+                    }
+                </div>
+
+                @if (IsEditing)
+                {
+                    <div class="widget__tools">
+                        <IconButton Icon="up" Title="Перемістити раніше" Disabled="@(index == 0)" OnClick="@(() => OnMove.InvokeAsync((widget, -1)))" />
+                        <IconButton Icon="down" Title="Перемістити пізніше" Disabled="@(index == Widgets.Count - 1)" OnClick="@(() => OnMove.InvokeAsync((widget, 1)))" />
+                        <IconButton Icon="copy" Title="Копія віджета" OnClick="@(() => OnDuplicate.InvokeAsync(widget))" />
+                        <IconButton Icon="delete" Title="Видалити віджет" Danger="true" OnClick="@(() => OnRemove.InvokeAsync(widget))" />
+                    </div>
+                }
+            </header>
+
+            <div class="widget__body">
+                @if (widget.Config is not { } config)
+                {
+                    <div class="widget__empty default-text default-text--multiline">
+                        @(widget.ConfigId is null
+                            ? "Виберіть модель даних у параметрах віджета."
+                            : Loading ? "Завантаження…" : "Модель цього віджета видалено. Виберіть іншу в редакторі дашборду.")
+                    </div>
+                }
+                else if (config.Properties.Count == 0)
+                {
+                    <div class="widget__empty default-text default-text--multiline">У моделі «@config.Name» ще немає полів.</div>
+                }
+                else
+                {
+                    var version = widget.DataVersion + RefreshVersion;
+
+                    switch (widget.Type)
+                    {
+                        case WidgetTypes.Kpi:
+                            <RecordKpi ConfigId="config.Id" Fields="widget.Fields" Filters="widget.ApiFilters()" Search="@widget.Search"
+                                       Version="version" Metric="widget.Kpi" />
+                            break;
+                        case WidgetTypes.Chart:
+                            <RecordChart ConfigId="config.Id" Fields="widget.Fields" Filters="widget.ApiFilters()" Search="@widget.Search"
+                                         Version="version" StyleVersion="widget.StyleVersion" Settings="widget.Chart" Compact="true" />
+                            break;
+                        case WidgetTypes.Summary:
+                            <RecordSummary ConfigId="config.Id" Fields="widget.Fields" Filters="widget.ApiFilters()" Search="@widget.Search"
+                                           Version="version" Settings="widget.Summary" Compact="true" />
+                            break;
+                        default:
+                            <WidgetTable Widget="widget" Version="version" OnChanged="OnWidgetChanged" />
+                            break;
+                    }
+                }
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+  [Parameter, EditorRequired] public IReadOnlyList<WidgetState> Widgets { get; set; } = [];
+
+  /// <summary>Лічильник автооновлення / кнопки «Оновити»: змінився - усі віджети перераховуються.</summary>
+  [Parameter] public int RefreshVersion { get; set; }
+
+  /// <summary>Моделі віджетів ще завантажуються (щоб не писати «модель видалено» передчасно).</summary>
+  [Parameter] public bool Loading { get; set; }
+
+  [Parameter] public bool IsEditing { get; set; }
+  [Parameter] public Guid? SelectedId { get; set; }
+  [Parameter] public EventCallback<WidgetState> OnSelect { get; set; }
+  [Parameter] public EventCallback<(WidgetState Widget, int Offset)> OnMove { get; set; }
+  [Parameter] public EventCallback<WidgetState> OnDuplicate { get; set; }
+  [Parameter] public EventCallback<WidgetState> OnRemove { get; set; }
+
+  /// <summary>Налаштування віджета змінили прямо на картці (сортування таблиці).</summary>
+  [Parameter] public EventCallback OnWidgetChanged { get; set; }
+
+  private Task Select(WidgetState widget) => IsEditing ? OnSelect.InvokeAsync(widget) : Task.CompletedTask;
+
+  /// <summary>Під заголовком: модель (якщо назва власна) і кількість умов - щоб було видно, що саме показано.</summary>
+  private static string? Caption(WidgetState widget)
+  {
+    var parts = new List<string>();
+
+    if (!string.IsNullOrWhiteSpace(widget.Title) && widget.Config != null)
+      parts.Add(widget.Config.Name);
+
+    if (widget.Type == WidgetTypes.Chart && widget.Config != null)
+    {
+      var x = widget.Fields.FirstOrDefault(f => f.Key == widget.Chart.XField)?.Name;
+      if (x != null)
+        parts.Add($"{ChartTypes.Label(widget.Chart.Type)} за «{x}»");
+    }
+
+    var conditions = widget.Filters.Count + (string.IsNullOrWhiteSpace(widget.Search) ? 0 : 1);
+    if (conditions > 0)
+      parts.Add(Format.Count(conditions, "умова", "умови", "умов"));
+
+    return parts.Count > 0 ? string.Join(" · ", parts) : null;
+  }
+}

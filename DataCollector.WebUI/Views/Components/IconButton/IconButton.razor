@@ -3,6 +3,8 @@
 <button type="button"
         class="icon-button @(Danger ? "icon-button--danger" : "")"
         title="@Title"
+        aria-label="@Title"
+        disabled="@Disabled"
         @onclick="OnClick"
         @onclick:stopPropagation="true">
     @switch (Icon)
@@ -16,6 +18,15 @@
         case "settings":
             <svg viewBox="0 0 24 24"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>
             break;
+        case "up":
+            <svg viewBox="0 0 24 24"><path d="M7.41 15.41 12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+            break;
+        case "down":
+            <svg viewBox="0 0 24 24"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+            break;
+        case "copy":
+            <svg viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>
+            break;
         case "open":
             <svg viewBox="0 0 24 24"><path d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
             break;
@@ -26,5 +37,6 @@
   [Parameter] public string Icon { get; set; } = "edit";
   [Parameter] public string? Title { get; set; }
   [Parameter] public bool Danger { get; set; }
+  [Parameter] public bool Disabled { get; set; }
   [Parameter] public EventCallback OnClick { get; set; }
 }

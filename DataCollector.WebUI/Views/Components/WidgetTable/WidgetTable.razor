@@ -1,0 +1,142 @@
+@namespace DataCollector.WebUI.Views.Components
+@implements IDisposable
+@inject EntityRecordApiService RecordApi
+
+@*
+    Таблиця записів у віджеті дашборду: колонки, умови, пошук і сортування - з налаштувань віджета.
+    Лише перегляд (без редагування записів). Сортування й розмір сторінки, змінені в таблиці, записуються
+    у налаштування віджета - у редакторі вони так і зберігаються.
+*@
+
+@if (Widget.Config is { } config)
+{
+    <DataTable @key="config.Id"
+               @ref="_table"
+               TItem="EntityInstance"
+               Items="_records"
+               TotalCount="_totalCount"
+               IsLoading="_isLoading"
+               InitialSortKey="@Widget.SortKey"
+               InitialSortDescending="Widget.SortDescending"
+               StartPageSize="Widget.PageSize"
+               PageSizes="PageSizes"
+               EmptyText="@(Widget.Filters.Count > 0 || !string.IsNullOrWhiteSpace(Widget.Search) ? "Немає записів, що відповідають умовам" : "Записів поки немає")"
+               TotalLabel="Записів"
+               OnReload="OnReload">
+        <RowTemplate>
+            @for (var i = 0; i < (Widget.Columns?.Items.Count ?? 0); i++)
+            {
+                var column = Widget.Columns!.Items[i];
+                if (!column.IsVisible)
+                    continue;
+
+                var order = i;
+                var prop = column.IsSystem ? null : config.Properties.FirstOrDefault(p => p.Key == column.Key);
+
+                if (prop != null)
+                {
+                    <ColumnTemplate @key="column.Key" TItem="EntityInstance" Context="item"
+                                    Key="@prop.Key" Title="@prop.Name" Order="order" IsSortable="true">
+                        @{ var display = item.GetDisplayValue(prop); }
+                        <span class="default-text" title="@display">@display</span>
+                    </ColumnTemplate>
+                }
+                else if (column.IsSystem)
+                {
+                    <ColumnTemplate @key="column.Key" TItem="EntityInstance" Context="item"
+                                    Key="@column.Key" Title="@column.Name" Order="order" IsSortable="true" Width="170px">
+                        <span class="default-text">@Format.Date(column.Key == FilterField.UpdatedAtKey ? item.UpdatedAt : item.CreatedAt)</span>
+                    </ColumnTemplate>
+                }
+            }
+        </RowTemplate>
+    </DataTable>
+}
+
+@code {
+  [Parameter, EditorRequired] public WidgetState Widget { get; set; } = null!;
+
+  /// <summary>Лічильник оновлень (зміна налаштувань віджета + автооновлення дашборду).</summary>
+  [Parameter] public int Version { get; set; }
+
+  /// <summary>У таблиці змінили сортування або розмір сторінки (це частина налаштувань віджета).</summary>
+  [Parameter] public EventCallback OnChanged { get; set; }
+
+  private static readonly List<int> PageSizes = WidgetState.PageSizes.ToList();
+
+  private global::DataCollector.WebUI.Views.Components.DataTable.DataTable<EntityInstance>? _table;
+  private List<EntityInstance> _records = [];
+  private int _totalCount;
+  private bool _isLoading = true;
+  private CancellationTokenSource? _cts;
+  private int _loadedVersion;
+
+  protected override void OnInitialized()
+  {
+    _loadedVersion = Version;
+  }
+
+  protected override async Task OnParametersSetAsync()
+  {
+    // Перше завантаження робить сама таблиця після першого рендеру; далі - при зміні версії.
+    if (Version == _loadedVersion || _table is null)
+      return;
+
+    _loadedVersion = Version;
+    await _table.Reload();
+  }
+
+  private async Task OnReload(ReloadEventArgs args)
+  {
+    if (Widget.Config is not { } config)
+      return;
+
+    _cts?.Cancel();
+    var cts = _cts = new CancellationTokenSource();
+
+    var sortKey = args.SortColumnKey ?? FilterField.CreatedAtKey;
+    var changed = sortKey != Widget.SortKey || args.SortIsDescending != Widget.SortDescending || args.PageSize != Widget.PageSize;
+
+    Widget.SortKey = sortKey;
+    Widget.SortDescending = args.SortIsDescending;
+    Widget.PageSize = args.PageSize;
+
+    if (changed)
+      await OnChanged.InvokeAsync();
+
+    _isLoading = true;
+    try
+    {
+      var page = await RecordApi.Query(
+        config.Id, Widget.ApiFilters(), Widget.Search,
+        args.PageNumber, args.PageSize, args.SortColumnKey, args.SortIsDescending, Widget.Columns?.ApiFields, cts.Token);
+
+      _records = page.Items;
+      _totalCount = page.TotalCount;
+    }
+    catch (OperationCanceledException) when (cts.IsCancellationRequested)
+    {
+      return;
+    }
+    catch (ApiException)
+    {
+      // Помилку таблиця показати не вміє - порожня таблиця; запит повториться при наступному оновленні.
+      _records = [];
+      _totalCount = 0;
+    }
+    finally
+    {
+      if (_cts == cts)
+        _cts = null;
+
+      cts.Dispose();
+    }
+
+    _isLoading = false;
+  }
+
+  public void Dispose()
+  {
+    _cts?.Cancel();
+  }
+}

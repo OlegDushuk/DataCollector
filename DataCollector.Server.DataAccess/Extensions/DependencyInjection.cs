@@ -13,6 +13,7 @@ public static class DependencyInjection
     services.AddSingleton<IEntityConfigRepository, EntityConfigRepository>();
     services.AddSingleton<IEntityPropertyConfigRepository, EntityPropertyConfigRepository>();
     services.AddSingleton<IEntityInstanceRepository, EntityInstanceRepository>();
+    services.AddSingleton<IDashboardRepository, DashboardRepository>();
     
     return services;
   }

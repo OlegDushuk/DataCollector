@@ -20,7 +20,7 @@
     запиту вона стабільна (NEWID() у SQL Server може обчислюватися повторно для кожного посилання).
 
     Скрипт можна запускати повторно: моделі з такими ключами видаляються разом із записами
-    і створюються заново. Щоб додати модель - допишіть рядок у #Models і її поля в #Props.
+    і створюються заново. Наприкінці створюється демонстраційний дашборд (теж заново). Щоб додати модель - допишіть рядок у #Models і її поля в #Props.
 */
 BEGIN
     SET NOCOUNT ON;
@@ -354,7 +354,52 @@ BEGIN
     DROP TABLE #Rows, #ListItems;
 
     -------------------------------------------------------------------------------
-    -- 4. Перевірка
+    -- 4. Демонстраційний дашборд (сторінка «Дашборди»)
+    -------------------------------------------------------------------------------
+    -- Створюється тією ж процедурою, що й через API. Має сталий Id: при повторному запуску
+    -- старий видаляється (моделі вище створені заново, тож його віджети вже без моделей).
+    -- Налаштування віджетів - JSON у форматі інтерфейсу (WidgetSettings у DataCollector.WebUI).
+    DECLARE @DashboardId UNIQUEIDENTIFIER = '6d0a5a1e-2f4b-4c39-9a51-0d5b6c7e8f90';
+    DECLARE @Orders UNIQUEIDENTIFIER = (SELECT [ConfigId] FROM #Models WHERE [Key] = N'shop_orders');
+    DECLARE @Sensors UNIQUEIDENTIFIER = (SELECT [ConfigId] FROM #Models WHERE [Key] = N'sensor_readings');
+    DECLARE @Widgets [dbo].[DashboardWidgetList];
+
+    IF EXISTS (SELECT 1 FROM [dbo].[Dashboards] WHERE [Id] = @DashboardId)
+        EXEC [dbo].[sp_Dashboards_Delete] @Id = @DashboardId;
+
+    -- Позиції - як їх розставляє сітка на 12 колонок (DashboardGrid.Arrange): показники в ряд,
+    -- під ними дві діаграми, далі діаграма і зведення, внизу таблиця.
+    INSERT INTO @Widgets ([Id], [ConfigId], [Type], [Title], [X], [Y], [W], [H], [Settings])
+    VALUES
+        (NEWID(), @Orders, N'kpi', N'Усього замовлень', 0, 0, 3, 2,
+         N'{"version":1,"kpi":{"function":"count","field":""}}'),
+        (NEWID(), @Orders, N'kpi', N'Виручка (оплачені), грн', 3, 0, 3, 2,
+         N'{"version":1,"filters":[{"field":"paid","operator":"eq","value":"true","values":[]}],"kpi":{"function":"sum","field":"price"}}'),
+        (NEWID(), @Orders, N'kpi', N'Середня ціна, грн', 6, 0, 3, 2,
+         N'{"version":1,"kpi":{"function":"avg","field":"price"}}'),
+        (NEWID(), @Sensors, N'kpi', N'Вимірів з тривогою', 9, 0, 3, 2,
+         N'{"version":1,"filters":[{"field":"alarm","operator":"eq","value":"true","values":[]}],"kpi":{"function":"count","field":""}}'),
+        (NEWID(), @Orders, N'chart', N'Замовлення по місяцях за статусом', 0, 2, 8, 5,
+         N'{"version":1,"chart":{"type":"bar","stack":true,"xField":"createdAt","interval":"month","lines":[{"function":"count","field":""}],"splitBy":"status","fillGaps":true}}'),
+        (NEWID(), @Orders, N'chart', N'Частки статусів', 8, 2, 4, 5,
+         N'{"version":1,"chart":{"type":"pie","xField":"status","interval":"day","lines":[{"function":"count","field":""}],"fillGaps":true}}'),
+        (NEWID(), @Sensors, N'chart', N'Температура і вологість по днях', 0, 7, 6, 5,
+         N'{"version":1,"chart":{"type":"line","xField":"measured_at","interval":"day","lines":[{"function":"avg","field":"temperature"},{"function":"avg","field":"humidity"}],"smooth":true,"fillGaps":true}}'),
+        (NEWID(), @Orders, N'summary', N'Найбільші клієнти', 6, 7, 6, 5,
+         N'{"version":1,"summary":{"dimensions":[{"field":"customer","interval":"day"}],"metrics":[{"function":"count","field":""},{"function":"sum","field":"price"}],"order":"valueDesc"}}'),
+        (NEWID(), @Orders, N'table', N'Останні замовлення', 0, 12, 12, 7,
+         N'{"version":1,"columns":[{"key":"number","visible":true},{"key":"customer","visible":true},{"key":"quantity","visible":true},{"key":"price","visible":true},{"key":"status","visible":true},{"key":"paid","visible":true},{"key":"discount","visible":false},{"key":"delivery_date","visible":false},{"key":"createdAt","visible":true},{"key":"updatedAt","visible":false}],"sortKey":"createdAt","sortDescending":true,"pageSize":10}');
+
+    EXEC [dbo].[sp_Dashboards_Create]
+         @Id = @DashboardId,
+         @Name = N'Магазин і датчики',
+         @Description = N'Демонстраційний дашборд: замовлення магазину та показники датчиків',
+         @RefreshSeconds = 60,
+         @CreatedAt = @Now,
+         @Widgets = @Widgets;
+
+    -------------------------------------------------------------------------------
+    -- 5. Перевірка
     -------------------------------------------------------------------------------
     SELECT
         c.[Key],

@@ -8,7 +8,7 @@
     перераховується, коли змінюється Version - лічильник змін фільтрів і параметрів на сторінці.
 *@
 
-<div class="summary">
+<div class="summary @(Compact ? "summary--compact" : "")">
     <Alert Message="@_error" />
 
     <div class="summary__result @(_loading ? "summary__result--loading" : "")">
@@ -113,6 +113,9 @@
 
   /// <summary>Параметри зведення (зберігає сторінка, редагує бічна панель).</summary>
   [Parameter, EditorRequired] public SummarySettings Settings { get; set; } = new();
+
+  /// <summary>Вбудований вигляд (віджет дашборду): без рамки, з прокруткою всередині картки.</summary>
+  [Parameter] public bool Compact { get; set; }
 
   private AggregateResult? _result;
   private bool _loading;

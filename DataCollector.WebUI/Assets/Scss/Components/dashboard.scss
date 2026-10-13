@@ -1,0 +1,545 @@
+@use "../variables";
+
+// Дашборди: список, сітка віджетів (перегляд і редактор), режим перегляду без меню.
+
+$row-height: 72px;
+$grid-gap: 16px;
+
+// ---------- Режим перегляду: меню й шапку сховано (LayoutState.IsFocusMode) ----------
+
+// Подвійний клас - сильніше за базовий .main-layout (файли збираються за абеткою, main-layout.scss - пізніше).
+.main-layout.main-layout--focus {
+  padding-left: 0;
+
+  .main-layout__sidebar,
+  .main-layout__header {
+    display: none;
+  }
+
+  .main-layout__content {
+    padding: $grid-gap;
+  }
+}
+
+// Плаваюча панель у режимі перегляду - у правому нижньому куті (не закриває заголовків віджетів).
+// Непрозора, але приглушена: повністю помітна при наведенні.
+.focus-bar {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 6px 14px;
+  background: variables.$surface-color;
+  border: 1px solid variables.$border-color;
+  border-radius: 20px;
+  box-shadow: 0 4px 18px rgba(47, 43, 99, 0.12);
+  filter: saturate(0.3);
+  transition: filter 0.2s, box-shadow 0.2s;
+
+  &:hover,
+  &:focus-within {
+    filter: none;
+    box-shadow: 0 6px 24px rgba(47, 43, 99, 0.2);
+  }
+
+  &__title {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 600;
+    color: variables.$title-text-color;
+  }
+
+  &__time {
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__button,
+  &__exit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 30px;
+    border: none;
+    border-radius: 15px;
+    background: transparent;
+    color: variables.$button-text-color;
+    font-size: 13px;
+    cursor: pointer;
+    transition: 0.2s;
+
+    svg {
+      height: 16px;
+      fill: currentColor;
+    }
+  }
+
+  &__button {
+    width: 30px;
+
+    &:hover {
+      background: variables.$accent-light-color;
+      color: variables.$accent-color;
+    }
+  }
+
+  &__exit {
+    padding: 0 12px 0 10px;
+    background: variables.$accent-color;
+    color: variables.$surface-color;
+
+    &:hover {
+      background: variables.$accent-hover-color;
+    }
+  }
+}
+
+// ---------- Перегляд ----------
+
+.dashboard-page {
+  // Сітка може бути вищою за екран - прокручується весь вміст (а не лише сітка).
+  height: auto;
+  gap: $grid-gap;
+
+  &__footer {
+    text-align: right;
+  }
+
+  // Місце під плаваючою панеллю, щоб вона не закривала низ останнього віджета.
+  &--focus {
+    padding-bottom: 52px;
+  }
+}
+
+// ---------- Сітка ----------
+
+// 12 колонок, ряди фіксованої висоти: віджет займає W колонок і H рядів у позиції з DashboardGrid.Arrange
+// (інлайн-стиль grid-column / grid-row).
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: $row-height;
+  gap: $grid-gap;
+
+  // На вузькому екрані - один віджет у ряд (висота за кількістю рядів, як на широкому).
+  @media (max-width: 900px) {
+    grid-template-columns: minmax(0, 1fr);
+
+    .widget {
+      grid-column: 1 / -1 !important;
+      grid-row: auto / span var(--rows, 5) !important;
+    }
+  }
+}
+
+.widget {
+  // Розміри вмісту (число, підписи) - від ширини самої картки, а не екрана.
+  container-type: inline-size;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: variables.$surface-color;
+  border: 1px solid variables.$border-color;
+  border-radius: variables.$radius-lg;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 14px 16px 8px;
+  }
+
+  &__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  &__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    line-height: 18px;
+    font-weight: 600;
+    color: variables.$title-text-color;
+  }
+
+  &__caption {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    line-height: 14px;
+    color: variables.$subtitle-text-color;
+  }
+
+  // Кнопки віджета в редакторі - поверх заголовка і лише при наведенні або виборі: назва має всю ширину картки.
+  &__tools {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    background: variables.$surface-color;
+    border: 1px solid variables.$border-color;
+    border-radius: variables.$radius-md;
+    box-shadow: 0 2px 10px rgba(47, 43, 99, 0.08);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+  }
+
+  &:hover &__tools,
+  &--selected &__tools,
+  &:focus-within &__tools {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    padding: 0 16px 14px;
+  }
+
+  &__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+  }
+
+  // Таблиця - від краю до краю картки: у неї свої відступи й межі рядків.
+  &--table &__body {
+    padding: 0;
+    border-top: 1px solid variables.$border-color;
+  }
+
+  // У редакторі картку вибирають кліком.
+  .dashboard-grid--editing & {
+    cursor: pointer;
+
+    &:hover {
+      border-color: variables.$accent-inactive-color;
+    }
+  }
+
+  &--selected,
+  .dashboard-grid--editing &--selected:hover {
+    border-color: variables.$accent-color;
+    box-shadow: 0 0 0 3px variables.$accent-transparent-color;
+  }
+
+  // Вбудовані компоненти даних - без власних рамок і заголовків.
+  .data-table {
+    border: none;
+    border-radius: 0;
+  }
+
+  .data-table__footer {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  // Підпис «Рядків на сторінці» у вузькій картці не вміщається - лишається сам вибір.
+  .data-table__footer-right .default-text {
+    display: none;
+  }
+
+  .chart--compact {
+    gap: 6px;
+  }
+
+  .chart--compact .chart__body {
+    min-height: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  // Невеликий відступ з боків - щоб крайні підписи осі не обрізались краєм полотна.
+  .chart--compact .chart__canvas {
+    inset: 0 4px 0 6px;
+  }
+
+  .chart--compact .chart__notes {
+    font-size: 11px;
+  }
+
+  .summary--compact {
+    gap: 8px;
+  }
+
+  .summary--compact .summary__result {
+    min-height: 0;
+    border-radius: variables.$radius-md;
+  }
+
+  .summary--compact .summary__table th,
+  .summary--compact .summary__table td {
+    padding: 8px 12px;
+  }
+
+  .summary--compact .summary__number {
+    min-width: 100px;
+  }
+
+  .summary--compact .summary__tiles {
+    padding: 0;
+    gap: 10px;
+  }
+}
+
+// Віджет-число.
+.kpi {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+  transition: opacity 0.2s;
+
+  &--loading {
+    opacity: 0.5;
+  }
+
+  // Розмір числа - від ширини картки (cqi - 1 % ширини контейнера .widget): у вузькій картці
+  // поруч з бічною панеллю число дрібніше, але вміщається повністю.
+  &__value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: clamp(20px, 12cqi, 34px);
+    line-height: 1.2;
+    font-weight: 600;
+    color: variables.$title-text-color;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__error {
+    color: variables.$danger-color;
+    overflow: hidden;
+  }
+}
+
+// ---------- Список дашбордів ----------
+
+.dashboard-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: variables.$pad-md;
+}
+
+.dashboard-card {
+  display: flex;
+  flex-direction: column;
+  background: variables.$surface-color;
+  border: 1px solid variables.$border-color;
+  border-radius: variables.$radius-lg;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    border-color: variables.$accent-inactive-color;
+    box-shadow: 0 4px 18px rgba(47, 43, 99, 0.06);
+  }
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    padding: variables.$pad-md;
+    text-decoration: none;
+  }
+
+  &__title {
+    font-size: 16px;
+    line-height: 20px;
+    font-weight: 600;
+    color: variables.$title-text-color;
+  }
+
+  &__description {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: auto;
+    line-height: 16px;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px variables.$pad-md;
+    border-top: 1px solid variables.$border-color;
+
+    .button {
+      margin-right: auto;
+    }
+  }
+}
+
+// ---------- Редактор ----------
+
+.dashboard-editor {
+  gap: 14px;
+
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  &__hint {
+    margin-left: auto;
+  }
+
+  // Сітка прокручується, бічна панель лишається на місці.
+  &__canvas {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    // Місце для тіні вибраного віджета.
+    padding: 3px;
+    margin: -3px;
+  }
+}
+
+.side-panel__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Вибір типу віджета: сітка кнопок зі значками (як типи діаграм).
+.widget-types {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    padding: 8px 2px 6px;
+    border: 1px solid variables.$border-color;
+    border-radius: variables.$radius-md;
+    background: variables.$surface-color;
+    color: variables.$button-text-color;
+    font-size: 11px;
+    line-height: 13px;
+    cursor: pointer;
+    transition: 0.2s;
+
+    svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    &:hover {
+      color: variables.$accent-color;
+      border-color: variables.$accent-inactive-color;
+    }
+
+    &--active,
+    &--active:hover {
+      color: variables.$accent-color;
+      border-color: variables.$accent-color;
+      background: variables.$accent-light-color;
+    }
+  }
+}
+
+.widget-settings__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+// Перелік віджетів у параметрах дашборду: швидкий перехід до віджета.
+.widget-outline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid variables.$border-color;
+    border-radius: variables.$radius-md;
+    background: variables.$bg-color;
+    text-align: left;
+    cursor: pointer;
+    transition: 0.2s;
+
+    &:hover {
+      border-color: variables.$accent-color;
+    }
+  }
+
+  &__name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 500;
+    color: variables.$title-text-color;
+  }
+}
+
+.select--auto {
+  width: auto;
+}
+
+// Подвійний клас - сильніше за базовий .search-input (там flex-basis 260px, що в колонці стало б висотою).
+.search-input.search-input--wide {
+  flex: none;
+  width: 100%;
+}

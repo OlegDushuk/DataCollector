@@ -10,23 +10,26 @@
     Version - змінились дані (фільтри, вісь, показники, тип) - новий запит; StyleVersion - лише вигляд - перемалювати.
 *@
 
-<div class="chart">
+<div class="chart @(Compact ? "chart--compact" : "")">
     <Alert Message="@_error" />
 
-    <div class="chart__header">
-        <div class="chart__title">
-            <span class="card__title">@Title</span>
-            @if (_data is { Categories.Count: > 0 } && _hint is null)
+    @if (!Compact)
+    {
+        <div class="chart__header">
+            <div class="chart__title">
+                <span class="card__title">@Title</span>
+                @if (_data is { Categories.Count: > 0 } && _hint is null)
+                {
+                    <span class="default-text">@Subtitle(_data)</span>
+                }
+            </div>
+
+            @if (_data is { Series.Count: > 0 } && _hint is null)
             {
-                <span class="default-text">@Subtitle(_data)</span>
+                <Button Text="Зберегти PNG" Variant="ButtonVariant.Ghost" Small="true" OnClick="SavePng" />
             }
         </div>
-
-        @if (_data is { Series.Count: > 0 } && _hint is null)
-        {
-            <Button Text="Зберегти PNG" Variant="ButtonVariant.Ghost" Small="true" OnClick="SavePng" />
-        }
-    </div>
+    }
 
     <div class="chart__body @(_loading ? "chart__body--loading" : "")">
         @* Контейнер ECharts завжди в DOM: діаграма живе в ньому між оновленнями і плавно анімує зміни. *@
@@ -63,6 +66,9 @@
   [Parameter] public int Version { get; set; }
   [Parameter] public int StyleVersion { get; set; }
   [Parameter, EditorRequired] public ChartSettings Settings { get; set; } = new();
+
+  /// <summary>Вбудований вигляд (віджет дашборду): без заголовка й рамки, заголовок показує картка віджета.</summary>
+  [Parameter] public bool Compact { get; set; }
 
   private ElementReference _canvas;
   private AggregateResult? _result;
@@ -192,7 +198,7 @@
   private void UpdateHint()
   {
     _hint = Settings.Type == ChartTypes.Heatmap && !Settings.UsesSplit
-      ? "Для теплової карти виберіть у панелі поле для рядків (перелік або так/ні)."
+      ? "Для теплової карти виберіть у параметрах поле для рядків (перелік або так/ні)."
       : null;
   }
 

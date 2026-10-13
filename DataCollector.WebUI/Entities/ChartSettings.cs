@@ -21,6 +21,8 @@ public static class ChartTypes
   ];
 
   public static bool IsKnown(string? code) => All.Any(t => t.Code == code);
+
+  public static string Label(string? code) => All.FirstOrDefault(t => t.Code == code).Label ?? All[0].Label;
 }
 
 /// <summary>

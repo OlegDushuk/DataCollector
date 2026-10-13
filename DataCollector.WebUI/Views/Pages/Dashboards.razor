@@ -1,0 +1,156 @@
+@page "/dashboards"
+
+@inherits PageBase
+@inject DashboardApiService DashboardApi
+
+<PageHeader Title="Дашборди">
+    <Subtitle>Готові набори діаграм, показників і таблиць з різних моделей на одному екрані</Subtitle>
+    <Actions>
+        <Button Text="Новий дашборд" OnClick="OpenCreate" />
+    </Actions>
+</PageHeader>
+
+<div class="page">
+    <Alert Message="@Error" OnClose="@(() => Error = null)" />
+
+    @if (_items is null)
+    {
+        <div class="default-text">@(Error is null ? "Завантаження…" : "")</div>
+    }
+    else if (_items.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-state__title">Ще немає жодного дашборду</div>
+            <div class="default-text default-text--multiline">
+                Зберіть на одному екрані діаграми, підсумкові показники й таблиці з потрібних моделей -
+                з фільтрами, групуванням і виглядом, як на сторінці записів.
+            </div>
+            <Button Text="Створити дашборд" OnClick="OpenCreate" />
+        </div>
+    }
+    else
+    {
+        <div class="dashboard-list">
+            @foreach (var item in _items)
+            {
+                <article class="dashboard-card" @key="item.Id">
+                    <a class="dashboard-card__main" href="/dashboards/@item.Id">
+                        <div class="dashboard-card__title">@item.Name</div>
+                        @if (!string.IsNullOrWhiteSpace(item.Description))
+                        {
+                            <div class="dashboard-card__description default-text default-text--multiline">@item.Description</div>
+                        }
+                        <div class="dashboard-card__meta default-text">
+                            <span>@Format.Count(item.WidgetCount, "віджет", "віджети", "віджетів")</span>
+                            @if (item.RefreshSeconds > 0)
+                            {
+                                <span>· @RefreshLabel(item.RefreshSeconds).ToLowerInvariant()</span>
+                            }
+                            <span>· змінено @Format.Date(item.UpdatedAt ?? item.CreatedAt)</span>
+                        </div>
+                    </a>
+
+                    <div class="dashboard-card__actions">
+                        <a class="button button--secondary button--small" href="/dashboards/@item.Id/edit">Редагувати</a>
+                        <IconButton Icon="copy" Title="Створити копію" OnClick="@(() => Copy(item))" />
+                        <IconButton Icon="delete" Title="Видалити" Danger="true" OnClick="@(() => { _deleteError = null; _toDelete = item; })" />
+                    </div>
+                </article>
+            }
+        </div>
+    }
+</div>
+
+<Modal IsOpen="_isCreateOpen" Title="Новий дашборд" Width="520px" OnClose="@(() => _isCreateOpen = false)">
+    <ChildContent>
+        <div class="form">
+            <label class="form__field">
+                <span class="form__label">Назва</span>
+                <input class="input" maxlength="128" placeholder="Наприклад, Продажі за місяць"
+                       value="@_newName" @oninput="@(e => _newName = e.Value?.ToString() ?? "")" />
+            </label>
+
+            <label class="form__field">
+                <span class="form__label">Опис <span class="form__label-hint">необов'язково</span></span>
+                <textarea class="textarea" maxlength="512" placeholder="Для кого і що на ньому видно"
+                          value="@_newDescription" @oninput="@(e => _newDescription = e.Value?.ToString())"></textarea>
+            </label>
+
+            <div class="default-text default-text--multiline">Після створення відкриється редактор - там додаються віджети.</div>
+        </div>
+
+        <Alert Message="@_createError" />
+    </ChildContent>
+    <Footer>
+        <Button Text="Скасувати" Variant="ButtonVariant.Secondary" OnClick="@(() => _isCreateOpen = false)" />
+        <Button Text="Створити" OnClick="Create" />
+    </Footer>
+</Modal>
+
+<ConfirmDialog IsOpen="_toDelete != null"
+               Title="Видалити дашборд?"
+               Text="@($"Дашборд «{_toDelete?.Name}» буде видалено разом з віджетами. Самі дані в моделях не зміняться.")"
+               Error="@_deleteError"
+               OnConfirm="Delete"
+               OnCancel="@(() => _toDelete = null)" />
+
+@code {
+  private List<DashboardListItem>? _items;
+
+  private bool _isCreateOpen;
+  private string _newName = string.Empty;
+  private string? _newDescription;
+  private string? _createError;
+
+  private DashboardListItem? _toDelete;
+  private string? _deleteError;
+
+  protected override Task OnInitializedAsync() => Load();
+
+  private async Task Load()
+  {
+    await Try(async () => _items = await DashboardApi.GetAll());
+  }
+
+  public static string RefreshLabel(int seconds)
+    => DashboardGrid.RefreshOptions.FirstOrDefault(o => o.Value == seconds).Label ?? $"Кожні {seconds} с";
+
+  private void OpenCreate()
+  {
+    _newName = string.Empty;
+    _newDescription = null;
+    _createError = null;
+    _isCreateOpen = true;
+  }
+
+  private async Task Create()
+  {
+    if (string.IsNullOrWhiteSpace(_newName))
+    {
+      _createError = "Вкажіть назву дашборду";
+      return;
+    }
+
+    Guid id = default;
+    if (await Try(async () => id = await DashboardApi.Create(_newName.Trim(), _newDescription), e => _createError = e))
+      Navigation.NavigateTo($"/dashboards/{id}/edit");
+  }
+
+  private async Task Copy(DashboardListItem item)
+  {
+    if (await Try(() => DashboardApi.Copy(item.Id)))
+      await Load();
+  }
+
+  private async Task Delete()
+  {
+    if (_toDelete is null)
+      return;
+
+    if (await Try(() => DashboardApi.Delete(_toDelete.Id), e => _deleteError = e))
+    {
+      _toDelete = null;
+      await Load();
+    }
+  }
+}

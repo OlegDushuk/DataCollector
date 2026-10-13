@@ -68,12 +68,14 @@ public static class ChartOptions
       ["type"] = "category",
       ["data"] = data.Categories,
       // Лінія починається від краю; стовпці - посередині своїх клітинок.
+      // Крайні підписи вирівнюються всередину: довгий підпис першого стовпця («тиждень з 11.05.2026»)
+      // при вирівнюванні по центру виходив би за лівий край полотна.
       ["boundaryGap"] = !isLine,
       ["axisLine"] = new { lineStyle = new { color = GridColor } },
       ["axisTick"] = new { show = false },
       ["axisLabel"] = horizontal
         ? (object)new { color = AxisTextColor, hideOverlap = true, width = 150, overflow = "truncate" }
-        : new { color = AxisTextColor, hideOverlap = true, alignMinLabel = isLine ? "left" : "center", alignMaxLabel = isLine ? "right" : "center" }
+        : new { color = AxisTextColor, hideOverlap = true, alignMinLabel = "left", alignMaxLabel = "right" }
     };
 
     // Смуги: перша категорія вгорі (як у рейтингу), а не внизу.

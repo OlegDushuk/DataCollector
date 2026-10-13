@@ -54,6 +54,18 @@ public abstract class ApiServiceBase(HttpClient httpClient)
     await Send(() => httpClient.PatchAsJsonAsync(url, body, JsonOptions));
   }
 
+  protected async Task PutAsync(string url, object body)
+  {
+    await Send(() => httpClient.PutAsJsonAsync(url, body, JsonOptions));
+  }
+
+  /// <summary>POST без тіла відповіді, яке нас цікавить (лише код успіху) або з невеликою відповіддю.</summary>
+  protected async Task<TResult> PostEmptyAsync<TResult>(string url)
+  {
+    var response = await Send(() => httpClient.PostAsync(url, content: null));
+    return (await response.Content.ReadFromJsonAsync<TResult>(JsonOptions))!;
+  }
+
   protected async Task DeleteAsync(string url)
   {
     await Send(() => httpClient.DeleteAsync(url));

@@ -10,7 +10,9 @@ var apiBaseUrl = builder.Configuration["ServerApi:BaseUrl"]
                  ?? throw new InvalidOperationException("ServerApi:BaseUrl is not configured");
 
 builder.Services.AddScoped<DataCollector.WebUI.Services.BrowserStorage>();
+builder.Services.AddScoped<DataCollector.WebUI.Services.LayoutState>();
 builder.Services.AddHttpClient<EntityConfigApiService>(c => c.BaseAddress = new Uri(apiBaseUrl));
+builder.Services.AddHttpClient<DashboardApiService>(c => c.BaseAddress = new Uri(apiBaseUrl));
 builder.Services.AddHttpClient<EntityRecordApiService>(c =>
 {
   c.BaseAddress = new Uri(apiBaseUrl);

@@ -1,0 +1,221 @@
+@namespace DataCollector.WebUI.Views.Components
+
+@*
+    Параметри вибраного віджета в редакторі дашборду: тип, модель, назва, розмір, а далі - ті самі редактори,
+    що на сторінці записів (колонки, зведення, діаграма, фільтри). Усі зміни одразу видно на віджеті в сітці.
+*@
+
+<div class="widget-settings">
+    <section class="side-panel__section">
+        <div class="side-panel__section-title subtitle">Що показати</div>
+
+        <div class="widget-types">
+            @foreach (var type in WidgetTypes.All)
+            {
+                <button type="button" title="@type.Hint"
+                        class="widget-types__item @(Widget.Type == type.Code ? "widget-types__item--active" : "")"
+                        @onclick="@(() => Change(() => Widget.ChangeType(type.Code)))">
+                    <svg viewBox="0 0 24 24"><path d="@TypeIcon(type.Code)" /></svg>
+                    <span>@type.Label</span>
+                </button>
+            }
+        </div>
+
+        <label class="form__field">
+            <span class="form__label">Модель даних</span>
+            <select class="select" value="@(Widget.ConfigId?.ToString() ?? "")" @onchange="OnModelChange">
+                @if (Widget.ConfigId is null || Configs.All(c => c.Id != Widget.ConfigId))
+                {
+                    <option value="">— виберіть модель —</option>
+                }
+                @foreach (var item in Configs)
+                {
+                    <option value="@item.Id">@item.Name</option>
+                }
+            </select>
+        </label>
+
+        <label class="form__field">
+            <span class="form__label">Назва віджета</span>
+            <input class="input" maxlength="128" value="@Widget.Title" placeholder="@(Widget.Config?.Name ?? "Як у моделі")"
+                   @onchange="@(e => Change(() => Widget.Title = e.Value?.ToString()))" />
+        </label>
+
+        <div class="widget-settings__row">
+            <label class="form__field">
+                <span class="form__label">Ширина</span>
+                <select class="select" value="@Widget.W" @onchange="@(e => ChangeSize(e, w => Widget.W = w))">
+                    @foreach (var (value, label) in DashboardGrid.Widths)
+                    {
+                        <option value="@value">@label</option>
+                    }
+                </select>
+            </label>
+
+            <label class="form__field">
+                <span class="form__label">Висота</span>
+                <select class="select" value="@Widget.H" @onchange="@(e => ChangeSize(e, h => Widget.H = h))">
+                    @foreach (var (value, label) in DashboardGrid.Heights)
+                    {
+                        <option value="@value">@label</option>
+                    }
+                </select>
+            </label>
+        </div>
+    </section>
+
+    @if (Widget.Config is { } config && config.Properties.Count > 0)
+    {
+        @switch (Widget.Type)
+        {
+            case WidgetTypes.Kpi:
+                <section class="side-panel__section">
+                    <div class="side-panel__section-title subtitle">Показник</div>
+                    <div class="summary-editor__line">
+                        <select class="select" value="@Widget.Kpi.Function" @onchange="ChangeKpiFunction">
+                            @foreach (var function in AggregateCatalog.Functions)
+                            {
+                                <option value="@function.Code">@function.Label</option>
+                            }
+                        </select>
+
+                        <select class="select" value="@Widget.Kpi.Field"
+                                @onchange="@(e => Change(() => Widget.Kpi.Field = e.Value?.ToString() ?? string.Empty, data: true))">
+                            @if (Widget.Kpi.Function == "count")
+                            {
+                                <option value="">усіх записів</option>
+                            }
+                            @foreach (var f in AggregateCatalog.FieldsFor(Widget.Kpi.Function, Widget.Fields))
+                            {
+                                <option value="@f.Key">@f.Name</option>
+                            }
+                        </select>
+                    </div>
+                    @if (Widget.Kpi.Function == "count" && Widget.Kpi.Field != string.Empty)
+                    {
+                        <div class="default-text default-text--multiline">Рахуються записи, у яких поле заповнене.</div>
+                    }
+                </section>
+                break;
+
+            case WidgetTypes.Chart:
+                <section class="side-panel__section">
+                    <div class="side-panel__section-title subtitle">Діаграма</div>
+                    <ChartSettingsEditor Fields="Widget.Fields" Settings="Widget.Chart" OnChanged="OnChartChanged" />
+                </section>
+                break;
+
+            case WidgetTypes.Summary:
+                <section class="side-panel__section">
+                    <div class="side-panel__section-title subtitle">Групування і показники</div>
+                    <SummarySettingsEditor Fields="Widget.Fields" Settings="Widget.Summary"
+                                           OnChanged="@(() => Change(() => { }, data: true))" />
+                </section>
+                break;
+
+            default:
+                @if (Widget.Columns != null)
+                {
+                    <section class="side-panel__section">
+                        <div class="side-panel__section-title subtitle">Колонки</div>
+                        <ColumnChooser Config="config" Columns="Widget.Columns" OnChanged="OnColumnsChanged" />
+                        <div class="default-text default-text--multiline">
+                            Сортування і кількість рядків на сторінці задаються в самій таблиці й зберігаються разом з дашбордом.
+                        </div>
+                    </section>
+                }
+                break;
+        }
+
+        <section class="side-panel__section">
+            <div class="side-panel__section-title subtitle">Фільтри</div>
+
+            <div class="search-input search-input--wide">
+                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <input class="input" placeholder="Пошук у текстових полях" value="@Widget.Search"
+                       @onchange="@(e => Change(() => Widget.Search = string.IsNullOrWhiteSpace(e.Value?.ToString()) ? null : e.Value!.ToString(), data: true))" />
+            </div>
+
+            <RecordFilterPanel @key="config.Id"
+                               Fields="Widget.Fields"
+                               Filters="Widget.Filters"
+                               OnApply="@(filters => Change(() => Widget.Filters = filters, data: true))" />
+        </section>
+    }
+    else if (Widget.Config is { } empty)
+    {
+        <section class="side-panel__section">
+            <div class="default-text default-text--multiline">У моделі «@empty.Name» ще немає полів - додайте їх в «Управлінні».</div>
+        </section>
+    }
+</div>
+
+@code {
+  [Parameter, EditorRequired] public WidgetState Widget { get; set; } = null!;
+  [Parameter, EditorRequired] public IReadOnlyList<EntityConfigListItem> Configs { get; set; } = [];
+
+  /// <summary>Вибрано іншу модель - сторінка завантажує її і викликає <see cref="WidgetState.ChangeModel"/>.</summary>
+  [Parameter] public EventCallback<Guid> OnModelSelected { get; set; }
+
+  /// <summary>Будь-яка зміна віджета (дашборд має незбережені зміни).</summary>
+  [Parameter] public EventCallback OnChanged { get; set; }
+
+  private Task Change(Action change, bool data = false)
+  {
+    change();
+
+    if (data)
+      Widget.DataChanged();
+
+    return OnChanged.InvokeAsync();
+  }
+
+  private Task ChangeSize(ChangeEventArgs e, Action<int> apply)
+    => int.TryParse(e.Value?.ToString(), out var value) ? Change(() => apply(value)) : Task.CompletedTask;
+
+  private Task OnModelChange(ChangeEventArgs e)
+    => Guid.TryParse(e.Value?.ToString(), out var id) ? OnModelSelected.InvokeAsync(id) : Task.CompletedTask;
+
+  private Task ChangeKpiFunction(ChangeEventArgs e)
+  {
+    var function = e.Value?.ToString() ?? "count";
+
+    return Change(() =>
+    {
+      Widget.Kpi.Function = function;
+
+      // Поле має підходити функції: сума й середнє - лише числа, мінімум і максимум - числа й дати.
+      var fields = AggregateCatalog.FieldsFor(function, Widget.Fields).ToList();
+      if (function == "count")
+        Widget.Kpi.Field = "";
+      else if (fields.All(f => f.Key != Widget.Kpi.Field))
+        Widget.Kpi.Field = fields.FirstOrDefault()?.Key ?? "";
+
+      // Немає жодного підходящого поля - лишаємо кількість записів.
+      if (function != "count" && Widget.Kpi.Field == "")
+        Widget.Kpi.Function = "count";
+    }, data: true);
+  }
+
+  private Task OnChartChanged(bool needsData)
+  {
+    if (needsData)
+      Widget.DataChanged();
+    else
+      Widget.StyleChanged();
+
+    return OnChanged.InvokeAsync();
+  }
+
+  /// <param name="needsData">Показано поле, значень якого ще немає в завантажених записах.</param>
+  private Task OnColumnsChanged(bool needsData) => Change(() => { }, data: needsData);
+
+  /// <summary>Значки типів віджетів (Material Icons, 24×24).</summary>
+  private static string TypeIcon(string type) => type switch
+  {
+    WidgetTypes.Kpi => "M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z",
+    WidgetTypes.Summary => "M3 5v14h18V5H3zm8 12H5v-3h6v3zm0-5H5V9h6v3zm8 5h-6v-3h6v3zm0-5h-6V9h6v3z",
+    WidgetTypes.Table => "M4 14h4v-4H4v4zm0 5h4v-4H4v4zM4 9h4V5H4v4zm5 5h12v-4H9v4zm0 5h12v-4H9v4zM9 5v4h12V5H9z",
+    _ => "M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"
+  };
+}

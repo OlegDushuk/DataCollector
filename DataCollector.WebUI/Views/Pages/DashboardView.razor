@@ -1,0 +1,253 @@
+@page "/dashboards/{Id:guid}"
+
+@inherits DashboardPageBase
+@implements IAsyncDisposable
+@inject DataCollector.WebUI.Services.LayoutState Layout
+@inject IJSRuntime JS
+
+@*
+    Перегляд дашборду з готовими налаштуваннями. Режим перегляду ховає меню й шапку (лишаються лише віджети);
+    повернутися - кнопкою у правому верхньому куті або клавішею Esc. Адреса з ?kiosk=1 відкривається одразу так
+    (для екрана на стіні). Автооновлення перераховує всі віджети за інтервалом дашборду.
+*@
+
+@if (NotFound)
+{
+    <PageHeader Title="Дашборд не знайдено" BackHref="/dashboards" BackTitle="До списку дашбордів" />
+    <div class="page">
+        <div class="empty-state">
+            <div class="empty-state__title">Такого дашборду немає</div>
+            <div class="default-text">Можливо, його видалили або адресу введено з помилкою.</div>
+            <a class="button button--secondary" href="/dashboards">До списку дашбордів</a>
+        </div>
+    </div>
+}
+else
+{
+    <PageHeader Title="@(Dashboard?.Name ?? "Дашборд")" BackHref="/dashboards" BackTitle="До списку дашбордів">
+        <Subtitle>
+            @if (Dashboard != null)
+            {
+                <span>@(string.IsNullOrWhiteSpace(Dashboard.Description) ? Format.Count(Widgets.Count, "віджет", "віджети", "віджетів") : Dashboard.Description)</span>
+            }
+        </Subtitle>
+        <Actions>
+            @if (Dashboard != null)
+            {
+                <select class="select select--auto" value="@_refreshSeconds" @onchange="OnRefreshChange" title="Автооновлення даних">
+                    @foreach (var (value, label) in DashboardGrid.RefreshOptions)
+                    {
+                        <option value="@value">@label</option>
+                    }
+                </select>
+                <Button Text="Оновити" Variant="ButtonVariant.Secondary" OnClick="Refresh" />
+                <a class="button button--secondary" href="/dashboards/@Id/edit">Редагувати</a>
+                <Button Text="Режим перегляду" OnClick="@(() => EnterFocus(fullscreen: false))" />
+            }
+        </Actions>
+    </PageHeader>
+
+    <div class="page dashboard-page @(Layout.IsFocusMode ? "dashboard-page--focus" : "")">
+        <Alert Message="@Error" OnClose="@(() => Error = null)" />
+
+        @if (Layout.IsFocusMode && Dashboard != null)
+        {
+            @* Плаваюча панель режиму перегляду (правий нижній кут): назва, час оновлення, повний екран і вихід. *@
+            <div class="focus-bar">
+                <span class="focus-bar__title">@Dashboard.Name</span>
+                <span class="focus-bar__time default-text" title="Час останнього оновлення">@_updatedAt.ToString("HH:mm:ss")</span>
+                <button type="button" class="focus-bar__button" title="Оновити дані" @onclick="Refresh">
+                    <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                </button>
+                @if (!_fullscreen)
+                {
+                    <button type="button" class="focus-bar__button" title="На весь екран" @onclick="@(() => EnterFocus(fullscreen: true))">
+                        <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+                    </button>
+                }
+                <button type="button" class="focus-bar__exit" title="Показати меню (Esc)" @onclick="ExitFocus">
+                    <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    <span>Показати меню</span>
+                </button>
+            </div>
+        }
+
+        @if (Dashboard is null)
+        {
+            <div class="default-text">@(Error is null ? "Завантаження…" : "")</div>
+        }
+        else if (Widgets.Count == 0)
+        {
+            <div class="empty-state">
+                <div class="empty-state__title">На дашборді ще немає віджетів</div>
+                <div class="default-text">Додайте діаграми, показники чи таблиці в редакторі.</div>
+                <a class="button button--primary" href="/dashboards/@Id/edit">Відкрити редактор</a>
+            </div>
+        }
+        else
+        {
+            <DashboardBoard Widgets="Widgets" RefreshVersion="_refreshVersion" Loading="LoadingModels" />
+
+            @if (!Layout.IsFocusMode)
+            {
+                <div class="dashboard-page__footer default-text">
+                    Дані оновлено о @_updatedAt.ToString("HH:mm:ss")
+                    @if (_refreshSeconds > 0)
+                    {
+                        <span>· @Dashboards.RefreshLabel(_refreshSeconds).ToLowerInvariant()</span>
+                    }
+                </div>
+            }
+        }
+    </div>
+}
+
+@code {
+  /// <summary>?kiosk=1 - відкрити одразу в режимі перегляду (без меню й шапки).</summary>
+  [SupplyParameterFromQuery(Name = "kiosk")] public string? Kiosk { get; set; }
+
+  private bool KioskRequested => Kiosk is "1" || string.Equals(Kiosk, "true", StringComparison.OrdinalIgnoreCase);
+
+  private int _refreshVersion;
+  private int _refreshSeconds;
+  private DateTime _updatedAt = DateTime.Now;
+  private PeriodicTimer? _timer;
+  private CancellationTokenSource? _timerCts;
+
+  private bool _fullscreen;
+  private DotNetObjectReference<DashboardView>? _self;
+  private bool _focusRequested;
+
+  protected override async Task OnParametersSetAsync()
+  {
+    if (Dashboard?.Id == Id)
+      return;
+
+    Dashboard = null;
+    await LoadDashboard();
+
+    if (Dashboard != null)
+    {
+      _refreshSeconds = Dashboard.RefreshSeconds;
+      _updatedAt = DateTime.Now;
+      StartTimer();
+      _focusRequested = KioskRequested;
+    }
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    // Режим перегляду з адреси вмикається після першого рендеру - тоді вже доступний JS (клавіша Esc).
+    if (_focusRequested)
+    {
+      _focusRequested = false;
+      await EnterFocus(fullscreen: false);
+      StateHasChanged();
+    }
+  }
+
+  private void Refresh()
+  {
+    _refreshVersion++;
+    _updatedAt = DateTime.Now;
+  }
+
+  private void OnRefreshChange(ChangeEventArgs e)
+  {
+    if (!int.TryParse(e.Value?.ToString(), out var seconds))
+      return;
+
+    // Лише для цього перегляду; збережений інтервал змінюється в редакторі.
+    _refreshSeconds = seconds;
+    StartTimer();
+  }
+
+  /// <summary>Таймер автооновлення: кожен такт - новий лічильник, і віджети перераховують дані.</summary>
+  private void StartTimer()
+  {
+    StopTimer();
+
+    if (_refreshSeconds <= 0)
+      return;
+
+    var cts = _timerCts = new CancellationTokenSource();
+    var timer = _timer = new PeriodicTimer(TimeSpan.FromSeconds(_refreshSeconds));
+
+    _ = Task.Run(async () =>
+    {
+      try
+      {
+        while (await timer.WaitForNextTickAsync(cts.Token))
+        {
+          await InvokeAsync(() =>
+          {
+            Refresh();
+            StateHasChanged();
+          });
+        }
+      }
+      catch (OperationCanceledException)
+      {
+        // Інтервал змінили або сторінку закрили.
+      }
+    });
+  }
+
+  private void StopTimer()
+  {
+    _timerCts?.Cancel();
+    _timerCts?.Dispose();
+    _timerCts = null;
+    _timer?.Dispose();
+    _timer = null;
+  }
+
+  private async Task EnterFocus(bool fullscreen)
+  {
+    Layout.SetFocusMode(true);
+    _self ??= DotNetObjectReference.Create(this);
+
+    try
+    {
+      await JS.InvokeVoidAsync("dataCollector.focus.enter", _self, fullscreen);
+      _fullscreen = fullscreen;
+    }
+    catch (JSException)
+    {
+      // Без Esc і повного екрана режим усе одно працює - вийти можна кнопкою.
+    }
+  }
+
+  private async Task ExitFocus()
+  {
+    Layout.SetFocusMode(false);
+    _fullscreen = false;
+
+    try
+    {
+      await JS.InvokeVoidAsync("dataCollector.focus.exit");
+    }
+    catch (Exception e) when (e is JSException or JSDisconnectedException)
+    {
+    }
+  }
+
+  /// <summary>Esc або вихід з повного екрана в браузері.</summary>
+  [JSInvokable]
+  public Task ExitFocusFromBrowser() => InvokeAsync(async () =>
+  {
+    await ExitFocus();
+    StateHasChanged();
+  });
+
+  public async ValueTask DisposeAsync()
+  {
+    StopTimer();
+
+    // Пішли зі сторінки в режимі перегляду - меню на інших сторінках має бути видно.
+    if (Layout.IsFocusMode)
+      await ExitFocus();
+
+    _self?.Dispose();
+  }
+}

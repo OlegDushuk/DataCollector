@@ -46,3 +46,26 @@ internal class EntityPropertyValueRow
   public bool? ValueBool { get; set; }
   public DateTime? ValueDate { get; set; }
 }
+
+internal class DashboardRow
+{
+  public Guid Id { get; set; }
+  public string Name { get; set; } = null!;
+  public string? Description { get; set; }
+  public int RefreshSeconds { get; set; }
+  public DateTime CreatedAt { get; set; }
+  public DateTime? UpdatedAt { get; set; }
+}
+
+internal class DashboardWidgetRow
+{
+  public Guid Id { get; set; }
+  public Guid? ConfigId { get; set; }
+  public string Type { get; set; } = null!;
+  public string? Title { get; set; }
+  public int X { get; set; }
+  public int Y { get; set; }
+  public int W { get; set; }
+  public int H { get; set; }
+  public string Settings { get; set; } = null!;
+}

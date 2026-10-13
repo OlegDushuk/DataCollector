@@ -1,0 +1,93 @@
+@namespace DataCollector.WebUI.Views.Components
+@implements IDisposable
+@inject EntityRecordApiService RecordApi
+
+@*
+    Віджет-число: один показник (кількість, сума, середнє, мінімум, максимум) за умовами без групування.
+    Дані - той самий records/aggregate, що й для зведення; Version змінився - перерахувати.
+*@
+
+<div class="kpi @(_loading ? "kpi--loading" : "")">
+    @if (_error != null)
+    {
+        <div class="kpi__error default-text default-text--multiline" title="@_error">@_error</div>
+    }
+    else
+    {
+        <div class="kpi__value" title="@_value">@(_value ?? (_loading ? "…" : "—"))</div>
+        <div class="kpi__label default-text">@_label</div>
+    }
+</div>
+
+@code {
+  [Parameter, EditorRequired] public Guid ConfigId { get; set; }
+  [Parameter, EditorRequired] public IReadOnlyList<FilterField> Fields { get; set; } = [];
+  [Parameter] public IReadOnlyList<object> Filters { get; set; } = [];
+  [Parameter] public string? Search { get; set; }
+  [Parameter] public int Version { get; set; }
+  [Parameter, EditorRequired] public AggregateMetricForm Metric { get; set; } = new();
+
+  private string? _value;
+  private string? _label;
+  private bool _loading;
+  private string? _error;
+
+  private CancellationTokenSource? _cts;
+  private Guid _loadedConfig;
+  private int _loadedVersion = -1;
+
+  protected override async Task OnParametersSetAsync()
+  {
+    if (ConfigId == _loadedConfig && Version == _loadedVersion)
+      return;
+
+    if (ConfigId != _loadedConfig)
+      _value = null;
+
+    _loadedConfig = ConfigId;
+    _loadedVersion = Version;
+    await Load();
+  }
+
+  private async Task Load()
+  {
+    _cts?.Cancel();
+    var cts = _cts = new CancellationTokenSource();
+
+    _loading = true;
+    _error = null;
+
+    try
+    {
+      var result = await RecordApi.Aggregate(ConfigId, Filters, Search, [], [Metric.ToApi()], "keys", cts.Token, limit: 1);
+      var metric = result.Metrics.FirstOrDefault();
+
+      _label = metric?.Name;
+      _value = metric != null && result.Rows.Count > 0
+        ? AggregateFormat.Value(metric, Fields.FirstOrDefault(f => f.Key == metric.Field)?.DataType, result.Rows[0].Values[0])
+        : "—";
+    }
+    catch (OperationCanceledException) when (cts.IsCancellationRequested)
+    {
+      return;
+    }
+    catch (ApiException e)
+    {
+      _error = e.Message;
+    }
+    finally
+    {
+      if (_cts == cts)
+        _cts = null;
+
+      cts.Dispose();
+    }
+
+    _loading = false;
+  }
+
+  public void Dispose()
+  {
+    _cts?.Cancel();
+  }
+}
