@@ -3,7 +3,7 @@ using DataCollector.WebUI.Enums;
 
 namespace DataCollector.WebUI.ServerApiServices;
 
-public class EntityConfigApiService(HttpClient httpClient) : ApiServiceBase(httpClient)
+public class EntityConfigApiService(HttpClient httpClient, ApiContext context) : ApiServiceBase(httpClient, context)
 {
   private const string BaseUrl = "api/data-configs";
 

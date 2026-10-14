@@ -21,11 +21,11 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" />
   <link rel="stylesheet" href="dist/app.min.css" />
   <ImportMap/>
-  <HeadOutlet @rendermode="new InteractiveServerRenderMode(false)"/>
+  <HeadOutlet @rendermode="PageRenderMode"/>
 </head>
 
 <body>
-<Root @rendermode="new InteractiveServerRenderMode(false)"/>
+<Root @rendermode="PageRenderMode"/>
 
 @* Непередбачена помилка з'єднання або рендеру: Blazor показує цей блок (без нього сторінка просто «завмирає»). *@
 <div id="blazor-error-ui" data-nosnippet>
@@ -56,3 +56,14 @@
 </body>
 
 </html>
+
+@code {
+  [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
+
+  /// <summary>
+  /// Сторінки працюють інтерактивно (Blazor Server), крім входу: він статичний, бо має записати cookie
+  /// у відповідь на звичайний HTTP-запит (див. [ExcludeFromInteractiveRouting] на сторінці Login).
+  /// </summary>
+  private IComponentRenderMode? PageRenderMode
+    => HttpContext.AcceptsInteractiveRouting() ? new InteractiveServerRenderMode(prerender: false) : null;
+}

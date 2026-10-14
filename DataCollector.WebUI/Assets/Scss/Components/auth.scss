@@ -1,0 +1,134 @@
+@use "../variables";
+
+// Сторінка входу: картка по центру без меню.
+.auth-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: variables.$pad-lg;
+  background: variables.$bg-color;
+
+  &__brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .logo__mark {
+      width: 42px;
+      height: 42px;
+      font-size: 15px;
+    }
+  }
+
+  &__name {
+    font-size: 22px;
+    font-weight: 600;
+    color: variables.$title-text-color;
+  }
+
+  &__footer {
+    text-align: center;
+  }
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 32px;
+  background: variables.$surface-color;
+  border: 1px solid variables.$border-color;
+  border-radius: variables.$radius-lg;
+  box-shadow: 0 12px 32px variables.$shadow-color;
+
+  &__title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: variables.$title-text-color;
+  }
+
+  .form {
+    gap: 16px;
+  }
+
+  &__submit {
+    width: 100%;
+    justify-content: center;
+    height: 40px;
+  }
+}
+
+.alert--info {
+  background: variables.$accent-light-color;
+  color: variables.$title-text-color;
+}
+
+// Внизу меню: хто увійшов.
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+
+  &__avatar {
+    flex: 0 0 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: variables.$accent-light-color;
+    color: variables.$accent-color;
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  &__info {
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: 13px;
+    font-weight: 500;
+    color: variables.$title-text-color;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__role {
+    margin-top: 3px;
+    font-size: 11px;
+    color: variables.$subtitle-text-color;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 14px;
+    margin: 10px 0 18px 44px;
+  }
+
+  &__logout {
+    display: contents;
+  }
+
+  &__action {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 12px;
+    color: variables.$button-text-color;
+    cursor: pointer;
+
+    &:hover {
+      color: variables.$accent-color;
+    }
+  }
+}

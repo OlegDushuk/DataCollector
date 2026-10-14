@@ -1,0 +1,294 @@
+@namespace DataCollector.WebUI.Views.Components
+@inject EntityRecordApiService RecordApi
+
+@*
+    Імпорт записів з файлу в два кроки: «Перевірити» показує, як колонки зіставлено з полями, скільки записів
+    буде створено й оновлено і які рядки мають помилки (нічого не записуючи); «Імпортувати» записує.
+*@
+
+<Modal IsOpen="IsOpen" Title="@($"Імпорт записів: {Config.Name}")" Width="720px" OnClose="Close">
+    <ChildContent>
+        <div class="import">
+            <Alert Message="@_error" OnClose="@(() => _error = null)" />
+
+            @if (_done is { } done)
+            {
+                <div class="import__done">
+                    <div class="import__done-title">Імпорт завершено</div>
+                    <div class="default-text">
+                        Створено @Format.Count(done.Created, "запис", "записи", "записів"),
+                        оновлено @Format.Number(done.Updated)@(done.Invalid > 0 ? $", пропущено рядків з помилками: {Format.Number(done.Invalid)}" : "").
+                    </div>
+                </div>
+            }
+            else
+            {
+                <label class="import__drop @(_fileName != null ? "import__drop--selected" : "")">
+                    <InputFile OnChange="OnFileSelected" accept=".csv,.xlsx,.json,.txt" class="import__input" />
+                    <svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                    @if (_fileName != null)
+                    {
+                        <span class="import__file">@_fileName</span>
+                        <span class="default-text">@FileSize(_file!.Length) · натисніть, щоб вибрати інший</span>
+                    }
+                    else
+                    {
+                        <span class="import__file">Виберіть файл CSV, Excel (.xlsx) або JSON</span>
+                        <span class="default-text">до @MaxFileMb МБ і @Format.Number(MaxRows) рядків</span>
+                    }
+                </label>
+
+                <div class="default-text default-text--multiline import__hint">
+                    Перший рядок - заголовки: ключі або назви полів моделі (як у файлі експорту). Колонка <span class="code">id</span>
+                    оновлює наявні записи, «Створено» - задає дату створення. Найпростіший шаблон - експорт кількох записів цієї моделі.
+                </div>
+
+                <div class="import__options">
+                    <label class="check">
+                        <input type="checkbox" checked="@_options.UpdateExisting" @onchange="@(e => SetOption(() => _options.UpdateExisting = e.Value is true))" />
+                        <span>Оновлювати записи з наявним id (інакше всі рядки - нові записи)</span>
+                    </label>
+                    <label class="check">
+                        <input type="checkbox" checked="@_options.KeepCreatedAt" @onchange="@(e => SetOption(() => _options.KeepCreatedAt = e.Value is true))" />
+                        <span>Брати дату створення з колонки «Створено» (історичні дані)</span>
+                    </label>
+                    <label class="check">
+                        <input type="checkbox" checked="@_options.SkipInvalid" @onchange="@(e => SetOption(() => _options.SkipInvalid = e.Value is true))" />
+                        <span>Пропускати рядки з помилками (інакше файл імпортується лише без помилок)</span>
+                    </label>
+                </div>
+
+                @if (_preview is { } preview)
+                {
+                    <div class="import__report">
+                        <div class="import__stats">
+                            <div class="import__stat">
+                                <div class="import__stat-value">@Format.Number(preview.Created)</div>
+                                <div class="default-text">буде створено</div>
+                            </div>
+                            <div class="import__stat">
+                                <div class="import__stat-value">@Format.Number(preview.Updated)</div>
+                                <div class="default-text">буде оновлено</div>
+                            </div>
+                            <div class="import__stat @(preview.Invalid > 0 ? "import__stat--error" : "")">
+                                <div class="import__stat-value">@Format.Number(preview.Invalid)</div>
+                                <div class="default-text">рядків з помилками</div>
+                            </div>
+                        </div>
+
+                        <div class="import__section-title subtitle">Колонки файлу</div>
+                        <div class="import__columns">
+                            @foreach (var column in preview.Columns)
+                            {
+                                <span class="import__column @(column.IsUsed ? "" : "import__column--ignored")" title="@ColumnTitle(column)">
+                                    <span>@column.Header</span>
+                                    @if (column.IsUsed)
+                                    {
+                                        <span class="import__arrow">→</span>
+                                        <span class="import__target">@ColumnTarget(column)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="import__target">не імпортується</span>
+                                    }
+                                </span>
+                            }
+                        </div>
+
+                        @if (preview.Errors.Count > 0)
+                        {
+                            <div class="import__section-title subtitle">
+                                Помилки@(preview.ErrorCount > preview.Errors.Count ? $" (перші {preview.Errors.Count} з {Format.Number(preview.ErrorCount)})" : "")
+                            </div>
+                            <div class="import__errors">
+                                @foreach (var error in preview.Errors)
+                                {
+                                    <div class="import__error">
+                                        <span class="import__error-row">Рядок @error.Row</span>
+                                        @if (error.Column != null)
+                                        {
+                                            <span class="import__error-column">@error.Column</span>
+                                        }
+                                        <span>@error.Message</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        @if (preview.Invalid > 0 && !_options.SkipInvalid)
+                        {
+                            <div class="alert alert--info">
+                                Виправте помилки у файлі або увімкніть «Пропускати рядки з помилками» - тоді буде імпортовано @Format.Count(preview.Valid, "правильний рядок", "правильні рядки", "правильних рядків").
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </ChildContent>
+    <Footer>
+        @if (_done != null)
+        {
+            <Button Text="Готово" OnClick="Close" />
+        }
+        else
+        {
+            <Button Text="Скасувати" Variant="ButtonVariant.Secondary" OnClick="Close" />
+            <Button Text="@(_busy && _preview is null ? "Перевірка…" : "Перевірити")" Variant="ButtonVariant.Secondary"
+                    Disabled="@(_file is null || _busy)" OnClick="Check" />
+            <Button Text="@(_busy && _preview != null ? "Імпорт…" : ImportLabel)" Disabled="@(!CanImport)" OnClick="Import" />
+        }
+    </Footer>
+</Modal>
+
+@code {
+  [Parameter, EditorRequired] public EntityConfig Config { get; set; } = null!;
+  [Parameter] public bool IsOpen { get; set; }
+  [Parameter] public EventCallback OnClose { get; set; }
+
+  /// <summary>Записи імпортовано - сторінка оновлює таблицю.</summary>
+  [Parameter] public EventCallback OnImported { get; set; }
+
+  private const int MaxFileMb = 50;
+  private const int MaxRows = 100_000;
+
+  private ImportOptions _options = new();
+  private byte[]? _file;
+  private string? _fileName;
+  private ImportResult? _preview;
+  private ImportResult? _done;
+  private string? _error;
+  private bool _busy;
+  private bool _wasOpen;
+
+  private bool CanImport => _preview is { } p && !_busy && p.Valid > 0 && (p.Invalid == 0 || _options.SkipInvalid);
+
+  private string ImportLabel => _preview is { Valid: > 0 } p ? $"Імпортувати {Format.Number(p.Valid)}" : "Імпортувати";
+
+  protected override void OnParametersSet()
+  {
+    // Кожне відкриття - з чистого аркуша.
+    if (IsOpen && !_wasOpen)
+    {
+      _options = new ImportOptions();
+      _file = null;
+      _fileName = null;
+      _preview = null;
+      _done = null;
+      _error = null;
+    }
+
+    _wasOpen = IsOpen;
+  }
+
+  private async Task OnFileSelected(InputFileChangeEventArgs e)
+  {
+    _error = null;
+    _preview = null;
+
+    var file = e.File;
+    if (file.Size > MaxFileMb * 1024L * 1024)
+    {
+      _error = $"Файл більший за {MaxFileMb} МБ - розділіть його на частини";
+      return;
+    }
+
+    try
+    {
+      // Файл потрібен двічі (перевірка й імпорт), тож читаємо його один раз у пам'ять.
+      await using var stream = file.OpenReadStream(MaxFileMb * 1024L * 1024);
+      using var memory = new MemoryStream();
+      await stream.CopyToAsync(memory);
+
+      _file = memory.ToArray();
+      _fileName = file.Name;
+    }
+    catch (IOException)
+    {
+      _error = "Не вдалося прочитати файл";
+      return;
+    }
+
+    await Check();
+  }
+
+  private Task SetOption(Action change)
+  {
+    change();
+
+    // Параметри впливають на результат перевірки (оновлення за id, дата створення) - перевіряємо знову.
+    return _file is null ? Task.CompletedTask : Check();
+  }
+
+  private async Task Check()
+  {
+    if (_file is null || _fileName is null)
+      return;
+
+    _busy = true;
+    _error = null;
+
+    try
+    {
+      _preview = await RecordApi.Import(Config.Id, _file, _fileName, _options, dryRun: true);
+    }
+    catch (ApiException e)
+    {
+      _preview = null;
+      _error = e.Message;
+    }
+    finally
+    {
+      _busy = false;
+    }
+  }
+
+  private async Task Import()
+  {
+    if (_file is null || _fileName is null || !CanImport)
+      return;
+
+    _busy = true;
+    _error = null;
+
+    try
+    {
+      var result = await RecordApi.Import(Config.Id, _file, _fileName, _options, dryRun: false);
+
+      if (result.Applied)
+      {
+        _done = result;
+        await OnImported.InvokeAsync();
+      }
+      else
+      {
+        // Між перевіркою і імпортом файл не змінився, але дані могли (запис видалили) - показуємо новий звіт.
+        _preview = result;
+        _error = "Нічого не імпортовано - перегляньте помилки";
+      }
+    }
+    catch (ApiException e)
+    {
+      _error = e.Message;
+    }
+    finally
+    {
+      _busy = false;
+    }
+  }
+
+  private Task Close() => OnClose.InvokeAsync();
+
+  private static string ColumnTarget(ImportColumn column) => column.Target switch
+  {
+    "id" => "id запису",
+    "createdAt" => "дата створення",
+    _ => column.FieldName ?? column.FieldKey ?? column.Header
+  };
+
+  private static string ColumnTitle(ImportColumn column)
+    => column.IsUsed ? $"{column.Header} → {ColumnTarget(column)}" : $"{column.Header}: {column.Note}";
+
+  private static string FileSize(long bytes)
+    => bytes >= 1024 * 1024 ? $"{bytes / 1024d / 1024:0.#} МБ" : $"{Math.Max(1, bytes / 1024)} КБ";
+}

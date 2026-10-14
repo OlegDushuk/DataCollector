@@ -16,6 +16,8 @@ public static class DependencyInjection
     services.AddSingleton<IDashboardRepository, DashboardRepository>();
     services.AddSingleton<IMonitoringRuleRepository, MonitoringRuleRepository>();
     services.AddSingleton<INotificationRepository, NotificationRepository>();
+    services.AddSingleton<IUserRepository, UserRepository>();
+    services.AddSingleton<IApiKeyRepository, ApiKeyRepository>();
     
     return services;
   }

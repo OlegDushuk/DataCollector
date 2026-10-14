@@ -1,6 +1,7 @@
 @namespace DataCollector.WebUI.Views.Components
 @implements IDisposable
 @inject MonitoringApiService MonitoringApi
+@inject CurrentUser User
 
 @*
     Віджет «Стан правил»: правила моніторингу (усі або однієї моделі) з поточним станом і значенням.
@@ -20,7 +21,10 @@
     {
         <div class="widget__empty default-text default-text--multiline">
             Правил моніторингу @(ConfigId is null ? "ще немає" : "для цієї моделі немає").
-            <a href="/monitoring/rules/new">Створити правило</a>
+            @if (User.CanEdit)
+            {
+                <a href="/monitoring/rules/new">Створити правило</a>
+            }
         </div>
     }
     else
@@ -37,7 +41,7 @@
 
         @foreach (var rule in _rules)
         {
-            <a class="rules-widget__row" href="/monitoring/rules/@rule.Id" @key="rule.Id">
+            <a class="rules-widget__row" href="@(User.CanEdit ? $"/monitoring/rules/{rule.Id}" : "/monitoring")" @key="rule.Id">
                 <StatePill State="@rule.DisplayState" Compact="true" Title="@RuleStates.Label(rule.DisplayState)" />
                 <div class="rules-widget__text">
                     <div class="rules-widget__name">@rule.Name</div>

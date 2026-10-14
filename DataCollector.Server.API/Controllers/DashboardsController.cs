@@ -1,5 +1,7 @@
 using DataCollector.Server.Application.ExternalContracts.Interfaces;
 using DataCollector.Server.Application.ExternalContracts.Models;
+using DataCollector.Server.API.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DataCollector.Server.API.Controllers;
@@ -24,6 +26,7 @@ public class DashboardsController(IDashboardService dashboardService) : Controll
     return await dashboardService.Get(id);
   }
 
+  [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpPost]
   public async Task<ActionResult<CreatedIdResult>> Create([FromBody] SaveDashboardCommand command)
   {
@@ -32,6 +35,7 @@ public class DashboardsController(IDashboardService dashboardService) : Controll
   }
 
   /// <summary>Повне збереження: назва, опис, автооновлення і весь набір віджетів.</summary>
+  [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpPut("{id:guid}")]
   public async Task<IActionResult> Save(Guid id, [FromBody] SaveDashboardCommand command)
   {
@@ -39,6 +43,7 @@ public class DashboardsController(IDashboardService dashboardService) : Controll
     return NoContent();
   }
 
+  [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpDelete("{id:guid}")]
   public async Task<IActionResult> Delete(Guid id)
   {
@@ -46,6 +51,7 @@ public class DashboardsController(IDashboardService dashboardService) : Controll
     return NoContent();
   }
 
+  [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpPost("{id:guid}/copy")]
   public async Task<ActionResult<CreatedIdResult>> Copy(Guid id)
   {

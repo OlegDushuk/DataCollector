@@ -25,4 +25,18 @@ public interface IEntityInstanceRepository
   Task Create(EntityInstance instance);
   Task Update(EntityInstance instance);
   Task Delete(Guid id);
+
+  /// <summary>Id моделі, якій належить кожен із наявних записів (відсутніх записів у словнику немає).</summary>
+  Task<Dictionary<Guid, Guid>> GetOwners(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);
+
+  /// <summary>
+  /// Імпорт однією транзакцією: нові записи створюються з усіма значеннями, у наявних записах
+  /// замінюються лише значення полів <paramref name="updatedPropertyIds"/> (порожнє значення - очищення).
+  /// </summary>
+  Task Import(
+    EntityConfig config,
+    IReadOnlyList<EntityInstance> created,
+    IReadOnlyList<EntityInstance> updated,
+    IReadOnlyCollection<Guid> updatedPropertyIds,
+    CancellationToken cancellationToken = default);
 }

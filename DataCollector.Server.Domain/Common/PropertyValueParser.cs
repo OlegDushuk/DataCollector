@@ -92,10 +92,11 @@ public static class PropertyValueParser
     if (bool.TryParse(value, out var flag))
       return flag;
 
-    return value switch
+    // 1/0 - з JSON і Excel, так/ні - з таблиць, заповнених людьми.
+    return value.ToLowerInvariant() switch
     {
-      "1" => true,
-      "0" => false,
+      "1" or "так" or "yes" => true,
+      "0" or "ні" or "no" => false,
       _ => throw new DomainValidationException($"Поле '{field}': '{value}' не є логічним значенням (true/false)")
     };
   }

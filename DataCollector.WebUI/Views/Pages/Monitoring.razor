@@ -22,7 +22,10 @@
         }
     </Subtitle>
     <Actions>
-        <Button Text="Нове правило" OnClick="@(() => Navigation.NavigateTo("/monitoring/rules/new"))" />
+        @if (Me.CanEdit)
+        {
+            <Button Text="Нове правило" OnClick="@(() => Navigation.NavigateTo("/monitoring/rules/new"))" />
+        }
     </Actions>
 </PageHeader>
 
@@ -65,7 +68,10 @@
                     Правило - це показник за останні N хвилин, порівняний з порогом: «середня температура за 15 хв > 30»,
                     «за 2 години немає нових записів». Система перевіряє його сама і повідомляє, коли стан змінюється.
                 </div>
-                <Button Text="Створити правило" OnClick="@(() => Navigation.NavigateTo("/monitoring/rules/new"))" />
+                @if (Me.CanEdit)
+                {
+                    <Button Text="Створити правило" OnClick="@(() => Navigation.NavigateTo("/monitoring/rules/new"))" />
+                }
             </div>
         }
         else
@@ -82,7 +88,7 @@
                             }
                         </div>
 
-                        <a class="rule-card__main" href="/monitoring/rules/@rule.Id">
+                        <a class="rule-card__main" href="@(Me.CanEdit ? $"/monitoring/rules/{rule.Id}" : null)">
                             <div class="rule-card__name">@rule.Name</div>
                             <div class="rule-card__condition">@rule.Condition</div>
                             <div class="default-text">
@@ -102,12 +108,15 @@
                             }
                         </div>
 
-                        <div class="rule-card__actions">
-                            <Button Text="Перевірити" Variant="ButtonVariant.Ghost" Small="true" Disabled="@(!rule.IsEnabled)" OnClick="@(() => CheckNow(rule))" />
-                            <Button Text="@(rule.IsEnabled ? "Вимкнути" : "Увімкнути")" Variant="ButtonVariant.Ghost" Small="true" OnClick="@(() => ToggleEnabled(rule))" />
-                            <IconButton Icon="edit" Title="Змінити" OnClick="@(() => Navigation.NavigateTo($"/monitoring/rules/{rule.Id}"))" />
-                            <IconButton Icon="delete" Title="Видалити" Danger="true" OnClick="@(() => { _deleteError = null; _toDelete = rule; })" />
-                        </div>
+                        @if (Me.CanEdit)
+                        {
+                            <div class="rule-card__actions">
+                                <Button Text="Перевірити" Variant="ButtonVariant.Ghost" Small="true" Disabled="@(!rule.IsEnabled)" OnClick="@(() => CheckNow(rule))" />
+                                <Button Text="@(rule.IsEnabled ? "Вимкнути" : "Увімкнути")" Variant="ButtonVariant.Ghost" Small="true" OnClick="@(() => ToggleEnabled(rule))" />
+                                <IconButton Icon="edit" Title="Змінити" OnClick="@(() => Navigation.NavigateTo($"/monitoring/rules/{rule.Id}"))" />
+                                <IconButton Icon="delete" Title="Видалити" Danger="true" OnClick="@(() => { _deleteError = null; _toDelete = rule; })" />
+                            </div>
+                        }
                     </article>
                 }
             </div>
@@ -153,7 +162,10 @@
                             </div>
                         </div>
                         <div class="notification__actions">
-                            <a class="button button--ghost button--small" href="/monitoring/rules/@n.RuleId">Правило</a>
+                            @if (Me.CanEdit)
+                            {
+                                <a class="button button--ghost button--small" href="/monitoring/rules/@n.RuleId">Правило</a>
+                            }
                             @if (n.ReadAt is null)
                             {
                                 <Button Text="Прочитано" Variant="ButtonVariant.Ghost" Small="true" OnClick="@(() => MarkRead(n.Id))" />

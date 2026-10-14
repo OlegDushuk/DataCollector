@@ -31,6 +31,7 @@ public class ApiExceptionHandler(
       BadHttpRequestException => (StatusCodes.Status400BadRequest, "Некоректний запит"),
       NotFoundException => (StatusCodes.Status404NotFound, "Не знайдено"),
       ConflictException => (StatusCodes.Status409Conflict, "Конфлікт"),
+      AuthenticationFailedException => (StatusCodes.Status401Unauthorized, "Вхід не виконано"),
       _ => (StatusCodes.Status500InternalServerError, "Внутрішня помилка сервера")
     };
 

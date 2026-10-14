@@ -3,7 +3,7 @@ using DataCollector.WebUI.Entities;
 namespace DataCollector.WebUI.ServerApiServices;
 
 /// <summary>Дашборди (api/dashboards): список, перегляд, створення, повне збереження, копія, видалення.</summary>
-public class DashboardApiService(HttpClient httpClient) : ApiServiceBase(httpClient)
+public class DashboardApiService(HttpClient httpClient, ApiContext context) : ApiServiceBase(httpClient, context)
 {
   private const string BaseUrl = "api/dashboards";
 

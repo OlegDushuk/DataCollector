@@ -41,7 +41,10 @@ else
                     }
                 </select>
                 <Button Text="Оновити" Variant="ButtonVariant.Secondary" OnClick="Refresh" />
-                <a class="button button--secondary" href="/dashboards/@Id/edit">Редагувати</a>
+                @if (Me.CanEdit)
+                {
+                    <a class="button button--secondary" href="/dashboards/@Id/edit">Редагувати</a>
+                }
                 <Button Text="Режим перегляду" OnClick="@(() => EnterFocus(fullscreen: false))" />
             }
         </Actions>

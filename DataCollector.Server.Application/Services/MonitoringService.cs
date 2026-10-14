@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using DataCollector.Server.Application.Common.Exceptions;
 using DataCollector.Server.Application.ExternalContracts.Interfaces;
@@ -22,7 +23,8 @@ public class MonitoringService(
   INotificationRepository notifications,
   IEntityConfigCache entityConfigs,
   IEntityInstanceRepository entityInstanceRepository,
-  INotificationSender sender
+  INotificationSender sender,
+  ILogger<MonitoringService>? logger = null
 ) : IMonitoringService, IMonitoringRunner
 {
   /// <summary>Скільки правил перевіряється за один прохід фонового сервісу.</summary>
@@ -162,6 +164,9 @@ public class MonitoringService(
         // Канал недоступний - повтор на наступних проходах; після MaxDeliveryAttempts - «не вдалося».
         var status = attempts >= MaxDeliveryAttempts ? DeliveryStatus.Failed : DeliveryStatus.Pending;
         await notifications.SetDelivery(notification.Id, status, attempts, null, Truncate(e.Message, 1000));
+
+        logger?.LogWarning("Сповіщення {NotificationId} не доставлено (спроба {Attempt} з {Max}): {Error}",
+          notification.Id, attempts, MaxDeliveryAttempts, e.Message);
       }
     }
 
@@ -176,6 +181,10 @@ public class MonitoringService(
     var delivery = notification != null && sender.IsConfigured ? DeliveryStatus.Pending : DeliveryStatus.NotRequired;
 
     await rules.SaveCheck(rule, notification, delivery);
+
+    if (notification != null)
+      logger?.LogInformation("Правило «{Rule}»: {FromState} -> {ToState}, значення {Value}",
+        rule.Name, notification.FromState, notification.ToState, notification.Value);
   }
 
   /// <summary>

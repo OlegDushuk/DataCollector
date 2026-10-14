@@ -1,10 +1,38 @@
+using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DataCollector.WebUI.Services;
+using Microsoft.AspNetCore.Components;
 
 namespace DataCollector.WebUI.ServerApiServices;
 
-public abstract class ApiServiceBase(HttpClient httpClient)
+/// <summary>
+/// Те, що потрібно кожному запиту до API в межах вікна: токен поточного користувача, перехід на вхід,
+/// коли сеанс закінчився, і журнал.
+/// </summary>
+public sealed class ApiContext(CurrentUser user, NavigationManager navigation, ILogger<ApiContext> logger)
+{
+  public CurrentUser User { get; } = user;
+  public ILogger Logger { get; } = logger;
+
+  /// <summary>Токен більше не приймається (закінчився, змінено пароль або роль) - на сторінку входу.</summary>
+  public void SessionExpired()
+  {
+    try
+    {
+      var returnUrl = "/" + navigation.ToBaseRelativePath(navigation.Uri);
+      navigation.NavigateTo($"login?expired=1&returnUrl={Uri.EscapeDataString(returnUrl)}", forceLoad: true);
+    }
+    catch (InvalidOperationException)
+    {
+      // Поза рендерингом компонента переходити нікуди - вистачить повідомлення про помилку.
+    }
+  }
+}
+
+public abstract class ApiServiceBase(HttpClient httpClient, ApiContext context)
 {
   protected static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
   {
@@ -17,13 +45,20 @@ public abstract class ApiServiceBase(HttpClient httpClient)
   /// </remarks>
   protected async Task<T> GetAsync<T>(string url, CancellationToken cancellationToken = default)
   {
-    var response = await Send(() => httpClient.GetAsync(url, cancellationToken), cancellationToken);
+    using var response = await Send(HttpMethod.Get, url, null, cancellationToken);
     return (await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken))!;
   }
 
   protected async Task<TResult> PostAsync<TResult>(string url, object body, CancellationToken cancellationToken = default)
   {
-    var response = await Send(() => httpClient.PostAsJsonAsync(url, body, JsonOptions, cancellationToken), cancellationToken);
+    using var response = await Send(HttpMethod.Post, url, Json(body), cancellationToken);
+    return (await response.Content.ReadFromJsonAsync<TResult>(JsonOptions, cancellationToken))!;
+  }
+
+  /// <summary>POST multipart/form-data (файл і поля форми), наприклад імпорт.</summary>
+  protected async Task<TResult> PostFormAsync<TResult>(string url, MultipartFormDataContent content, CancellationToken cancellationToken = default)
+  {
+    using var response = await Send(HttpMethod.Post, url, content, cancellationToken);
     return (await response.Content.ReadFromJsonAsync<TResult>(JsonOptions, cancellationToken))!;
   }
 
@@ -33,7 +68,7 @@ public abstract class ApiServiceBase(HttpClient httpClient)
   /// </summary>
   protected async Task<DownloadedFile> PostForFileAsync(string url, object body, CancellationToken cancellationToken = default)
   {
-    var response = await Send(() => httpClient.PostAsJsonAsync(url, body, JsonOptions, cancellationToken), cancellationToken);
+    using var response = await Send(HttpMethod.Post, url, Json(body), cancellationToken);
     var content = response.Content.Headers;
 
     return new DownloadedFile
@@ -51,58 +86,97 @@ public abstract class ApiServiceBase(HttpClient httpClient)
 
   protected async Task PatchAsync(string url, object body)
   {
-    await Send(() => httpClient.PatchAsJsonAsync(url, body, JsonOptions));
+    using var _ = await Send(HttpMethod.Patch, url, Json(body));
   }
 
   /// <summary>POST, відповідь на який - лише код успіху (204).</summary>
   protected async Task PostNoContentAsync(string url, object body)
   {
-    await Send(() => httpClient.PostAsJsonAsync(url, body, JsonOptions));
+    using var _ = await Send(HttpMethod.Post, url, Json(body));
   }
 
   protected async Task PutAsync(string url, object body)
   {
-    await Send(() => httpClient.PutAsJsonAsync(url, body, JsonOptions));
+    using var _ = await Send(HttpMethod.Put, url, Json(body));
   }
 
-  /// <summary>POST без тіла відповіді, яке нас цікавить (лише код успіху) або з невеликою відповіддю.</summary>
+  /// <summary>POST без тіла запиту; відповідь - невеликий JSON.</summary>
   protected async Task<TResult> PostEmptyAsync<TResult>(string url)
   {
-    var response = await Send(() => httpClient.PostAsync(url, content: null));
+    using var response = await Send(HttpMethod.Post, url, null);
     return (await response.Content.ReadFromJsonAsync<TResult>(JsonOptions))!;
+  }
+
+  /// <summary>POST без тіла запиту і без тіла відповіді (204).</summary>
+  protected async Task PostEmptyAsync(string url)
+  {
+    using var _ = await Send(HttpMethod.Post, url, null);
   }
 
   protected async Task DeleteAsync(string url)
   {
-    await Send(() => httpClient.DeleteAsync(url));
+    using var _ = await Send(HttpMethod.Delete, url, null);
   }
 
   protected static string Escape(string value) => Uri.EscapeDataString(value);
 
-  private static async Task<HttpResponseMessage> Send(
-    Func<Task<HttpResponseMessage>> request,
+  private static JsonContent Json(object body) => JsonContent.Create(body, options: JsonOptions);
+
+  private async Task<HttpResponseMessage> Send(
+    HttpMethod method,
+    string url,
+    HttpContent? content,
     CancellationToken cancellationToken = default)
   {
+    using var request = new HttpRequestMessage(method, url) { Content = content };
+
+    // Кожен запит - від імені користувача, що працює з інтерфейсом: API саме перевіряє його права.
+    var token = await context.User.AccessToken();
+    if (token != null)
+      request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
     HttpResponseMessage response;
 
     try
     {
-      response = await request();
+      response = await httpClient.SendAsync(request, cancellationToken);
     }
-    catch (HttpRequestException)
+    catch (HttpRequestException e)
     {
+      context.Logger.LogWarning(e, "API недоступне: {Method} {Url}", method, url);
       throw new ApiException("Не вдалося з'єднатися з сервером API. Перевірте, що DataCollector.Server.API запущений.");
     }
     // Скасування, якого ми не просили, - це тайм-аут HttpClient.
     catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
     {
+      context.Logger.LogWarning("API не відповіло вчасно: {Method} {Url}", method, url);
       throw new ApiException("Сервер API не відповів вчасно. Спробуйте ще раз.");
     }
 
     if (response.IsSuccessStatusCode)
       return response;
 
-    throw new ApiException(await ReadError(response), response.StatusCode);
+    using (response)
+    {
+      var status = response.StatusCode;
+      var message = status switch
+      {
+        // Токен був, але API його не прийняло: сеанс закінчився або користувачу змінили пароль/роль.
+        HttpStatusCode.Unauthorized when token != null => "Сеанс завершився - увійдіть знову",
+        HttpStatusCode.Forbidden => "Недостатньо прав для цієї дії",
+        _ => await ReadError(response)
+      };
+
+      if ((int)status >= 500)
+        context.Logger.LogError("API повернуло помилку {Status}: {Method} {Url} - {Message}", (int)status, method, url, message);
+      else
+        context.Logger.LogInformation("API відхилило запит {Status}: {Method} {Url} - {Message}", (int)status, method, url, message);
+
+      if (status == HttpStatusCode.Unauthorized && token != null)
+        context.SessionExpired();
+
+      throw new ApiException(message, status);
+    }
   }
 
   private static async Task<string> ReadError(HttpResponseMessage response)
@@ -120,7 +194,7 @@ public abstract class ApiServiceBase(HttpClient httpClient)
       if (!string.IsNullOrWhiteSpace(problem?.Title))
         return problem.Title;
     }
-    catch (JsonException)
+    catch (Exception e) when (e is JsonException or NotSupportedException)
     {
       // Відповідь не у форматі ProblemDetails.
     }

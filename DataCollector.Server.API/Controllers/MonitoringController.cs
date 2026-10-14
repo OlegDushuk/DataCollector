@@ -1,5 +1,7 @@
 using DataCollector.Server.Application.ExternalContracts.Interfaces;
 using DataCollector.Server.Application.ExternalContracts.Models;
+using DataCollector.Server.API.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DataCollector.Server.API.Controllers;
@@ -20,6 +22,7 @@ public class MonitoringController(IMonitoringService monitoring) : ControllerBas
   public async Task<ActionResult<MonitoringRuleDto>> GetRule(Guid id)
     => await monitoring.GetRule(id);
 
+  [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpPost("rules")]
   public async Task<ActionResult<CreatedIdResult>> CreateRule([FromBody] SaveMonitoringRuleCommand command)
   {
@@ -27,6 +30,7 @@ public class MonitoringController(IMonitoringService monitoring) : ControllerBas
     return CreatedAtAction(nameof(GetRule), new { id }, new CreatedIdResult { Id = id });
   }
 
+  [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpPut("rules/{id:guid}")]
   public async Task<IActionResult> UpdateRule(Guid id, [FromBody] SaveMonitoringRuleCommand command)
   {
@@ -35,6 +39,7 @@ public class MonitoringController(IMonitoringService monitoring) : ControllerBas
   }
 
   /// <summary>Увімкнути / вимкнути правило: { "enabled": false }.</summary>
+  [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpPut("rules/{id:guid}/enabled")]
   public async Task<IActionResult> SetEnabled(Guid id, [FromBody] SetEnabledRequest request)
   {
@@ -42,6 +47,7 @@ public class MonitoringController(IMonitoringService monitoring) : ControllerBas
     return NoContent();
   }
 
+  [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpDelete("rules/{id:guid}")]
   public async Task<IActionResult> DeleteRule(Guid id)
   {
@@ -50,6 +56,7 @@ public class MonitoringController(IMonitoringService monitoring) : ControllerBas
   }
 
   /// <summary>Перевірити правило зараз; результат записується як звичайна перевірка (зі сповіщенням, якщо стан змінився).</summary>
+  [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpPost("rules/{id:guid}/check")]
   public async Task<ActionResult<MonitoringRuleDto>> CheckNow(Guid id, CancellationToken cancellationToken)
     => await monitoring.CheckNow(id, cancellationToken);

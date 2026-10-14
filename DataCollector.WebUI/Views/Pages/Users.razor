@@ -1,0 +1,497 @@
+@page "/users"
+@attribute [Authorize(Policy = AuthPolicies.CanAdmin)]
+
+@inherits PageBase
+@inject UsersApiService UsersApi
+@inject IConfiguration Configuration
+
+@*
+    Користувачі та API-ключі (адміністратор). Користувачів не видаляють, а вимикають - історія дій лишається.
+    Ключ показується лише один раз, при створенні: система зберігає тільки його хеш.
+*@
+
+<PageHeader Title="Користувачі">
+    <Subtitle>Облікові записи, ролі та API-ключі для зовнішніх систем</Subtitle>
+    <Actions>
+        @if (_tab == Tab.Users)
+        {
+            <Button Text="Новий користувач" OnClick="OpenCreateUser" />
+        }
+        else
+        {
+            <Button Text="Новий ключ" OnClick="OpenCreateKey" />
+        }
+    </Actions>
+</PageHeader>
+
+<div class="page page--scroll users-page">
+    <Alert Message="@Error" OnClose="@(() => Error = null)" />
+    <Alert Message="@_notice" Success="true" OnClose="@(() => _notice = null)" />
+
+    <div class="records-toolbar">
+        <div class="segmented">
+            <button type="button" class="segmented__item @(_tab == Tab.Users ? "segmented__item--active" : "")"
+                    @onclick="@(() => _tab = Tab.Users)">
+                Користувачі@(_users is { Count: > 0 } ? $" ({_users.Count})" : "")
+            </button>
+            <button type="button" class="segmented__item @(_tab == Tab.Keys ? "segmented__item--active" : "")"
+                    @onclick="@(() => _tab = Tab.Keys)">
+                API-ключі@(_keys is { } keys ? $" ({keys.Count(k => k.IsActive)})" : "")
+            </button>
+        </div>
+    </div>
+
+    @if (_tab == Tab.Users)
+    {
+        <div class="role-legend">
+            @foreach (var (role, label, hint) in UserRoles.All)
+            {
+                <div class="role-legend__item">
+                    <span class="role-badge role-badge--@role.ToLowerInvariant()">@label</span>
+                    <span class="default-text">@hint</span>
+                </div>
+            }
+        </div>
+
+        @if (_users is null)
+        {
+            <div class="default-text">@(Error is null ? "Завантаження…" : "")</div>
+        }
+        else
+        {
+            <div class="list-table">
+                <div class="list-table__head">
+                    <span>Користувач</span>
+                    <span>Роль</span>
+                    <span>Стан</span>
+                    <span>Останній вхід</span>
+                    <span></span>
+                </div>
+
+                @foreach (var user in _users)
+                {
+                    <div class="list-table__row @(user.IsActive ? "" : "list-table__row--muted")" @key="user.Id">
+                        <div class="user-cell">
+                            <span class="user-cell__avatar">@Initial(user.DisplayName)</span>
+                            <div>
+                                <div class="user-cell__name">
+                                    @user.DisplayName
+                                    @if (user.Id == Me.Id)
+                                    {
+                                        <span class="default-text"> (ви)</span>
+                                    }
+                                </div>
+                                <div class="default-text">@user.Login</div>
+                            </div>
+                        </div>
+                        <div><span class="role-badge role-badge--@user.Role.ToLowerInvariant()">@UserRoles.Label(user.Role)</span></div>
+                        <div>
+                            @if (!user.IsActive)
+                            {
+                                <span class="status-dot status-dot--off">Вимкнено</span>
+                            }
+                            else if (user.LockedUntil is { } locked)
+                            {
+                                <span class="status-dot status-dot--warn" title="Після 5 невдалих спроб входу">Заблоковано до @locked.ToLocalTime().ToString("HH:mm")</span>
+                            }
+                            else
+                            {
+                                <span class="status-dot status-dot--on">Активний</span>
+                            }
+                        </div>
+                        <div class="default-text">@(user.LastLoginAt is { } at ? Format.Date(at) : "ще не входив")</div>
+                        <div class="actions">
+                            <Button Text="Пароль" Variant="ButtonVariant.Ghost" Small="true" OnClick="@(() => OpenPassword(user))" />
+                            <IconButton Icon="edit" Title="Змінити" OnClick="@(() => OpenEditUser(user))" />
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <div class="card api-help">
+            <div class="default-text default-text--multiline">
+                Зовнішня система (сайт, скрипт, пристрій) передає ключ у заголовку
+                <span class="code">X-Api-Key</span> замість входу користувача. Ключ із роллю «Запис даних» може
+                створювати, змінювати й імпортувати записи, «Читання» - лише отримувати дані.
+            </div>
+            <pre class="code-block">curl -X POST @(ApiBaseUrl)api/data-configs/{ключ_моделі}/records ^
+  -H "X-Api-Key: dc_…" -H "Content-Type: application/json" ^
+  -d "{ \"values\": { \"temperature\": 21.5 } }"</pre>
+        </div>
+
+        @if (_keys is null)
+        {
+            <div class="default-text">@(Error is null ? "Завантаження…" : "")</div>
+        }
+        else if (_keys.Count == 0)
+        {
+            <div class="empty-state">
+                <div class="empty-state__title">Ще немає жодного ключа</div>
+                <div class="default-text">Створіть ключ для кожної системи окремо - тоді доступ однієї можна відкликати, не зачіпаючи інші.</div>
+                <Button Text="Створити ключ" OnClick="OpenCreateKey" />
+            </div>
+        }
+        else
+        {
+            <div class="list-table list-table--keys">
+                <div class="list-table__head">
+                    <span>Назва</span>
+                    <span>Ключ</span>
+                    <span>Доступ</span>
+                    <span>Останнє використання</span>
+                    <span></span>
+                </div>
+
+                @foreach (var key in _keys)
+                {
+                    <div class="list-table__row @(key.IsActive ? "" : "list-table__row--muted")" @key="key.Id">
+                        <div>
+                            <div class="user-cell__name">@key.Name</div>
+                            <div class="default-text">Створено @Format.Date(key.CreatedAt)@(key.CreatedBy is { } by ? $" · {by}" : "")</div>
+                        </div>
+                        <div><span class="code">@(key.Prefix)…</span></div>
+                        <div>
+                            @if (key.IsActive)
+                            {
+                                <span class="role-badge role-badge--@key.Role.ToLowerInvariant()">@KeyRoleLabel(key.Role)</span>
+                            }
+                            else
+                            {
+                                <span class="status-dot status-dot--off">Відкликано @(key.RevokedAt is { } r ? Format.Date(r) : "")</span>
+                            }
+                        </div>
+                        <div class="default-text">@(key.LastUsedAt is { } used ? Format.Date(used) : "не використовувався")</div>
+                        <div class="actions">
+                            @if (key.IsActive)
+                            {
+                                <Button Text="Відкликати" Variant="ButtonVariant.Ghost" Small="true" OnClick="@(() => { _revokeError = null; _toRevoke = key; })" />
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@* Користувач: створення і зміна *@
+<Modal IsOpen="_userForm != null" Title="@(_userForm?.IsNew == true ? "Новий користувач" : "Змінити користувача")" Width="480px" OnClose="@(() => _userForm = null)">
+    <ChildContent>
+        @if (_userForm is { } form)
+        {
+            <div class="form">
+                <label class="form__field">
+                    <span class="form__label">Логін</span>
+                    @if (form.IsNew)
+                    {
+                        <input class="input" maxlength="64" autocomplete="off" @bind="form.Login" placeholder="наприклад, o.petrenko" />
+                        <span class="form__hint default-text">Латинські літери, цифри та . _ @@ - ; регістр не враховується</span>
+                    }
+                    else
+                    {
+                        <span class="code code--inline-block">@form.Login</span>
+                    }
+                </label>
+
+                <label class="form__field">
+                    <span class="form__label">Ім'я</span>
+                    <input class="input" maxlength="128" @bind="form.DisplayName" placeholder="Як показувати в системі" />
+                </label>
+
+                <div class="form__field">
+                    <span class="form__label">Роль</span>
+                    <div class="role-picker">
+                        @foreach (var (role, label, hint) in UserRoles.All)
+                        {
+                            <label class="role-picker__item @(form.Role == role ? "role-picker__item--active" : "")">
+                                <input type="radio" name="role" checked="@(form.Role == role)" @onchange="@(() => form.Role = role)" />
+                                <span class="role-picker__label">@label</span>
+                                <span class="default-text">@hint</span>
+                            </label>
+                        }
+                    </div>
+                </div>
+
+                @if (form.IsNew)
+                {
+                    <label class="form__field">
+                        <span class="form__label">Пароль</span>
+                        <div class="password-row">
+                            <input class="input" type="text" autocomplete="new-password" @bind="form.Password" />
+                            <Button Text="Згенерувати" Variant="ButtonVariant.Secondary" OnClick="@(() => form.Password = GeneratePassword())" />
+                        </div>
+                        <span class="form__hint default-text">Щонайменше 8 символів, з літерами й цифрами. Передайте його користувачу - він зможе змінити пароль сам.</span>
+                    </label>
+                }
+                else
+                {
+                    <label class="check">
+                        <input type="checkbox" checked="@form.IsActive" @onchange="@(e => form.IsActive = e.Value is true)" />
+                        <span>Доступ дозволено (вимкнений користувач не може увійти, його сеанси завершуються)</span>
+                    </label>
+                }
+            </div>
+            <Alert Message="@_formError" />
+        }
+    </ChildContent>
+    <Footer>
+        <Button Text="Скасувати" Variant="ButtonVariant.Secondary" OnClick="@(() => _userForm = null)" />
+        <Button Text="@(_userForm?.IsNew == true ? "Створити" : "Зберегти")" OnClick="SaveUser" />
+    </Footer>
+</Modal>
+
+@* Новий пароль користувачу *@
+<Modal IsOpen="_passwordFor != null" Title="@($"Новий пароль: {_passwordFor?.DisplayName}")" Width="440px" OnClose="@(() => _passwordFor = null)">
+    <ChildContent>
+        <div class="form">
+            <label class="form__field">
+                <span class="form__label">Новий пароль</span>
+                <div class="password-row">
+                    <input class="input" type="text" autocomplete="new-password" @bind="_newPassword" />
+                    <Button Text="Згенерувати" Variant="ButtonVariant.Secondary" OnClick="@(() => _newPassword = GeneratePassword())" />
+                </div>
+                <span class="form__hint default-text">Поточні сеанси користувача завершаться, і він увійде з новим паролем.</span>
+            </label>
+        </div>
+        <Alert Message="@_formError" />
+    </ChildContent>
+    <Footer>
+        <Button Text="Скасувати" Variant="ButtonVariant.Secondary" OnClick="@(() => _passwordFor = null)" />
+        <Button Text="Встановити пароль" OnClick="SavePassword" />
+    </Footer>
+</Modal>
+
+@* Новий API-ключ і показ створеного ключа *@
+<Modal IsOpen="_isKeyFormOpen" Title="@(_createdKey is null ? "Новий API-ключ" : "Ключ створено")" Width="560px" OnClose="CloseKeyForm">
+    <ChildContent>
+        @if (_createdKey is { } created)
+        {
+            <div class="form">
+                <div class="alert alert--info">
+                    <span>
+                        Скопіюйте ключ зараз - його більше не буде видно. Система зберігає лише хеш і впізнає ключ
+                        за початком <span class="code">@(created.Key.Prefix)…</span>
+                    </span>
+                </div>
+                <div class="form__field">
+                    <span class="form__label">Ключ «@created.Key.Name»</span>
+                    <div class="key-display">
+                        <input class="input key-display__value" readonly value="@created.PlainKey" />
+                        <Button Text="@(_copied ? "Скопійовано" : "Копіювати")" Variant="ButtonVariant.Secondary" OnClick="@(() => Copy(created.PlainKey))" />
+                    </div>
+                </div>
+                <div class="form__field">
+                    <span class="form__label">Заголовок запиту</span>
+                    <pre class="code-block">X-Api-Key: @created.PlainKey</pre>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="form">
+                <label class="form__field">
+                    <span class="form__label">Назва</span>
+                    <input class="input" maxlength="128" @bind="_keyName" placeholder="Наприклад, «Сайт магазину» або «Датчики теплиці»" />
+                </label>
+
+                <div class="form__field">
+                    <span class="form__label">Доступ</span>
+                    <div class="role-picker">
+                        @foreach (var (role, label, hint) in UserRoles.ForApiKey)
+                        {
+                            <label class="role-picker__item @(_keyRole == role ? "role-picker__item--active" : "")">
+                                <input type="radio" name="keyRole" checked="@(_keyRole == role)" @onchange="@(() => _keyRole = role)" />
+                                <span class="role-picker__label">@label</span>
+                                <span class="default-text">@hint</span>
+                            </label>
+                        }
+                    </div>
+                </div>
+            </div>
+            <Alert Message="@_formError" />
+        }
+    </ChildContent>
+    <Footer>
+        @if (_createdKey != null)
+        {
+            <Button Text="Готово" OnClick="CloseKeyForm" />
+        }
+        else
+        {
+            <Button Text="Скасувати" Variant="ButtonVariant.Secondary" OnClick="CloseKeyForm" />
+            <Button Text="Створити ключ" OnClick="CreateKey" />
+        }
+    </Footer>
+</Modal>
+
+<ConfirmDialog IsOpen="_toRevoke != null"
+               Title="Відкликати ключ?"
+               Text="@($"Система «{_toRevoke?.Name}» одразу втратить доступ до API. Відкликаний ключ не можна відновити - лише створити новий.")"
+               ConfirmText="Відкликати"
+               Error="@_revokeError"
+               OnConfirm="Revoke"
+               OnCancel="@(() => _toRevoke = null)" />
+
+@code {
+  [Inject] private IJSRuntime JS { get; set; } = null!;
+
+  private enum Tab { Users, Keys }
+
+  private Tab _tab = Tab.Users;
+  private List<UserItem>? _users;
+  private List<ApiKeyItem>? _keys;
+  private string? _notice;
+
+  private UserForm? _userForm;
+  private string? _formError;
+
+  private UserItem? _passwordFor;
+  private string _newPassword = string.Empty;
+
+  private bool _isKeyFormOpen;
+  private string _keyName = string.Empty;
+  private string _keyRole = UserRoles.Editor;
+  private CreatedApiKey? _createdKey;
+  private bool _copied;
+
+  private ApiKeyItem? _toRevoke;
+  private string? _revokeError;
+
+  private string ApiBaseUrl => Configuration["ServerApi:BaseUrl"] ?? "http://localhost:5054/";
+
+  protected override async Task OnInitializedAsync()
+  {
+    await Task.WhenAll(LoadUsers(), LoadKeys());
+  }
+
+  private Task LoadUsers() => Try(async () => _users = await UsersApi.GetUsers());
+
+  private Task LoadKeys() => Try(async () => _keys = await UsersApi.GetApiKeys());
+
+  private void OpenCreateUser()
+  {
+    _formError = null;
+    _userForm = new UserForm { Password = GeneratePassword() };
+  }
+
+  private void OpenEditUser(UserItem user)
+  {
+    _formError = null;
+    _userForm = UserForm.From(user);
+  }
+
+  private async Task SaveUser()
+  {
+    if (_userForm is not { } form)
+      return;
+
+    var ok = await Try(async () =>
+    {
+      if (form.IsNew)
+        await UsersApi.CreateUser(form);
+      else
+        await UsersApi.UpdateUser(form);
+    }, e => _formError = e);
+
+    if (!ok)
+      return;
+
+    _notice = form.IsNew ? $"Користувача {form.Login} створено" : $"Зміни користувача {form.Login} збережено";
+    _userForm = null;
+    await LoadUsers();
+  }
+
+  private void OpenPassword(UserItem user)
+  {
+    _formError = null;
+    _newPassword = GeneratePassword();
+    _passwordFor = user;
+  }
+
+  private async Task SavePassword()
+  {
+    if (_passwordFor is not { } user)
+      return;
+
+    if (!await Try(() => UsersApi.SetPassword(user.Id, _newPassword), e => _formError = e))
+      return;
+
+    _notice = $"Користувачу {user.Login} встановлено новий пароль";
+    _passwordFor = null;
+    await LoadUsers();
+  }
+
+  private void OpenCreateKey()
+  {
+    _tab = Tab.Keys;
+    _formError = null;
+    _keyName = string.Empty;
+    _keyRole = UserRoles.Editor;
+    _createdKey = null;
+    _copied = false;
+    _isKeyFormOpen = true;
+  }
+
+  private async Task CreateKey()
+  {
+    var ok = await Try(async () => _createdKey = await UsersApi.CreateApiKey(_keyName, _keyRole), e => _formError = e);
+    if (ok)
+      await LoadKeys();
+  }
+
+  private void CloseKeyForm()
+  {
+    _isKeyFormOpen = false;
+    _createdKey = null;
+  }
+
+  private async Task Copy(string text)
+  {
+    try
+    {
+      await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+      _copied = true;
+    }
+    catch (JSException)
+    {
+      // Буфер обміну недоступний (http без localhost) - ключ однаково видно в полі.
+    }
+  }
+
+  private async Task Revoke()
+  {
+    if (_toRevoke is not { } key)
+      return;
+
+    if (!await Try(() => UsersApi.RevokeApiKey(key.Id), e => _revokeError = e))
+      return;
+
+    _notice = $"Ключ «{key.Name}» відкликано";
+    _toRevoke = null;
+    await LoadKeys();
+  }
+
+  private static string KeyRoleLabel(string role)
+    => UserRoles.ForApiKey.FirstOrDefault(r => r.Code == role).Label ?? UserRoles.Label(role);
+
+  private static string Initial(string name) => string.IsNullOrEmpty(name) ? "?" : name[..1].ToUpperInvariant();
+
+  /// <summary>Пароль з 12 символів без схожих літер (l/1, O/0): гарантовано є літери й цифри.</summary>
+  private static string GeneratePassword()
+  {
+    const string letters = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
+    const string digits = "23456789";
+    var chars = new char[12];
+
+    for (var i = 0; i < chars.Length; i++)
+    {
+      var set = i % 4 == 3 ? digits : letters;
+      chars[i] = set[System.Security.Cryptography.RandomNumberGenerator.GetInt32(set.Length)];
+    }
+
+    return new string(chars);
+  }
+}

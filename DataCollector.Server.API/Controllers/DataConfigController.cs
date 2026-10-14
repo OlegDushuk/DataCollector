@@ -1,5 +1,7 @@
 ﻿using DataCollector.Server.Application.ExternalContracts.Interfaces;
 using DataCollector.Server.Application.ExternalContracts.Models;
+using DataCollector.Server.API.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DataCollector.Server.API.Controllers;
@@ -25,6 +27,7 @@ public class DataConfigController(
     return await dataConfigService.Get(config);
   }
 
+  [Authorize(Policy = AuthPolicies.CanAdmin)]
   [HttpPost]
   public async Task<ActionResult<CreatedIdResult>> Create([FromBody] CreateEntityConfigCommand command)
   {
@@ -32,6 +35,7 @@ public class DataConfigController(
     return CreatedAtAction(nameof(Get), new { config = id }, new CreatedIdResult { Id = id });
   }
 
+  [Authorize(Policy = AuthPolicies.CanAdmin)]
   [HttpPatch("{config}")]
   public async Task<IActionResult> Edit(string config, [FromBody] EditEntityConfigCommand command)
   {
@@ -39,6 +43,7 @@ public class DataConfigController(
     return NoContent();
   }
 
+  [Authorize(Policy = AuthPolicies.CanAdmin)]
   [HttpDelete("{config}")]
   public async Task<IActionResult> Delete(string config)
   {
@@ -46,12 +51,14 @@ public class DataConfigController(
     return NoContent();
   }
 
+  [Authorize(Policy = AuthPolicies.CanAdmin)]
   [HttpPost("{config}/properties")]
   public async Task<ActionResult<List<Guid>>> AddProperties(string config, [FromBody] AddPropertiesCommand command)
   {
     return await dataConfigService.AddProperties(config, command);
   }
 
+  [Authorize(Policy = AuthPolicies.CanAdmin)]
   [HttpPatch("{config}/properties/{propertyId:guid}")]
   public async Task<IActionResult> EditProperty(string config, Guid propertyId, [FromBody] EditPropertyCommand command)
   {
@@ -59,6 +66,7 @@ public class DataConfigController(
     return NoContent();
   }
 
+  [Authorize(Policy = AuthPolicies.CanAdmin)]
   [HttpDelete("{config}/properties/{propertyId:guid}")]
   public async Task<IActionResult> DeleteProperty(string config, Guid propertyId)
   {

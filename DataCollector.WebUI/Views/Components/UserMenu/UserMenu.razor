@@ -1,0 +1,85 @@
+@namespace DataCollector.WebUI.Views.Components
+@inject CurrentUser User
+@inject AuthApiService AuthApi
+@inject NavigationManager Navigation
+
+@* Внизу меню: хто увійшов, зміна власного пароля і вихід. *@
+
+<div class="user-menu">
+    <div class="user-menu__avatar" aria-hidden="true">@Initial</div>
+    <div class="user-menu__info">
+        <div class="user-menu__name" title="@User.Login">@User.DisplayName</div>
+        <div class="user-menu__role">@User.RoleLabel</div>
+    </div>
+</div>
+
+<div class="user-menu__actions">
+    <button type="button" class="user-menu__action" @onclick="OpenPassword">Змінити пароль</button>
+
+    @* Звичайна форма: вихід видаляє cookie сеансу у відповіді сервера. *@
+    <form action="account/logout" method="post" class="user-menu__logout">
+        <button type="submit" class="user-menu__action">Вийти</button>
+    </form>
+</div>
+
+<Modal IsOpen="_isPasswordOpen" Title="Зміна пароля" Width="420px" OnClose="@(() => _isPasswordOpen = false)">
+    <ChildContent>
+        <Alert Message="@_error" OnClose="@(() => _error = null)" />
+        <div class="form">
+            <label class="form__field">
+                <span class="form__label">Поточний пароль</span>
+                <input class="input" type="password" autocomplete="current-password" @bind="_current" />
+            </label>
+            <label class="form__field">
+                <span class="form__label">Новий пароль</span>
+                <input class="input" type="password" autocomplete="new-password" @bind="_new" />
+                <span class="form__hint default-text">Щонайменше 8 символів, з літерами й цифрами</span>
+            </label>
+            <label class="form__field">
+                <span class="form__label">Новий пароль ще раз</span>
+                <input class="input" type="password" autocomplete="new-password" @bind="_repeat" />
+            </label>
+        </div>
+    </ChildContent>
+    <Footer>
+        <Button Text="Скасувати" Variant="ButtonVariant.Secondary" OnClick="@(() => _isPasswordOpen = false)" />
+        <Button Text="Змінити пароль" OnClick="ChangePassword" />
+    </Footer>
+</Modal>
+
+@code {
+  private bool _isPasswordOpen;
+  private string? _error;
+  private string _current = string.Empty, _new = string.Empty, _repeat = string.Empty;
+
+  private string Initial => string.IsNullOrEmpty(User.DisplayName) ? "?" : User.DisplayName[..1].ToUpperInvariant();
+
+  private void OpenPassword()
+  {
+    _current = _new = _repeat = string.Empty;
+    _error = null;
+    _isPasswordOpen = true;
+  }
+
+  private async Task ChangePassword()
+  {
+    if (_new != _repeat)
+    {
+      _error = "Новий пароль і повтор не збігаються";
+      return;
+    }
+
+    try
+    {
+      await AuthApi.ChangePassword(_current, _new);
+    }
+    catch (ApiException e)
+    {
+      _error = e.Message;
+      return;
+    }
+
+    // Після зміни пароля попередні токени (і цей теж) недійсні - входимо з новим паролем.
+    Navigation.NavigateTo("login?changed=1", forceLoad: true);
+  }
+}

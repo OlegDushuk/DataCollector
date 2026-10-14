@@ -6,7 +6,10 @@
 <PageHeader Title="Дашборди">
     <Subtitle>Готові набори діаграм, показників і таблиць з різних моделей на одному екрані</Subtitle>
     <Actions>
-        <Button Text="Новий дашборд" OnClick="OpenCreate" />
+        @if (Me.CanEdit)
+        {
+            <Button Text="Новий дашборд" OnClick="OpenCreate" />
+        }
     </Actions>
 </PageHeader>
 
@@ -25,7 +28,10 @@
                 Зберіть на одному екрані діаграми, підсумкові показники й таблиці з потрібних моделей -
                 з фільтрами, групуванням і виглядом, як на сторінці записів.
             </div>
-            <Button Text="Створити дашборд" OnClick="OpenCreate" />
+            @if (Me.CanEdit)
+            {
+                <Button Text="Створити дашборд" OnClick="OpenCreate" />
+            }
         </div>
     }
     else
@@ -50,11 +56,14 @@
                         </div>
                     </a>
 
-                    <div class="dashboard-card__actions">
-                        <a class="button button--secondary button--small" href="/dashboards/@item.Id/edit">Редагувати</a>
-                        <IconButton Icon="copy" Title="Створити копію" OnClick="@(() => Copy(item))" />
-                        <IconButton Icon="delete" Title="Видалити" Danger="true" OnClick="@(() => { _deleteError = null; _toDelete = item; })" />
-                    </div>
+                    @if (Me.CanEdit)
+                    {
+                        <div class="dashboard-card__actions">
+                            <a class="button button--secondary button--small" href="/dashboards/@item.Id/edit">Редагувати</a>
+                            <IconButton Icon="copy" Title="Створити копію" OnClick="@(() => Copy(item))" />
+                            <IconButton Icon="delete" Title="Видалити" Danger="true" OnClick="@(() => { _deleteError = null; _toDelete = item; })" />
+                        </div>
+                    }
                 </article>
             }
         </div>

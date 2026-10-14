@@ -7,6 +7,9 @@ public abstract class PageBase : ComponentBase
 {
   [Inject] protected NavigationManager Navigation { get; set; } = null!;
 
+  /// <summary>Хто працює з інтерфейсом і що йому дозволено (кнопки змін показуються лише тим, кому API їх дозволить).</summary>
+  [Inject] protected DataCollector.WebUI.Services.CurrentUser Me { get; set; } = null!;
+
   /// <summary>Помилка, яку показуємо вгорі сторінки.</summary>
   protected string? Error { get; set; }
 

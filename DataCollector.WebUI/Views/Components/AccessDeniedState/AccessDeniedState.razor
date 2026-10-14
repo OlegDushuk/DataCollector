@@ -1,0 +1,15 @@
+@namespace DataCollector.WebUI.Views.Components
+@inject CurrentUser User
+
+<PageHeader Title="Недостатньо прав" />
+
+<div class="page">
+    <div class="empty-state">
+        <div class="empty-state__title">Ця сторінка недоступна для ролі «@User.RoleLabel»</div>
+        <div class="default-text default-text--multiline">
+            Зміни даних доступні редактору, а моделі, користувачі та API-ключі - адміністратору.
+            Якщо вам потрібен доступ, зверніться до адміністратора системи.
+        </div>
+        <a class="button button--secondary" href="/">На головну</a>
+    </div>
+</div>

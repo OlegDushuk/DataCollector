@@ -74,3 +74,6 @@ appsettings.*.json
 
 .env
 .env.*
+
+# Serilog files
+logs/

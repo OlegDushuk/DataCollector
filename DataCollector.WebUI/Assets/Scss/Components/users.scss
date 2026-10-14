@@ -1,0 +1,206 @@
+@use "../variables";
+
+.users-page {
+  display: flex;
+  flex-direction: column;
+  gap: variables.$pad-md;
+}
+
+// Підказка про ролі над списком.
+.role-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: variables.$accent-light-color;
+  color: variables.$button-text-color;
+
+  &--editor {
+    color: variables.$accent-color;
+  }
+
+  &--admin {
+    background: variables.$accent-color;
+    color: variables.$on-accent-color;
+  }
+}
+
+.status-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: variables.$button-text-color;
+
+  &::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: variables.$accent-inactive-color;
+  }
+
+  &--on::before { background: variables.$success-color; }
+  &--warn { color: var(--warning-color); }
+  &--warn::before { background: var(--warning-color); }
+}
+
+// Список-таблиця (небагато рядків, без пагінації).
+.list-table {
+  background: variables.$surface-color;
+  border: 1px solid variables.$border-color;
+  border-radius: variables.$radius-lg;
+  overflow: hidden;
+
+  &__head,
+  &__row {
+    display: grid;
+    grid-template-columns: minmax(220px, 2fr) minmax(130px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) 150px;
+    align-items: center;
+    gap: variables.$pad-md;
+    padding: 12px variables.$pad-md;
+  }
+
+  &--keys &__head,
+  &--keys &__row {
+    grid-template-columns: minmax(240px, 2fr) minmax(130px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) 120px;
+  }
+
+  &__head {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: variables.$subtitle-text-color;
+    border-bottom: 1px solid variables.$border-color;
+  }
+
+  &__row + &__row {
+    border-top: 1px solid variables.$border-color;
+  }
+
+  &__row--muted {
+    opacity: 0.6;
+  }
+
+  .actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+
+  &__avatar {
+    flex: 0 0 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: variables.$accent-light-color;
+    color: variables.$accent-color;
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  &__name {
+    font-size: 13px;
+    font-weight: 500;
+    color: variables.$title-text-color;
+    margin-bottom: 4px;
+  }
+}
+
+// Вибір ролі у формі: варіант з поясненням.
+.role-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  &__item {
+    display: grid;
+    grid-template-columns: 16px 1fr;
+    column-gap: 10px;
+    row-gap: 4px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid variables.$border-color;
+    border-radius: variables.$radius-md;
+    cursor: pointer;
+
+    input {
+      margin: 0;
+      accent-color: variables.$accent-color;
+    }
+
+    .default-text {
+      grid-column: 2;
+    }
+
+    &--active {
+      border-color: variables.$accent-color;
+      background: variables.$accent-transparent-color;
+    }
+  }
+
+  &__label {
+    font-size: 13px;
+    font-weight: 500;
+    color: variables.$title-text-color;
+  }
+}
+
+.password-row,
+.key-display {
+  display: flex;
+  gap: 8px;
+
+  .input {
+    flex: 1;
+    font-family: "JetBrains Mono", Consolas, monospace;
+  }
+}
+
+.key-display__value {
+  font-size: 12px;
+}
+
+.api-help {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.code-block {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: variables.$radius-md;
+  background: variables.$bg-color;
+  border: 1px solid variables.$border-color;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+  line-height: 18px;
+  color: variables.$title-text-color;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

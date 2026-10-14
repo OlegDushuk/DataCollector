@@ -95,9 +95,11 @@ public class EntityConfig
   }
 
   /// <summary>Новий запис зі значеннями полів за замовчуванням.</summary>
-  public EntityInstance CreateInstance()
+  /// <param name="id">Id нового запису (імпорт зі збереженням ідентифікаторів); null - новий.</param>
+  /// <param name="createdAt">Час створення (імпорт історичних даних); null - зараз.</param>
+  public EntityInstance CreateInstance(Guid? id = null, DateTime? createdAt = null)
   {
-    var instance = new EntityInstance(this);
+    var instance = new EntityInstance(this, id, createdAt);
     instance.ApplyDefaults();
     return instance;
   }

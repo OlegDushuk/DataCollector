@@ -1,0 +1,12 @@
+@namespace DataCollector.WebUI.Views.Components
+@inject NavigationManager Navigation
+
+@* Сторінка потребує входу: на сторінку входу з поверненням сюди після нього. *@
+
+@code {
+  protected override void OnInitialized()
+  {
+    var returnUrl = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+    Navigation.NavigateTo($"login?returnUrl={Uri.EscapeDataString(returnUrl)}", forceLoad: true);
+  }
+}

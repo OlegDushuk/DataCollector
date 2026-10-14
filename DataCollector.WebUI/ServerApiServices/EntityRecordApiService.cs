@@ -2,7 +2,7 @@ using DataCollector.WebUI.Entities;
 
 namespace DataCollector.WebUI.ServerApiServices;
 
-public class EntityRecordApiService(HttpClient httpClient) : ApiServiceBase(httpClient)
+public class EntityRecordApiService(HttpClient httpClient, ApiContext context) : ApiServiceBase(httpClient, context)
 {
   private static string RecordsUrl(Guid configId) => $"api/data-configs/{configId}/records";
 
@@ -133,6 +133,34 @@ public class EntityRecordApiService(HttpClient httpClient) : ApiServiceBase(http
 
   public Task Delete(Guid configId, Guid recordId)
     => DeleteAsync($"{RecordsUrl(configId)}/{recordId}");
+
+  /// <summary>
+  /// Імпорт записів з файлу (POST .../records/import). <paramref name="dryRun"/> - лише перевірка:
+  /// звіт про те, що буде створено й оновлено, і помилки по рядках, без запису.
+  /// Дати з часом без зміщення (Excel) читаються в часовому поясі сервера інтерфейсу - як і показуються.
+  /// </summary>
+  public Task<ImportResult> Import(
+    Guid configId,
+    byte[] file,
+    string fileName,
+    ImportOptions options,
+    bool dryRun,
+    CancellationToken cancellationToken = default)
+  {
+    var content = new MultipartFormDataContent();
+
+    var fileContent = new ByteArrayContent(file);
+    fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+    content.Add(fileContent, "file", fileName);
+
+    content.Add(new StringContent(dryRun ? "true" : "false"), "dryRun");
+    content.Add(new StringContent(options.UpdateExisting ? "true" : "false"), "updateExisting");
+    content.Add(new StringContent(options.SkipInvalid ? "true" : "false"), "skipInvalid");
+    content.Add(new StringContent(options.KeepCreatedAt ? "true" : "false"), "keepCreatedAt");
+    content.Add(new StringContent(TimeZoneInfo.Local.Id), "timeZone");
+
+    return PostFormAsync<ImportResult>($"{RecordsUrl(configId)}/import", content, cancellationToken);
+  }
 
   private class IdResponse
   {

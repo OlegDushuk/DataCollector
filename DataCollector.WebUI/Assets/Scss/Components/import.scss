@@ -1,0 +1,178 @@
+@use "../variables";
+
+// Діалог імпорту записів.
+.import {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  &__drop {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 26px 20px;
+    border: 1.5px dashed variables.$border-color;
+    border-radius: variables.$radius-lg;
+    background: variables.$bg-color;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s;
+
+    svg {
+      height: 28px;
+      fill: variables.$accent-color;
+    }
+
+    &:hover,
+    &--selected {
+      border-color: variables.$accent-color;
+    }
+  }
+
+  // Поле вибору файлу - прозоре на всю площу, щоб клік і перетягування працювали всюди.
+  &__input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  &__file {
+    font-size: 14px;
+    font-weight: 500;
+    color: variables.$title-text-color;
+    word-break: break-all;
+  }
+
+  &__options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__report {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 4px;
+    border-top: 1px solid variables.$border-color;
+  }
+
+  &__stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding-top: 12px;
+  }
+
+  &__stat {
+    padding: 12px 14px;
+    border-radius: variables.$radius-md;
+    background: variables.$bg-color;
+
+    &--error {
+      background: variables.$danger-light-color;
+
+      .import__stat-value {
+        color: variables.$danger-color;
+      }
+    }
+  }
+
+  &__stat-value {
+    font-size: 22px;
+    font-weight: 600;
+    color: variables.$title-text-color;
+    margin-bottom: 6px;
+  }
+
+  &__section-title {
+    margin-top: 4px;
+  }
+
+  &__columns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  &__column {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: variables.$accent-light-color;
+    font-size: 12px;
+    color: variables.$title-text-color;
+
+    &--ignored {
+      background: variables.$bg-color;
+      color: variables.$subtitle-text-color;
+    }
+  }
+
+  &__arrow {
+    color: variables.$subtitle-text-color;
+  }
+
+  &__target {
+    color: variables.$accent-color;
+    font-weight: 500;
+  }
+
+  &__column--ignored &__target {
+    color: variables.$subtitle-text-color;
+    font-weight: 400;
+  }
+
+  &__errors {
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid variables.$border-color;
+    border-radius: variables.$radius-md;
+  }
+
+  &__error {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    line-height: 17px;
+    color: variables.$title-text-color;
+
+    & + & {
+      border-top: 1px solid variables.$border-color;
+    }
+  }
+
+  &__error-row {
+    font-weight: 600;
+    color: variables.$danger-color;
+    white-space: nowrap;
+  }
+
+  &__error-column {
+    color: variables.$button-text-color;
+  }
+
+  &__done {
+    padding: 24px;
+    text-align: center;
+    border-radius: variables.$radius-lg;
+    background: variables.$success-light-color;
+  }
+
+  &__done-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: variables.$success-color;
+    margin-bottom: 8px;
+  }
+}

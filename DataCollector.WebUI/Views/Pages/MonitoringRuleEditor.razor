@@ -1,5 +1,6 @@
 @page "/monitoring/rules/new"
 @page "/monitoring/rules/{Id:guid}"
+@attribute [Authorize(Policy = AuthPolicies.CanEdit)]
 
 @inherits PageBase
 @inject MonitoringApiService MonitoringApi

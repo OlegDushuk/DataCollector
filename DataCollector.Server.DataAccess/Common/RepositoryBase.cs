@@ -143,6 +143,42 @@ public abstract class RepositoryBase
     }, cancellationToken);
   }
 
+  /// <summary>
+  /// Кілька викликів процедур однією транзакцією (наприклад, імпорт частинами): помилка в будь-якому
+  /// відкочує все. Процедури викликаються через <see cref="ExecuteInTransaction"/>.
+  /// </summary>
+  protected Task RunInTransaction(
+    Func<SqlConnection, System.Data.Common.DbTransaction, Task> action,
+    CancellationToken cancellationToken = default)
+  {
+    return Run(async connection =>
+    {
+      await connection.OpenAsync(cancellationToken);
+      await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+      await action(connection, transaction);
+      await transaction.CommitAsync(cancellationToken);
+      return true;
+    }, cancellationToken);
+  }
+
+  /// <summary>Процедура цієї таблиці в межах транзакції <see cref="RunInTransaction"/>.</summary>
+  protected Task ExecuteInTransaction(
+    SqlConnection connection,
+    System.Data.Common.DbTransaction transaction,
+    string procedureName,
+    object? param,
+    CancellationToken cancellationToken = default)
+  {
+    return connection.ExecuteAsync(new CommandDefinition(
+      commandText: GetProcedureName(procedureName),
+      parameters: param,
+      transaction: transaction,
+      commandTimeout: 300,
+      commandType: CommandType.StoredProcedure,
+      cancellationToken: cancellationToken));
+  }
+
   private async Task<TResult> Run<TResult>(
     Func<SqlConnection, Task<TResult>> action,
     CancellationToken cancellationToken = default)

@@ -118,3 +118,39 @@ internal class NotificationRow
   public DateTime? DeliveredAt { get; set; }
   public string? DeliveryError { get; set; }
 }
+
+internal class InstanceOwnerRow
+{
+  public Guid Id { get; set; }
+  public Guid EntityConfigId { get; set; }
+}
+
+internal class UserRow
+{
+  public Guid Id { get; set; }
+  public string Login { get; set; } = null!;
+  public string DisplayName { get; set; } = null!;
+  public byte Role { get; set; }
+  public string PasswordHash { get; set; } = null!;
+  public Guid SecurityStamp { get; set; }
+  public bool IsActive { get; set; }
+  public int FailedLoginCount { get; set; }
+  public DateTime? LockoutEnd { get; set; }
+  public DateTime CreatedAt { get; set; }
+  public DateTime? UpdatedAt { get; set; }
+  public DateTime? LastLoginAt { get; set; }
+}
+
+internal class ApiKeyRow
+{
+  public Guid Id { get; set; }
+  public string Name { get; set; } = null!;
+  public string Prefix { get; set; } = null!;
+  public byte[] KeyHash { get; set; } = null!;
+  public byte Role { get; set; }
+  public DateTime CreatedAt { get; set; }
+  public Guid? CreatedByUserId { get; set; }
+  public string? CreatedByName { get; set; }
+  public DateTime? LastUsedAt { get; set; }
+  public DateTime? RevokedAt { get; set; }
+}

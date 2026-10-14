@@ -18,8 +18,10 @@ public partial class Settings : PageBase
     ("POST", "api/data-configs/{config}/records/aggregate", "групування і показники (кількість, сума, середнє...)"),
     ("POST", "api/data-configs/{config}/records/export", "файл із записами: csv, xlsx, json, xml"),
     ("POST", "api/data-configs/{config}/records/aggregate/export", "файл зі зведенням"),
+    ("POST", "api/data-configs/{config}/records/import", "імпорт з файлу (multipart: file, dryRun…) - редактор"),
     ("POST", "api/data-configs/{config}/records", "створити запис"),
     ("PATCH", "api/data-configs/{config}/records/{id}", "оновити поля запису"),
-    ("DELETE", "api/data-configs/{config}/records/{id}", "видалити запис")
+    ("DELETE", "api/data-configs/{config}/records/{id}", "видалити запис"),
+    ("POST", "api/auth/login", "вхід користувача: { login, password } -> токен")
   ];
 }

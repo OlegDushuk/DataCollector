@@ -1,5 +1,7 @@
 using DataCollector.Server.Application.ExternalContracts.Interfaces;
 using DataCollector.Server.Application.ExternalContracts.Models;
+using DataCollector.Server.API.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DataCollector.Server.API.Controllers;
@@ -56,6 +58,7 @@ public class DataRecordsController(
     return await dataInstanceService.Get(config, recordId);
   }
 
+  [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpPost]
   public async Task<ActionResult<CreatedIdResult>> Create(string config, [FromBody] CreateDataInstanceCommand command)
   {
@@ -63,6 +66,7 @@ public class DataRecordsController(
     return CreatedAtAction(nameof(Get), new { config, recordId = id }, new CreatedIdResult { Id = id });
   }
 
+  [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpPatch("{recordId:guid}")]
   public async Task<IActionResult> Update(string config, Guid recordId, [FromBody] UpdateDataInstanceCommand command)
   {
@@ -70,6 +74,7 @@ public class DataRecordsController(
     return NoContent();
   }
 
+  [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpDelete("{recordId:guid}")]
   public async Task<IActionResult> Delete(string config, Guid recordId)
   {

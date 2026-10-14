@@ -100,6 +100,59 @@ public class EntityInstanceRepository : RepositoryBase, IEntityInstanceRepositor
     await ExecuteAsync("Delete", new { Id = id });
   }
 
+  public async Task<Dictionary<Guid, Guid>> GetOwners(
+    IReadOnlyCollection<Guid> ids,
+    CancellationToken cancellationToken = default)
+  {
+    var result = new Dictionary<Guid, Guid>();
+
+    // Частинами: табличний параметр на сотні тисяч рядків - зайве навантаження на один запит.
+    foreach (var chunk in ids.Chunk(ImportBatchSize))
+    {
+      var rows = await QueryMultipleAsync("GetOwners", new { Ids = TableValuedParameters.ToIdList(chunk) },
+        async grid => (await grid.ReadAsync<InstanceOwnerRow>()).ToList(), cancellationToken);
+
+      foreach (var row in rows)
+        result[row.Id] = row.EntityConfigId;
+    }
+
+    return result;
+  }
+
+  public Task Import(
+    EntityConfig config,
+    IReadOnlyList<EntityInstance> created,
+    IReadOnlyList<EntityInstance> updated,
+    IReadOnlyCollection<Guid> updatedPropertyIds,
+    CancellationToken cancellationToken = default)
+  {
+    return RunInTransaction(async (connection, transaction) =>
+    {
+      foreach (var chunk in created.Chunk(ImportBatchSize))
+      {
+        await ExecuteInTransaction(connection, transaction, "CreateMany", new
+        {
+          EntityConfigId = config.Id,
+          Instances = TableValuedParameters.ToInstanceList(chunk),
+          Values = TableValuedParameters.ToInstanceValueList(chunk)
+        }, cancellationToken);
+      }
+
+      foreach (var chunk in updated.Chunk(ImportBatchSize))
+      {
+        await ExecuteInTransaction(connection, transaction, "UpdateMany", new
+        {
+          EntityConfigId = config.Id,
+          Instances = TableValuedParameters.ToInstanceList(chunk),
+          Values = TableValuedParameters.ToInstanceValueList(chunk, updatedPropertyIds)
+        }, cancellationToken);
+      }
+    }, cancellationToken);
+  }
+
+  /// <summary>Записів в одному виклику пакетної процедури.</summary>
+  private const int ImportBatchSize = 1_000;
+
   private static DynamicParameters ToParameters(RecordSqlBuilder command)
   {
     var parameters = new DynamicParameters();

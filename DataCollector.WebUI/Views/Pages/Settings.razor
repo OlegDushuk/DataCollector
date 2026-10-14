@@ -20,6 +20,25 @@
             </div>
 
             <div class="form__field">
+                <span class="form__label">Доступ</span>
+                <div class="default-text default-text--multiline">
+                    Кожен запит до API потребує автентифікації. Зовнішня система передає API-ключ у заголовку
+                    <span class="code">X-Api-Key: dc_…</span> (ключі створює адміністратор на сторінці
+                    @if (Me.CanAdmin)
+                    {
+                        <a href="/users">«Користувачі»</a>
+                    }
+                    else
+                    {
+                        <span>«Користувачі»</span>
+                    }).
+                    Користувач отримує токен через <span class="code">POST api/auth/login</span> і передає його як
+                    <span class="code">Authorization: Bearer …</span>. Перегляд дозволено всім ролям, зміни записів - редактору,
+                    моделі - адміністратору.
+                </div>
+            </div>
+
+            <div class="form__field">
                 <span class="form__label">Основні запити</span>
                 <div class="endpoints">
                     @foreach (var (method, path, description) in Endpoints)

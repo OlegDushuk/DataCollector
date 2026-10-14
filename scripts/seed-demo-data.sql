@@ -20,7 +20,7 @@
     запиту вона стабільна (NEWID() у SQL Server може обчислюватися повторно для кожного посилання).
 
     Скрипт можна запускати повторно: моделі з такими ключами видаляються разом із записами
-    і створюються заново. Наприкінці створюється демонстраційний дашборд (теж заново). Щоб додати модель - допишіть рядок у #Models і її поля в #Props.
+    і створюються заново. Наприкінці створюється демонстраційний дашборд (теж заново), правила моніторингу і демонстраційні користувачі. Щоб додати модель - допишіть рядок у #Models і її поля в #Props.
 */
 BEGIN
     SET NOCOUNT ON;
@@ -434,7 +434,32 @@ BEGIN
          @Operator = N'gt', @Threshold = 100, @ConsecutiveChecks = 1, @CheckIntervalSeconds = 300, @CreatedAt = @RuleNow;
 
     -------------------------------------------------------------------------------
-    -- 6. Перевірка
+    -- 6. Демонстраційні користувачі і API-ключ
+    -------------------------------------------------------------------------------
+    -- Створюються, лише якщо такого логіна ще немає (наявні паролі не перезаписуються).
+    -- Паролі (змініть після першого входу): admin / Admin12345, editor / Editor12345, viewer / Viewer12345.
+    -- Хеші пораховано тим самим алгоритмом, що й у застосунку (PBKDF2-HMAC-SHA256, 600 000 ітерацій).
+    DECLARE @UserNow DATETIME2 = SYSUTCDATETIME();
+
+    INSERT INTO [dbo].[Users] ([Id], [Login], [DisplayName], [Role], [PasswordHash], [SecurityStamp], [IsActive], [CreatedAt])
+    SELECT u.[Id], u.[Login], u.[DisplayName], u.[Role], u.[PasswordHash], NEWID(), 1, @UserNow
+    FROM (VALUES
+        ('6d0a5a1e-2f4b-4c39-9a51-0d5b6c7e8fa1', N'admin', N'Адміністратор', 2, 'PBKDF2$SHA256$600000$5CYZHFNu8gM5rVK4ZJgIdg==$q03/UyKiB8gwQmOWmATjC5952sJw93MPbK3L3zqrcN4='),
+        ('6d0a5a1e-2f4b-4c39-9a51-0d5b6c7e8fa2', N'editor', N'Редактор (демо)', 1, 'PBKDF2$SHA256$600000$heJMUrsrP771wtN2+f4pGg==$b/9iMHb8xicQ/EYCZv82fuj9ujVUwSDGI6EAOHJKrls='),
+        ('6d0a5a1e-2f4b-4c39-9a51-0d5b6c7e8fa3', N'viewer', N'Перегляд (демо)', 0, 'PBKDF2$SHA256$600000$8DQ0PdT6DBIWoZXCJtZwkQ==$B/F+DO8n3DEZfV5VcK9N/sdCRCXkIovW9kiQH3x7Y+g=')
+    ) AS u ([Id], [Login], [DisplayName], [Role], [PasswordHash])
+    WHERE NOT EXISTS (SELECT 1 FROM [dbo].[Users] x WHERE x.[Login] = u.[Login] OR x.[Id] = u.[Id]);
+
+    -- Ключ для демонстрації запису даних зовнішньою системою (роль Editor):
+    -- X-Api-Key: dc_demo_greenhouse_sensors_key_000000000000
+    IF NOT EXISTS (SELECT 1 FROM [dbo].[ApiKeys] WHERE [Id] = '6d0a5a1e-2f4b-4c39-9a51-0d5b6c7e8fb1')
+        INSERT INTO [dbo].[ApiKeys] ([Id], [Name], [Prefix], [KeyHash], [Role], [CreatedAt], [CreatedByPkey])
+        VALUES ('6d0a5a1e-2f4b-4c39-9a51-0d5b6c7e8fb1', N'Датчики теплиці (демо)', 'dc_demo_gr',
+                0x0CE5697296AE21402CE633D424F6AA77EAD900DB83C090D8B4F07CBDC7D16FF8, 1, @UserNow,
+                (SELECT [Pkey] FROM [dbo].[Users] WHERE [Login] = N'admin'));
+
+    -------------------------------------------------------------------------------
+    -- 7. Перевірка
     -------------------------------------------------------------------------------
     SELECT
         c.[Key],

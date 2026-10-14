@@ -5,8 +5,11 @@
 <PageHeader Title="Головна">
     <Subtitle>Огляд моделей даних і зібраних записів</Subtitle>
     <Actions>
-        <Button Text="Керувати моделями" Variant="ButtonVariant.Secondary"
-                OnClick="@(() => Navigation.NavigateTo("/management"))" />
+        @if (Me.CanAdmin)
+        {
+            <Button Text="Керувати моделями" Variant="ButtonVariant.Secondary"
+                    OnClick="@(() => Navigation.NavigateTo("/management"))" />
+        }
     </Actions>
 </PageHeader>
 
@@ -36,7 +39,10 @@
             <div class="empty-state">
                 <div class="empty-state__title">Почніть з опису даних</div>
                 <div class="default-text">Створіть модель - наприклад, «Замовлення» з полями «Номер», «Ціна», «Оплачено».</div>
-                <Button Text="Створити модель" OnClick="@(() => Navigation.NavigateTo("/management"))" />
+                @if (Me.CanAdmin)
+                {
+                    <Button Text="Створити модель" OnClick="@(() => Navigation.NavigateTo("/management"))" />
+                }
             </div>
         }
         else
@@ -63,8 +69,11 @@
 
                         <div class="card__footer">
                             <span class="default-text">Створено @Format.Date(config.CreatedAt)</span>
-                            <IconButton Icon="edit" Title="Налаштувати"
-                                        OnClick="@(() => Navigation.NavigateTo($"/management/{config.Id}"))" />
+                            @if (Me.CanAdmin)
+                            {
+                                <IconButton Icon="edit" Title="Налаштувати"
+                                            OnClick="@(() => Navigation.NavigateTo($"/management/{config.Id}"))" />
+                            }
                         </div>
                     </div>
                 }

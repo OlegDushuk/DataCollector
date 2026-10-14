@@ -1,0 +1,128 @@
+@page "/login"
+@layout AuthLayout
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@inject AuthApiService AuthApi
+@inject NavigationManager Navigation
+@inject ILogger<Login> Logger
+
+@*
+    Вхід - статична сторінка (без з'єднання Blazor): форма надсилається звичайним POST, а відповідь
+    записує cookie сеансу. Перевіряє логін і пароль API; інтерфейс зберігає отриманий токен у cookie
+    і далі робить запити до API від імені користувача.
+*@
+
+<PageTitle>Вхід · DataCollector</PageTitle>
+
+<div class="auth-card">
+    <h1 class="auth-card__title">Вхід</h1>
+
+    @if (_error is null && Changed == "1")
+    {
+        <div class="alert alert--success">Пароль змінено. Увійдіть з новим паролем.</div>
+    }
+    else if (_error is null && Expired == "1")
+    {
+        <div class="alert alert--info">Сеанс завершився. Увійдіть знову, щоб продовжити.</div>
+    }
+
+    @if (_error != null)
+    {
+        <div class="alert alert--error" role="alert">@_error</div>
+    }
+
+    <EditForm Model="Input" FormName="login" OnSubmit="SignIn" method="post" class="form" Enhance="false">
+        <label class="form__field">
+            <span class="form__label">Логін</span>
+            <InputText @bind-Value="Input.Login" class="input" autocomplete="username" autofocus="true" maxlength="64" />
+        </label>
+
+        <label class="form__field">
+            <span class="form__label">Пароль</span>
+            <InputText @bind-Value="Input.Password" type="password" class="input" autocomplete="current-password" maxlength="128" />
+        </label>
+
+        <label class="check">
+            <InputCheckbox @bind-Value="Input.Remember" />
+            <span>Запам'ятати на цьому пристрої</span>
+        </label>
+
+        <button type="submit" class="button button--primary auth-card__submit">Увійти</button>
+    </EditForm>
+</div>
+
+@code {
+  [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
+
+  [SupplyParameterFromForm] private LoginInput Input { get; set; } = null!;
+
+  [SupplyParameterFromQuery(Name = "returnUrl")] private string? ReturnUrl { get; set; }
+  [SupplyParameterFromQuery(Name = "expired")] private string? Expired { get; set; }
+  [SupplyParameterFromQuery(Name = "changed")] private string? Changed { get; set; }
+
+  private string? _error;
+
+  protected override async Task OnInitializedAsync()
+  {
+    Input ??= new LoginInput();
+
+    // Відкрито сторінку входу - попередній сеанс (якщо був) завершується: так «сеанс завершився» і
+    // «увійти іншим користувачем» не залишають у браузері cookie з недійсним токеном.
+    // Після виходу - та сама адреса ще раз: форма має отримати токен захисту від підробки для анонімного
+    // відвідувача, інакше вхід відхилявся б (токен, виданий у межах старого сеансу, не збігся б).
+    if (HttpMethods.IsGet(HttpContext.Request.Method) && HttpContext.User.Identity?.IsAuthenticated == true)
+    {
+      await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+      Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
+    }
+  }
+
+  private async Task SignIn()
+  {
+    if (string.IsNullOrWhiteSpace(Input.Login) || string.IsNullOrEmpty(Input.Password))
+    {
+      _error = "Введіть логін і пароль";
+      return;
+    }
+
+    LoginResult result;
+    try
+    {
+      result = await AuthApi.Login(Input.Login.Trim(), Input.Password);
+    }
+    catch (ApiException e)
+    {
+      _error = e.Message;
+      Input.Password = string.Empty;
+      return;
+    }
+
+    var properties = new AuthenticationProperties
+    {
+      // Cookie живе не довше за токен API: після цього однаково довелося б увійти знову.
+      ExpiresUtc = DateTime.SpecifyKind(result.ExpiresAt, DateTimeKind.Utc),
+      IsPersistent = Input.Remember
+    };
+
+    await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, UserClaims.Create(result), properties);
+    Logger.LogInformation("Користувач {Login} увійшов в інтерфейс", result.User.Login);
+
+    Navigation.NavigateTo(SafeReturnUrl());
+  }
+
+  /// <summary>Лише адреса цього застосунку - щоб посилання на вхід не могло перенаправити на чужий сайт.</summary>
+  private string SafeReturnUrl()
+    => ReturnUrl is { Length: > 0 } url && url.StartsWith('/') && !url.StartsWith("//") && !url.StartsWith("/\\") &&
+       !url.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
+      ? url
+      : "/";
+
+  private sealed class LoginInput
+  {
+    public string Login { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    public bool Remember { get; set; }
+  }
+}

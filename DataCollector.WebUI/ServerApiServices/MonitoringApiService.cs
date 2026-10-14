@@ -3,7 +3,7 @@ using DataCollector.WebUI.Entities;
 namespace DataCollector.WebUI.ServerApiServices;
 
 /// <summary>Моніторинг (api/monitoring): правила, перевірка, сповіщення.</summary>
-public class MonitoringApiService(HttpClient httpClient) : ApiServiceBase(httpClient)
+public class MonitoringApiService(HttpClient httpClient, ApiContext context) : ApiServiceBase(httpClient, context)
 {
   private const string BaseUrl = "api/monitoring";
 
