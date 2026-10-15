@@ -1,6 +1,7 @@
 using DataCollector.Server.Application.ExternalContracts.Interfaces;
 using DataCollector.Server.Application.ExternalContracts.Models;
 using DataCollector.Server.API.Auth;
+using DataCollector.Server.API.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,7 +24,9 @@ public class DashboardsController(IDashboardService dashboardService) : Controll
   [HttpGet("{id:guid}")]
   public async Task<ActionResult<DashboardDto>> Get(Guid id)
   {
-    return await dashboardService.Get(id);
+    var dashboard = await dashboardService.Get(id);
+    ETags.Set(Response, dashboard.Version);
+    return dashboard;
   }
 
   [Authorize(Policy = AuthPolicies.CanEdit)]
@@ -34,12 +37,18 @@ public class DashboardsController(IDashboardService dashboardService) : Controll
     return CreatedAtAction(nameof(Get), new { id }, new CreatedIdResult { Id = id });
   }
 
-  /// <summary>Повне збереження: назва, опис, автооновлення і весь набір віджетів.</summary>
+  /// <summary>
+  /// Повне збереження: назва, опис, автооновлення і весь набір віджетів. Версія, яку бачив редактор, -
+  /// у полі version або в заголовку If-Match (змінено відтоді - 409). Нова версія - у заголовку ETag.
+  /// </summary>
   [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpPut("{id:guid}")]
   public async Task<IActionResult> Save(Guid id, [FromBody] SaveDashboardCommand command)
   {
-    await dashboardService.Save(id, command);
+    command.Version ??= ETags.IfMatch(Request);
+
+    var version = await dashboardService.Save(id, command);
+    ETags.Set(Response, version);
     return NoContent();
   }
 

@@ -11,8 +11,11 @@ public interface IDashboardRepository
   /// <summary>Створює дашборд разом з віджетами.</summary>
   Task Create(Dashboard dashboard);
 
-  /// <summary>Зберігає дашборд і приводить його віджети в БД до <see cref="Dashboard.Widgets"/>.</summary>
-  Task Update(Dashboard dashboard);
+  /// <summary>
+  /// Зберігає дашборд і приводить його віджети в БД до <see cref="Dashboard.Widgets"/>, якщо версія в сховищі
+  /// досі <see cref="Dashboard.Version"/> (інакше - конфлікт). Повертає нову версію.
+  /// </summary>
+  Task<long> Update(Dashboard dashboard);
 
   Task Delete(Guid id);
 }

@@ -62,17 +62,22 @@ public class MonitoringService(
   public async Task UpdateRule(Guid id, SaveMonitoringRuleCommand command)
   {
     var record = await Load(id);
+    VersionConflictException.Ensure(command.Version, record.Rule.Version, VersionConflictException.Rule);
+
     var (definition, entity) = await Definition(command);
+    var loadedVersion = record.Rule.Version;
 
     record.Rule.Change(definition, entity);
-    await rules.Update(record.Rule);
+    await rules.Update(record.Rule, loadedVersion);
   }
 
   public async Task SetEnabled(Guid id, bool enabled)
   {
     var record = await Load(id);
+    var loadedVersion = record.Rule.Version;
+
     record.Rule.Enable(enabled);
-    await rules.Update(record.Rule);
+    await rules.Update(record.Rule, loadedVersion);
   }
 
   public Task DeleteRule(Guid id) => rules.Delete(id);
@@ -304,7 +309,8 @@ public class MonitoringService(
       LastError = rule.LastError,
       NextCheckAt = rule.NextCheckAt,
       CreatedAt = rule.CreatedAt,
-      UpdatedAt = rule.UpdatedAt
+      UpdatedAt = rule.UpdatedAt,
+      Version = rule.Version
     };
   }
 

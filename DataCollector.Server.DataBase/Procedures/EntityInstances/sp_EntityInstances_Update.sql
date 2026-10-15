@@ -1,9 +1,12 @@
 -- Оновлює значення переданих полів запису: нове значення вставляється або замінює старе,
--- рядок без жодного значення видаляє значення поля.
--- Помилки: 50404 - запис не знайдений.
+-- рядок без жодного значення видаляє значення поля. Повертає нову версію запису.
+-- @ExpectedVersion - версія, яку бачив клієнт (оптимістична конкурентність): якщо запис відтоді змінився,
+-- зміна відхиляється. NULL - без перевірки.
+-- Помилки: 50404 - запис не знайдений, 50409 - запис змінено після того, як його прочитали.
 CREATE PROCEDURE [dbo].[sp_EntityInstances_Update]
     @Id UNIQUEIDENTIFIER,
     @UpdatedAt DATETIME2,
+    @ExpectedVersion BIGINT = NULL,
     @Values [dbo].[PropertyValueList] READONLY
 AS
 BEGIN
@@ -21,7 +24,14 @@ BEGIN
 
     BEGIN TRANSACTION;
 
-    UPDATE [dbo].[EntityInstances] SET [UpdatedAt] = @UpdatedAt WHERE [Pkey] = @Pkey;
+    -- Перевірка версії і зміна - одна інструкція: між ними ніхто не встигне змінити запис.
+    UPDATE [dbo].[EntityInstances]
+    SET [UpdatedAt] = @UpdatedAt
+    WHERE [Pkey] = @Pkey
+      AND (@ExpectedVersion IS NULL OR [RowVersion] = CAST(@ExpectedVersion AS BINARY(8)));
+
+    IF @@ROWCOUNT = 0
+        THROW 50409, N'Запис змінено іншим користувачем після того, як ви його відкрили. Оновіть дані й повторіть зміну', 1;
 
     WITH [Target] AS (
         SELECT *
@@ -52,4 +62,8 @@ BEGIN
         VALUES (@Pkey, s.[PropertyPkey], s.[ValueText], s.[ValueNumber], s.[ValueBool], s.[ValueDate]);
 
     COMMIT TRANSACTION;
+
+    SELECT CAST([RowVersion] AS BIGINT) AS [Version]
+    FROM [dbo].[EntityInstances]
+    WHERE [Pkey] = @Pkey;
 END

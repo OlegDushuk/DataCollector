@@ -24,10 +24,11 @@ public class MonitoringRuleRepository(IConfiguration config)
     return ExecuteAsync("Create", parameters);
   }
 
-  public Task Update(MonitoringRule rule)
+  public Task Update(MonitoringRule rule, int expectedVersion)
   {
     var parameters = Definition(rule);
     parameters.Add("UpdatedAt", rule.UpdatedAt ?? DateTime.UtcNow);
+    parameters.Add("ExpectedVersion", expectedVersion);
     return ExecuteAsync("Update", parameters);
   }
 

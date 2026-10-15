@@ -1,12 +1,15 @@
 -- Зберігає дашборд повністю: назву, опис, автооновлення і набір віджетів.
 -- Віджети з @Widgets оновлюються за Id, нові додаються, відсутні в списку - видаляються.
--- Помилки: 50404 - дашборд або модель віджета не знайдені, 50409 - віджет належить іншому дашборду.
+-- @ExpectedVersion - версія, яку бачив редактор (оптимістична конкурентність); NULL - без перевірки. Повертає нову версію.
+-- Помилки: 50404 - дашборд або модель віджета не знайдені, 50409 - віджет належить іншому дашборду
+-- або дашборд змінено після того, як його відкрили.
 CREATE PROCEDURE [dbo].[sp_Dashboards_Update]
     @Id UNIQUEIDENTIFIER,
     @Name NVARCHAR(128),
     @Description NVARCHAR(512),
     @RefreshSeconds INT,
     @UpdatedAt DATETIME2,
+    @ExpectedVersion BIGINT = NULL,
     @Widgets [dbo].[DashboardWidgetList] READONLY
 AS
 BEGIN
@@ -37,7 +40,11 @@ BEGIN
         [Description] = @Description,
         [RefreshSeconds] = @RefreshSeconds,
         [UpdatedAt] = @UpdatedAt
-    WHERE [Pkey] = @Pkey;
+    WHERE [Pkey] = @Pkey
+      AND (@ExpectedVersion IS NULL OR [RowVersion] = CAST(@ExpectedVersion AS BINARY(8)));
+
+    IF @@ROWCOUNT = 0
+        THROW 50409, N'Дашборд змінено в іншому вікні або іншим користувачем після того, як ви його відкрили. Перезавантажте дашборд і повторіть зміни', 1;
 
     DELETE FROM [dbo].[DashboardWidgets]
     WHERE [DashboardPkey] = @Pkey
@@ -63,4 +70,8 @@ BEGIN
     WHERE NOT EXISTS (SELECT 1 FROM [dbo].[DashboardWidgets] x WHERE x.[Id] = w.[Id]);
 
     COMMIT TRANSACTION;
+
+    SELECT CAST([RowVersion] AS BIGINT) AS [Version]
+    FROM [dbo].[Dashboards]
+    WHERE [Pkey] = @Pkey;
 END

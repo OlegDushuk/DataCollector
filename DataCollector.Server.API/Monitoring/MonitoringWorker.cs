@@ -14,6 +14,7 @@ namespace DataCollector.Server.API.Monitoring;
 public sealed class MonitoringWorker(
   IServiceScopeFactory scopes,
   IOptions<MonitoringOptions> options,
+  MonitoringWorkerStatus status,
   ILogger<MonitoringWorker> logger
 ) : BackgroundService
 {
@@ -63,6 +64,7 @@ public sealed class MonitoringWorker(
   {
     using var scope = scopes.CreateScope();
     var runner = scope.ServiceProvider.GetRequiredService<IMonitoringRunner>();
+    string? error = null;
 
     try
     {
@@ -76,6 +78,7 @@ public sealed class MonitoringWorker(
     }
     catch (Exception e)
     {
+      error = "Помилка перевірки правил: " + e.Message;
       logger.LogError(e, "Моніторинг: помилка перевірки правил");
     }
 
@@ -88,7 +91,10 @@ public sealed class MonitoringWorker(
     }
     catch (Exception e)
     {
+      error ??= "Помилка доставки сповіщень: " + e.Message;
       logger.LogError(e, "Моніторинг: помилка доставки сповіщень");
     }
+
+    status.PassCompleted(error);
   }
 }

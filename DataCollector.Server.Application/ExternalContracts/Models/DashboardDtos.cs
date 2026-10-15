@@ -22,6 +22,10 @@ public class DashboardDto
   public int RefreshSeconds { get; set; }
   public DateTime CreatedAt { get; set; }
   public DateTime? UpdatedAt { get; set; }
+
+  /// <summary>Версія (оптимістична конкурентність): передається назад у PUT.</summary>
+  public long Version { get; set; }
+
   public List<DashboardWidgetDto> Widgets { get; set; } = [];
 }
 
@@ -52,6 +56,12 @@ public class SaveDashboardCommand
   public string? Description { get; set; }
   public int RefreshSeconds { get; set; }
   public List<SaveDashboardWidget> Widgets { get; set; } = [];
+
+  /// <summary>
+  /// Версія, яку бачив редактор (лише для збереження наявного дашборду). Не збігається з поточною - 409.
+  /// null - без перевірки.
+  /// </summary>
+  public long? Version { get; set; }
 }
 
 public class SaveDashboardWidget

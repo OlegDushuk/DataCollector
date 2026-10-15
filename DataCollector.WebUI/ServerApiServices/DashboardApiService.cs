@@ -19,9 +19,15 @@ public class DashboardApiService(HttpClient httpClient, ApiContext context) : Ap
     return result.Id;
   }
 
-  /// <summary>Зберігає дашборд повністю: віджети, яких немає в списку, сервер видаляє.</summary>
-  public Task Save(Dashboard dashboard)
-    => PutAsync($"{BaseUrl}/{dashboard.Id}", Body(dashboard.Name, dashboard.Description, dashboard.RefreshSeconds, dashboard.Widgets));
+  /// <summary>
+  /// Зберігає дашборд повністю: віджети, яких немає в списку, сервер видаляє. <see cref="Dashboard.Version"/> -
+  /// версія, з якою редактор відкрив дашборд: якщо відтоді його зберіг хтось інший, API відповідає 409.
+  /// Повертає нову версію.
+  /// </summary>
+  public async Task<long> Save(Dashboard dashboard)
+    => await PutForVersionAsync($"{BaseUrl}/{dashboard.Id}",
+         Body(dashboard.Name, dashboard.Description, dashboard.RefreshSeconds, dashboard.Widgets, dashboard.Version))
+       ?? dashboard.Version;
 
   public async Task<Guid> Copy(Guid id)
   {
@@ -32,11 +38,13 @@ public class DashboardApiService(HttpClient httpClient, ApiContext context) : Ap
   public Task Delete(Guid id)
     => DeleteAsync($"{BaseUrl}/{id}");
 
-  private static object Body(string name, string? description, int refreshSeconds, IEnumerable<DashboardWidget> widgets) => new
+  private static object Body(
+    string name, string? description, int refreshSeconds, IEnumerable<DashboardWidget> widgets, long? version = null) => new
   {
     name,
     description,
     refreshSeconds,
+    version,
     widgets = widgets.Select(w => new
     {
       id = w.Id,

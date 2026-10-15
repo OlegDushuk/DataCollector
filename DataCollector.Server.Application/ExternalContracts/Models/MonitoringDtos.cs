@@ -35,6 +35,11 @@ public class SaveMonitoringRuleCommand
   public decimal Threshold { get; set; }
   public int ConsecutiveChecks { get; set; } = 1;
   public int CheckIntervalSeconds { get; set; } = 60;
+
+  /// <summary>
+  /// Версія правила, яку бачив редактор (лише для зміни). Не збігається з поточною - 409. null - без перевірки.
+  /// </summary>
+  public int? Version { get; set; }
 }
 
 public class MonitoringRuleDto
@@ -67,6 +72,9 @@ public class MonitoringRuleDto
   public DateTime NextCheckAt { get; set; }
   public DateTime CreatedAt { get; set; }
   public DateTime? UpdatedAt { get; set; }
+
+  /// <summary>Версія визначення (оптимістична конкурентність): передається назад при зміні.</summary>
+  public int Version { get; set; }
 }
 
 /// <summary>Розрахунок правила «зараз» без збереження - для перевірки умови в редакторі.</summary>

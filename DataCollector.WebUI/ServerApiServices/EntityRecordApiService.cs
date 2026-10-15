@@ -128,11 +128,12 @@ public class EntityRecordApiService(HttpClient httpClient, ApiContext context) :
     return result.Id;
   }
 
-  public Task Update(Guid configId, Guid recordId, IReadOnlyDictionary<string, string?> values)
-    => PatchAsync($"{RecordsUrl(configId)}/{recordId}", new { values });
+  /// <param name="version">Версія запису, яку бачив користувач: змінений відтоді запис не перезаписується (409).</param>
+  public Task Update(Guid configId, Guid recordId, IReadOnlyDictionary<string, string?> values, long? version)
+    => PatchAsync($"{RecordsUrl(configId)}/{recordId}", new { values, version });
 
-  public Task Delete(Guid configId, Guid recordId)
-    => DeleteAsync($"{RecordsUrl(configId)}/{recordId}");
+  public Task Delete(Guid configId, Guid recordId, long? version)
+    => DeleteAsync($"{RecordsUrl(configId)}/{recordId}", version);
 
   /// <summary>
   /// Імпорт записів з файлу (POST .../records/import). <paramref name="dryRun"/> - лише перевірка:

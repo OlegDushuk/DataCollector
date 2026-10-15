@@ -1,10 +1,12 @@
 using DataCollector.Server.API.Auth;
+using DataCollector.Server.API.Infrastructure;
 using DataCollector.Server.Application.ExternalContracts.Interfaces;
 using DataCollector.Server.Application.ExternalContracts.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
 namespace DataCollector.Server.API.Controllers;
@@ -23,6 +25,7 @@ public class AuthController(
 {
   /// <summary>Логін і пароль -> токен доступу. Після 5 невдалих спроб вхід блокується на 5 хвилин.</summary>
   [AllowAnonymous]
+  [EnableRateLimiting(RateLimitPolicies.Login)]
   [HttpPost("login")]
   public async Task<ActionResult<LoginResultDto>> Login([FromBody] LoginCommand command)
   {

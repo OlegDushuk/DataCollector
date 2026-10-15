@@ -51,10 +51,11 @@ internal sealed class RecordQuerySql : RecordSqlBuilder
           [Pkey] BIGINT NOT NULL,
           [Id] UNIQUEIDENTIFIER NOT NULL,
           [CreatedAt] DATETIME2 NOT NULL,
-          [UpdatedAt] DATETIME2 NULL);
+          [UpdatedAt] DATETIME2 NULL,
+          [Version] BIGINT NOT NULL);
 
-      INSERT INTO @Page ([Pkey], [Id], [CreatedAt], [UpdatedAt])
-      SELECT i.[Pkey], i.[Id], i.[CreatedAt], i.[UpdatedAt]
+      INSERT INTO @Page ([Pkey], [Id], [CreatedAt], [UpdatedAt], [Version])
+      SELECT i.[Pkey], i.[Id], i.[CreatedAt], i.[UpdatedAt], CAST(i.[RowVersion] AS BIGINT)
       FROM [dbo].[EntityInstances] i
       """);
     if (sortJoin != null)
@@ -65,7 +66,7 @@ internal sealed class RecordQuerySql : RecordSqlBuilder
     sql.AppendLine("OPTION (RECOMPILE);");
     sql.AppendLine();
     sql.AppendLine("""
-      SELECT [Id], @ConfigId AS [EntityConfigId], [CreatedAt], [UpdatedAt]
+      SELECT [Id], @ConfigId AS [EntityConfigId], [CreatedAt], [UpdatedAt], [Version]
       FROM @Page
       ORDER BY [RowNum];
 

@@ -1,8 +1,10 @@
 using DataCollector.Server.API.Auth;
+using DataCollector.Server.API.Infrastructure;
 using DataCollector.Server.Application.ExternalContracts.Interfaces;
 using DataCollector.Server.Application.ExternalContracts.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace DataCollector.Server.API.Controllers;
 
@@ -12,6 +14,7 @@ namespace DataCollector.Server.API.Controllers;
 [ApiController]
 [Route("api/data-configs/{config}/records")]
 [Authorize(Policy = AuthPolicies.CanEdit)]
+[EnableRateLimiting(RateLimitPolicies.Heavy)]
 public class DataImportController(IDataImportService dataImportService) : ControllerBase
 {
   /// <summary>Найбільший розмір файлу імпорту, байт.</summary>

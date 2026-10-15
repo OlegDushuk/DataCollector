@@ -1,7 +1,9 @@
 using System.Net.Mime;
+using DataCollector.Server.API.Infrastructure;
 using DataCollector.Server.Application.ExternalContracts.Interfaces;
 using DataCollector.Server.Application.ExternalContracts.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Net.Http.Headers;
 
@@ -13,6 +15,7 @@ namespace DataCollector.Server.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/data-configs/{config}/records")]
+[EnableRateLimiting(RateLimitPolicies.Heavy)]
 public class DataExportController(IDataExportService dataExportService) : ControllerBase
 {
   /// <summary>Заголовок відповіді: "true", якщо в файл потрапили не всі записи (ліміт експорту).</summary>

@@ -33,6 +33,7 @@ internal class EntityInstanceRow
   public Guid EntityConfigId { get; set; }
   public DateTime CreatedAt { get; set; }
   public DateTime? UpdatedAt { get; set; }
+  public long Version { get; set; }
 }
 
 internal class EntityPropertyValueRow
@@ -55,6 +56,7 @@ internal class DashboardRow
   public int RefreshSeconds { get; set; }
   public DateTime CreatedAt { get; set; }
   public DateTime? UpdatedAt { get; set; }
+  public long Version { get; set; }
 }
 
 internal class DashboardWidgetRow

@@ -10,6 +10,13 @@ public class EntityInstance
   public Guid Id { get; private set; }
   public DateTime CreatedAt { get; private set; }
   public DateTime? UpdatedAt { get; private set; }
+
+  /// <summary>
+  /// Версія запису в сховищі (оптимістична конкурентність): змінюється при кожному збереженні.
+  /// 0 - запис ще не збережено.
+  /// </summary>
+  public long Version { get; private set; }
+
   public EntityConfig Config { get; private set; }
   
   public IReadOnlyCollection<EntityProperty> Properties => _properties;
@@ -19,12 +26,14 @@ public class EntityInstance
     EntityConfig config,
     Guid? id = null,
     DateTime? createdAt = null,
-    DateTime? updatedAt = null)
+    DateTime? updatedAt = null,
+    long version = 0)
   {
     Config = config;
     Id = id ?? Guid.NewGuid();
     CreatedAt = createdAt ?? DateTime.UtcNow;
     UpdatedAt = updatedAt;
+    Version = version;
 
     foreach (var property in config.Properties)
       _properties.Add(new EntityProperty(property));
@@ -64,6 +73,12 @@ public class EntityInstance
   public void MarkUpdated()
   {
     UpdatedAt = DateTime.UtcNow;
+  }
+
+  /// <summary>Нова версія після збереження (її видає сховище).</summary>
+  public void SetVersion(long version)
+  {
+    Version = version;
   }
 
   /// <summary>

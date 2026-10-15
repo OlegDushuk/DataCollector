@@ -23,6 +23,9 @@ public sealed class Dashboard
   public DateTime CreatedAt { get; }
   public DateTime? UpdatedAt { get; private set; }
 
+  /// <summary>Версія в сховищі (оптимістична конкурентність); 0 - дашборд ще не збережено.</summary>
+  public long Version { get; private set; }
+
   public IReadOnlyList<DashboardWidget> Widgets => _widgets;
   private readonly List<DashboardWidget> _widgets = [];
 
@@ -33,11 +36,13 @@ public sealed class Dashboard
     IEnumerable<DashboardWidget>? widgets = null,
     Guid? id = null,
     DateTime? createdAt = null,
-    DateTime? updatedAt = null)
+    DateTime? updatedAt = null,
+    long version = 0)
   {
     Id = id ?? Guid.NewGuid();
     CreatedAt = createdAt ?? DateTime.UtcNow;
     UpdatedAt = updatedAt;
+    Version = version;
 
     Name = Guard.Name(name, "дашборду");
     Description = NormalizeDescription(description);
@@ -55,6 +60,12 @@ public sealed class Dashboard
     RefreshSeconds = NormalizeRefresh(refreshSeconds);
     SetWidgets(widgets);
     UpdatedAt = DateTime.UtcNow;
+  }
+
+  /// <summary>Нова версія після збереження (її видає сховище).</summary>
+  public void SetVersion(long version)
+  {
+    Version = version;
   }
 
   /// <summary>Копія з новими Id дашборду й віджетів: «Назва (копія)».</summary>

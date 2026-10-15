@@ -19,10 +19,12 @@ try
   var builder = WebApplication.CreateBuilder(args);
 
   // Serilog: консоль і щоденні файли logs/api-*.log (JSON - для пошуку й аналізу), рівні - у секції "Serilog".
+  // preserveStaticLogger: статичний Log.Logger лишається журналом запуску і не «заморожується» - так кілька
+  // екземплярів API в одному процесі (інтеграційні тести) не заважають один одному.
   builder.Services.AddSerilog((services, configuration) => configuration
     .ReadFrom.Configuration(builder.Configuration)
     .ReadFrom.Services(services)
-    .Enrich.FromLogContext());
+    .Enrich.FromLogContext(), preserveStaticLogger: true);
 
   builder.Services
     .AddControllers()
@@ -34,7 +36,9 @@ try
 
   builder.Services.AddProblemDetails();
   builder.Services.AddExceptionHandler<ApiExceptionHandler>();
-  builder.Services.AddOpenApi();
+  // Опис API (OpenAPI 3.1) і документація Scalar; перевірка стану для систем розгортання й спостереження.
+  builder.Services.AddApiDocumentation();
+  builder.Services.AddApiHealthChecks();
 
   // Автентифікація: токен користувача (після входу) або API-ключ зовнішньої системи.
   builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.Section));
@@ -60,6 +64,9 @@ try
 
   builder.Services.AddHostedService<AuthBootstrapper>();
 
+  // Ліміти частоти запитів: на клієнта, на вхід і на імпорт / експорт (секція "RateLimiting").
+  builder.Services.AddApiRateLimiting(builder.Configuration);
+
   builder.Services.AddDataAccess();
 
   // Моніторинг: зовнішній канал сповіщень (вебхук / Telegram) - до AddApplication, щоб замінити «канал не підключено»,
@@ -82,13 +89,20 @@ try
 
   app.UseAuthentication();
   app.UseMiddleware<SessionValidationMiddleware>();
+
+  // Після автентифікації: ліміт рахується окремо для кожного користувача / ключа, а не для спільної IP веб-інтерфейсу.
+  app.UseRateLimiter();
+
   app.UseAuthorization();
 
   if (app.Environment.IsDevelopment())
   {
-    // Специфікація доступна за адресою /openapi/v1.json
-    app.MapOpenApi().AllowAnonymous();
+    // Специфікація /openapi/v1.json і документація /scalar - лише в Development.
+    app.MapApiDocumentation();
   }
+
+  // /health/live, /health/ready, /health - без входу і без ліміту запитів.
+  app.MapApiHealthChecks();
 
   app.MapControllers();
 
@@ -102,3 +116,4 @@ finally
 {
   Log.CloseAndFlush();
 }
+public partial class Program;

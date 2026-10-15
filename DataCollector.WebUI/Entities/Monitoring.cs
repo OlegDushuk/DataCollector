@@ -33,6 +33,9 @@ public class MonitoringRule
   public DateTime CreatedAt { get; set; }
   public DateTime? UpdatedAt { get; set; }
 
+  /// <summary>Версія визначення (оптимістична конкурентність): надсилається назад при збереженні.</summary>
+  public int Version { get; set; }
+
   /// <summary>Стан для показу: вимкнене правило - «Вимкнено», незалежно від останнього стану.</summary>
   public string DisplayState => IsEnabled ? State : RuleStates.Disabled;
 }

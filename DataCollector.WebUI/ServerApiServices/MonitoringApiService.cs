@@ -16,8 +16,13 @@ public class MonitoringApiService(HttpClient httpClient, ApiContext context) : A
   public async Task<Guid> CreateRule(object body)
     => (await PostAsync<IdResponse>($"{BaseUrl}/rules", body)).Id;
 
-  public Task UpdateRule(Guid id, object body)
-    => PutAsync($"{BaseUrl}/rules/{id}", body);
+  /// <param name="version">Версія правила, з якою відкрито редактор: змінене відтоді правило не перезаписується (409).</param>
+  public Task UpdateRule(Guid id, object body, int version)
+  {
+    var json = System.Text.Json.JsonSerializer.SerializeToNode(body, JsonOptions)!.AsObject();
+    json["version"] = version;
+    return PutAsync($"{BaseUrl}/rules/{id}", json);
+  }
 
   public Task SetEnabled(Guid id, bool enabled)
     => PutAsync($"{BaseUrl}/rules/{id}/enabled", new { enabled });

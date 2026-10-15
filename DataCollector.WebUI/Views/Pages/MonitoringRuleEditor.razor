@@ -33,7 +33,14 @@
 </PageHeader>
 
 <div class="page page--scroll">
-    <Alert Message="@Error" OnClose="@(() => Error = null)" />
+    <Alert Message="@Error" OnClose="@(() => { Error = null; _conflict = false; })" />
+    @if (_conflict)
+    {
+        <div class="form__conflict">
+            <span class="default-text">Ваші незбережені зміни буде втрачено.</span>
+            <Button Text="Відкрити актуальну версію" Variant="ButtonVariant.Secondary" OnClick="ReloadRule" />
+        </div>
+    }
 
     @if (_configs is null)
     {
@@ -270,6 +277,18 @@
   private bool _previewStale;
   private bool _saving;
 
+  /// <summary>Правило тим часом змінив хтось інший (409).</summary>
+  private bool _conflict;
+
+  /// <summary>Після конфлікту: редактор з актуальною версією правила.</summary>
+  private async Task ReloadRule()
+  {
+    Error = null;
+    _conflict = false;
+    _preview = null;
+    await OnParametersSetAsync();
+  }
+
   protected override async Task OnParametersSetAsync()
   {
     await Try(async () => _configs = await ConfigApi.GetAll());
@@ -382,10 +401,11 @@
     var body = _form.ToApi(_fields);
 
     var ok = Id is { } id
-      ? await Try(() => MonitoringApi.UpdateRule(id, body))
+      ? await Try(() => MonitoringApi.UpdateRule(id, body, _rule?.Version ?? 0))
       : await Try(() => MonitoringApi.CreateRule(body));
 
     _saving = false;
+    _conflict = !ok && LastErrorIsConflict;
 
     if (ok)
       Navigation.NavigateTo("/monitoring");

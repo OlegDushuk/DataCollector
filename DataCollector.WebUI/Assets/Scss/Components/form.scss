@@ -128,6 +128,17 @@
   &__hint {
     line-height: 18px;
   }
+
+  // Конфлікт версій під повідомленням про помилку: пояснення і кнопка «Відкрити актуальну версію».
+  &__conflict {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    margin-top: 8px;
+    font-size: 13px;
+  }
 }
 
 .property-rows {

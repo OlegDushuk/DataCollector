@@ -12,8 +12,11 @@ public interface IMonitoringRuleRepository
   Task<RuleRecord?> GetById(Guid id);
   Task Create(MonitoringRule rule);
 
-  /// <summary>Нове визначення (стан зберігається, Version збільшується, перевірка - одразу).</summary>
-  Task Update(MonitoringRule rule);
+  /// <summary>
+  /// Нове визначення (стан зберігається, Version збільшується, перевірка - одразу), якщо версія в сховищі
+  /// досі <paramref name="expectedVersion"/> (інакше - конфлікт).
+  /// </summary>
+  Task Update(MonitoringRule rule, int expectedVersion);
 
   Task Delete(Guid id);
 

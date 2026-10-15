@@ -97,23 +97,31 @@ public class DataInstanceService(
     return instance.Id;
   }
 
-  public async Task UpdateInstance(string config, Guid instanceId, UpdateDataInstanceCommand command)
+  public async Task<long> UpdateInstance(string config, Guid instanceId, UpdateDataInstanceCommand command)
   {
     var entity = await entityConfigs.Get(config);
     var instance = await LoadInstance(entity, instanceId);
 
-    ApplyValues(instance, command.Values);
+    // Клієнт бачив застарілу версію - відмова одразу, з зрозумілим повідомленням. Якщо запис змінять уже після
+    // цього читання, ту саму відмову дасть сховище (воно порівнює версію в момент запису).
+    VersionConflictException.Ensure(command.Version, instance.Version, VersionConflictException.Record);
+
+    ApplyValues(instance, command.Values ?? []);
     instance.MarkUpdated();
 
-    await entityInstanceRepository.Update(instance);
+    var version = await entityInstanceRepository.Update(instance);
+    instance.SetVersion(version);
+    return version;
   }
 
-  public async Task DeleteInstance(string config, Guid instanceId)
+  public async Task DeleteInstance(string config, Guid instanceId, long? expectedVersion = null)
   {
     var entity = await entityConfigs.Get(config);
     var instance = await LoadInstance(entity, instanceId);
 
-    await entityInstanceRepository.Delete(instance.Id);
+    VersionConflictException.Ensure(expectedVersion, instance.Version, VersionConflictException.Record);
+
+    await entityInstanceRepository.Delete(instance.Id, expectedVersion);
   }
 
 

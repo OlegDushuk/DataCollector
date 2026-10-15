@@ -38,7 +38,14 @@ else
     </PageHeader>
 
     <div class="page">
-        <Alert Message="@Error" OnClose="@(() => Error = null)" />
+        <Alert Message="@Error" OnClose="@(() => { Error = null; _conflict = false; })" />
+        @if (_conflict)
+        {
+            <div class="dashboard-editor__conflict">
+                <span class="default-text">Перезавантаження покаже збережену версію; ваші незбережені зміни буде втрачено.</span>
+                <Button Text="Перезавантажити дашборд" Variant="ButtonVariant.Secondary" OnClick="Discard" />
+            </div>
+        }
         <Alert Message="@_notice" Success="true" OnClose="@(() => _notice = null)" />
 
         @if (Dashboard is null)
@@ -194,6 +201,9 @@ else
 
   private bool _dirty;
   private bool _saving;
+
+  /// <summary>Дашборд тим часом зберегли в іншому вікні або інший користувач (409).</summary>
+  private bool _conflict;
   private string? _notice;
   private bool _confirmDiscard;
   private string? _pendingNavigation;
@@ -216,6 +226,7 @@ else
     Dashboard = null;
     _selectedId = null;
     _dirty = false;
+    _conflict = false;
 
     await Try(async () => _configs = await ConfigApi.GetAll());
     await LoadDashboard();
@@ -328,22 +339,30 @@ else
       Name = _name.Trim(),
       Description = string.IsNullOrWhiteSpace(_description) ? null : _description.Trim(),
       RefreshSeconds = _refreshSeconds,
+      Version = Dashboard.Version,
       Widgets = Widgets.Select((w, i) => w.ToApi(positions[i].X, positions[i].Y)).ToList()
     };
 
     _saving = true;
     Error = null;
+    _conflict = false;
+    long version = 0;
 
     try
     {
-      if (!await Try(() => DashboardApi.Save(dashboard)))
+      if (!await Try(async () => version = await DashboardApi.Save(dashboard)))
+      {
+        _conflict = LastErrorIsConflict;
         return;
+      }
     }
     finally
     {
       _saving = false;
     }
 
+    // Наступне збереження з цього ж редактора - вже з новою версією.
+    Dashboard.Version = version;
     Dashboard.Name = dashboard.Name;
     _dirty = false;
 

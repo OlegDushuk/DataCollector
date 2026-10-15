@@ -85,19 +85,21 @@ public class EntityInstanceRepository : RepositoryBase, IEntityInstanceRepositor
     await ExecuteAsync("Create", parameters);
   }
 
-  public async Task Update(EntityInstance instance)
+  public async Task<long> Update(EntityInstance instance)
   {
     var parameters = new DynamicParameters();
     parameters.Add("Id", instance.Id);
     parameters.Add("UpdatedAt", instance.UpdatedAt ?? DateTime.UtcNow);
+    // Версія, з якою запис прочитали: процедура порівнює її в момент запису (оптимістична конкурентність).
+    parameters.Add("ExpectedVersion", instance.Version);
     parameters.Add("Values", TableValuedParameters.ToValueList(instance));
 
-    await ExecuteAsync("Update", parameters);
+    return await QueryFirstOrDefaultAsync<long>("Update", parameters);
   }
 
-  public async Task Delete(Guid id)
+  public async Task Delete(Guid id, long? expectedVersion = null)
   {
-    await ExecuteAsync("Delete", new { Id = id });
+    await ExecuteAsync("Delete", new { Id = id, ExpectedVersion = expectedVersion });
   }
 
   public async Task<Dictionary<Guid, Guid>> GetOwners(
@@ -167,7 +169,7 @@ public class EntityInstanceRepository : RepositoryBase, IEntityInstanceRepositor
     EntityInstanceRow row,
     IEnumerable<EntityPropertyValueRow> values)
   {
-    var instance = new EntityInstance(config, row.Id, AsUtc(row.CreatedAt), AsUtc(row.UpdatedAt));
+    var instance = new EntityInstance(config, row.Id, AsUtc(row.CreatedAt), AsUtc(row.UpdatedAt), row.Version);
 
     foreach (var value in values)
       instance.RestorePropertyValue(value.EntityPropertyConfigId, ReadValue(value));

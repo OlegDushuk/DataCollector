@@ -42,7 +42,8 @@ public class DashboardRepository(IConfiguration config)
           w.Id, w.ConfigId, DashboardWidgetTypes.Parse(w.Type)!.Value, w.Title, w.X, w.Y, w.W, w.H, w.Settings));
 
       return new Dashboard(
-        row.Name, row.Description, row.RefreshSeconds, widgets, row.Id, AsUtc(row.CreatedAt), AsUtc(row.UpdatedAt));
+        row.Name, row.Description, row.RefreshSeconds, widgets, row.Id, AsUtc(row.CreatedAt), AsUtc(row.UpdatedAt),
+        row.Version);
     });
   }
 
@@ -59,7 +60,7 @@ public class DashboardRepository(IConfiguration config)
     return ExecuteAsync("Create", parameters);
   }
 
-  public Task Update(Dashboard dashboard)
+  public Task<long> Update(Dashboard dashboard)
   {
     var parameters = new DynamicParameters();
     parameters.Add("Id", dashboard.Id);
@@ -67,9 +68,10 @@ public class DashboardRepository(IConfiguration config)
     parameters.Add("Description", dashboard.Description);
     parameters.Add("RefreshSeconds", dashboard.RefreshSeconds);
     parameters.Add("UpdatedAt", dashboard.UpdatedAt ?? DateTime.UtcNow);
+    parameters.Add("ExpectedVersion", dashboard.Version);
     parameters.Add("Widgets", ToWidgetList(dashboard.Widgets));
 
-    return ExecuteAsync("Update", parameters);
+    return QueryFirstOrDefaultAsync<long>("Update", parameters);
   }
 
   public Task Delete(Guid id)

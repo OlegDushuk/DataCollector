@@ -100,6 +100,13 @@ public abstract class ApiServiceBase(HttpClient httpClient, ApiContext context)
     using var _ = await Send(HttpMethod.Put, url, Json(body));
   }
 
+  /// <summary>PUT, у відповідь на який API повертає нову версію об'єкта в заголовку ETag (null - заголовка немає).</summary>
+  protected async Task<long?> PutForVersionAsync(string url, object body)
+  {
+    using var response = await Send(HttpMethod.Put, url, Json(body));
+    return long.TryParse(response.Headers.ETag?.Tag.Trim('"'), out var version) ? version : null;
+  }
+
   /// <summary>POST без тіла запиту; відповідь - невеликий JSON.</summary>
   protected async Task<TResult> PostEmptyAsync<TResult>(string url)
   {
@@ -113,9 +120,10 @@ public abstract class ApiServiceBase(HttpClient httpClient, ApiContext context)
     using var _ = await Send(HttpMethod.Post, url, null);
   }
 
-  protected async Task DeleteAsync(string url)
+  /// <param name="ifMatch">Версія об'єкта, яку бачив користувач: якщо його відтоді змінили, API відповість 409.</param>
+  protected async Task DeleteAsync(string url, long? ifMatch = null)
   {
-    using var _ = await Send(HttpMethod.Delete, url, null);
+    using var _ = await Send(HttpMethod.Delete, url, null, ifMatch: ifMatch);
   }
 
   protected static string Escape(string value) => Uri.EscapeDataString(value);
@@ -126,9 +134,13 @@ public abstract class ApiServiceBase(HttpClient httpClient, ApiContext context)
     HttpMethod method,
     string url,
     HttpContent? content,
-    CancellationToken cancellationToken = default)
+    CancellationToken cancellationToken = default,
+    long? ifMatch = null)
   {
     using var request = new HttpRequestMessage(method, url) { Content = content };
+
+    if (ifMatch is { } version)
+      request.Headers.TryAddWithoutValidation("If-Match", $"\"{version}\"");
 
     // Кожен запит - від імені користувача, що працює з інтерфейсом: API саме перевіряє його права.
     var token = await context.User.AccessToken();

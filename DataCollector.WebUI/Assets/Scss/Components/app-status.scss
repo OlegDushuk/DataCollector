@@ -40,10 +40,13 @@
   justify-content: center;
   background: variables.$overlay-color;
 
-  // Класи, які додає blazor.web.js залежно від стану з'єднання.
+  // Класи, які додає blazor.web.js залежно від стану з'єднання (.NET 10 додав paused - сеанс призупинено
+  // і resume-failed - сеанс не вдалося відновити після перезапуску сервера).
   &.components-reconnect-show,
+  &.components-reconnect-paused,
   &.components-reconnect-failed,
-  &.components-reconnect-rejected {
+  &.components-reconnect-rejected,
+  &.components-reconnect-resume-failed {
     display: flex;
   }
 
@@ -72,8 +75,10 @@
   }
 
   &.components-reconnect-show &__text--show,
+  &.components-reconnect-paused &__text--show,
   &.components-reconnect-failed &__text--failed,
-  &.components-reconnect-rejected &__text--rejected {
+  &.components-reconnect-rejected &__text--rejected,
+  &.components-reconnect-resume-failed &__text--rejected {
     display: block;
   }
 
@@ -87,7 +92,8 @@
   }
 
   &.components-reconnect-failed &__spinner,
-  &.components-reconnect-rejected &__spinner {
+  &.components-reconnect-rejected &__spinner,
+  &.components-reconnect-resume-failed &__spinner {
     display: none;
   }
 }

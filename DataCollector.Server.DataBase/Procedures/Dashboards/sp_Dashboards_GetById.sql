@@ -7,7 +7,7 @@ BEGIN
 
     DECLARE @Pkey INT = (SELECT [Pkey] FROM [dbo].[Dashboards] WHERE [Id] = @Id);
 
-    SELECT [Id], [Name], [Description], [RefreshSeconds], [CreatedAt], [UpdatedAt]
+    SELECT [Id], [Name], [Description], [RefreshSeconds], [CreatedAt], [UpdatedAt], CAST([RowVersion] AS BIGINT) AS [Version]
     FROM [dbo].[Dashboards]
     WHERE [Pkey] = @Pkey;
 

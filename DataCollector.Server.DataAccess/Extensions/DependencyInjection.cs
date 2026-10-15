@@ -18,6 +18,7 @@ public static class DependencyInjection
     services.AddSingleton<INotificationRepository, NotificationRepository>();
     services.AddSingleton<IUserRepository, UserRepository>();
     services.AddSingleton<IApiKeyRepository, ApiKeyRepository>();
+    services.AddSingleton<IDatabaseHealth, DatabaseHealth>();
     
     return services;
   }

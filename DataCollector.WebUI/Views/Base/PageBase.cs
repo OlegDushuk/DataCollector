@@ -14,10 +14,18 @@ public abstract class PageBase : ComponentBase
   protected string? Error { get; set; }
 
   /// <summary>
+  /// Остання дія через <see cref="Try"/> відхилена, бо об'єкт тим часом змінив хтось інший (409, оптимістична
+  /// конкурентність) - сторінка може запропонувати перечитати актуальну версію.
+  /// </summary>
+  protected bool LastErrorIsConflict { get; private set; }
+
+  /// <summary>
   /// Виконує дію і перетворює помилку API на повідомлення. Повертає true, якщо все пройшло успішно.
   /// </summary>
   protected async Task<bool> Try(Func<Task> action, Action<string>? onError = null)
   {
+    LastErrorIsConflict = false;
+
     try
     {
       await action();
@@ -25,6 +33,8 @@ public abstract class PageBase : ComponentBase
     }
     catch (ApiException e)
     {
+      LastErrorIsConflict = e.StatusCode == System.Net.HttpStatusCode.Conflict;
+
       if (onError != null)
         onError(e.Message);
       else

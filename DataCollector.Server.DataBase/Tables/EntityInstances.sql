@@ -7,6 +7,9 @@ CREATE TABLE [dbo].[EntityInstances]
     [ConfigPkey] INT NOT NULL,
     [CreatedAt] DATETIME2 NOT NULL,
     [UpdatedAt] DATETIME2 NULL,
+    -- Версія рядка для оптимістичної конкурентності: SQL Server змінює її при кожному оновленні запису.
+    -- Зміна, зроблена за застарілою версією, відхиляється (409), а не перезаписує чужі зміни.
+    [RowVersion] ROWVERSION NOT NULL,
 
     CONSTRAINT PK_EntityInstances
         PRIMARY KEY CLUSTERED ([Pkey]),

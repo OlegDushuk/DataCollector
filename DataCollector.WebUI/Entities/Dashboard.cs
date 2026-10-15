@@ -23,6 +23,10 @@ public class Dashboard
   public int RefreshSeconds { get; set; }
   public DateTime CreatedAt { get; set; }
   public DateTime? UpdatedAt { get; set; }
+
+  /// <summary>Версія (оптимістична конкурентність): надсилається назад при збереженні.</summary>
+  public long Version { get; set; }
+
   public List<DashboardWidget> Widgets { get; set; } = [];
 }
 

@@ -11,6 +11,10 @@ public class EntityInstance
   public Guid Id { get; set; }
   public DateTime CreatedAt { get; set; }
   public DateTime? UpdatedAt { get; set; }
+
+  /// <summary>Версія запису (оптимістична конкурентність): надсилається назад при зміні та видаленні.</summary>
+  public long Version { get; set; }
+
   public Dictionary<string, JsonElement> Values { get; set; } = [];
 
   /// <summary>

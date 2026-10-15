@@ -25,6 +25,10 @@ public interface IDataInstanceService
     CancellationToken cancellationToken = default);
   Task<DataInstanceDto> Get(string config, Guid instanceId);
   Task<Guid> CreateInstance(string config, CreateDataInstanceCommand command);
-  Task UpdateInstance(string config, Guid instanceId, UpdateDataInstanceCommand command);
-  Task DeleteInstance(string config, Guid instanceId);
+
+  /// <summary>Змінює передані поля; повертає нову версію запису.</summary>
+  Task<long> UpdateInstance(string config, Guid instanceId, UpdateDataInstanceCommand command);
+
+  /// <param name="expectedVersion">Версія, яку бачив клієнт; null - без перевірки.</param>
+  Task DeleteInstance(string config, Guid instanceId, long? expectedVersion = null);
 }

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <RootNamespace>DataCollector.Server.DataAccess</RootNamespace>
@@ -10,11 +10,16 @@
     <ItemGroup>
       <PackageReference Include="Dapper" Version="2.1.66" />
       <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
-      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.13" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.10" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\DataCollector.Server.Application\DataCollector.Server.Application.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <!-- Тести перевіряють і внутрішні класи (хешування паролів, writer-и експорту, SQL-будівники). -->
+      <InternalsVisibleTo Include="DataCollector.Tests.Unit" />
     </ItemGroup>
 
 </Project>

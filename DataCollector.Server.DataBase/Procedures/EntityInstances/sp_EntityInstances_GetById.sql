@@ -5,7 +5,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    SELECT i.[Id], c.[Id] AS [EntityConfigId], i.[CreatedAt], i.[UpdatedAt]
+    SELECT i.[Id], c.[Id] AS [EntityConfigId], i.[CreatedAt], i.[UpdatedAt], CAST(i.[RowVersion] AS BIGINT) AS [Version]
     FROM [dbo].[EntityInstances] i
     INNER JOIN [dbo].[EntityConfigs] c ON c.[Pkey] = i.[ConfigPkey]
     WHERE i.[Id] = @Id;

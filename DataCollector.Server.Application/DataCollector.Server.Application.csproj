@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <RootNamespace>DataCollector.Server.Application</RootNamespace>
@@ -12,9 +12,14 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.13" />
-      <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.13" />
-      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.13" />
+      <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.10" />
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
+      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <!-- Тести перевіряють і внутрішні класи (хешування паролів, writer-и експорту, SQL-будівники). -->
+      <InternalsVisibleTo Include="DataCollector.Tests.Unit" />
     </ItemGroup>
 
 </Project>

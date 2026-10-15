@@ -1,10 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <RootNamespace>DataCollector.Server.Domain</RootNamespace>
     </PropertyGroup>
+
+    <ItemGroup>
+      <!-- Тести перевіряють і внутрішні класи (хешування паролів, writer-и експорту, SQL-будівники). -->
+      <InternalsVisibleTo Include="DataCollector.Tests.Unit" />
+    </ItemGroup>
 
 </Project>

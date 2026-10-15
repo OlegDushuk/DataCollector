@@ -9,6 +9,8 @@ CREATE TABLE [dbo].[Dashboards]
     [RefreshSeconds] INT NOT NULL CONSTRAINT DF_Dashboards_RefreshSeconds DEFAULT (0),
     [CreatedAt] DATETIME2 NOT NULL,
     [UpdatedAt] DATETIME2 NULL,
+    -- Версія рядка: збереження дашборду, відкритого до чужого збереження, відхиляється (409).
+    [RowVersion] ROWVERSION NOT NULL,
 
     CONSTRAINT PK_Dashboards
         PRIMARY KEY CLUSTERED ([Pkey]),

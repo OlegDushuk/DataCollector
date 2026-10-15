@@ -23,8 +23,15 @@ public interface IEntityInstanceRepository
   Task<EntityInstance?> GetById(EntityConfig config, Guid id);
 
   Task Create(EntityInstance instance);
-  Task Update(EntityInstance instance);
-  Task Delete(Guid id);
+
+  /// <summary>
+  /// Зберігає зміни, якщо версія запису в сховищі досі <see cref="EntityInstance.Version"/>
+  /// (інакше - <see cref="Common.Exceptions.ConflictException"/>). Повертає нову версію.
+  /// </summary>
+  Task<long> Update(EntityInstance instance);
+
+  /// <param name="expectedVersion">Видалити лише якщо версія запису досі така; null - без перевірки.</param>
+  Task Delete(Guid id, long? expectedVersion = null);
 
   /// <summary>Id моделі, якій належить кожен із наявних записів (відсутніх записів у словнику немає).</summary>
   Task<Dictionary<Guid, Guid>> GetOwners(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);

@@ -8,7 +8,9 @@ public interface IDashboardService
   Task<List<DashboardListItemDto>> GetAll();
   Task<DashboardDto> Get(Guid id);
   Task<Guid> Create(SaveDashboardCommand command);
-  Task Save(Guid id, SaveDashboardCommand command);
+
+  /// <summary>Повне збереження; повертає нову версію дашборду.</summary>
+  Task<long> Save(Guid id, SaveDashboardCommand command);
   Task Delete(Guid id);
 
   /// <summary>Копія дашборду з усіма віджетами; повертає Id копії.</summary>

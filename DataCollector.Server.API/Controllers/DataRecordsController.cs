@@ -1,6 +1,7 @@
 using DataCollector.Server.Application.ExternalContracts.Interfaces;
 using DataCollector.Server.Application.ExternalContracts.Models;
 using DataCollector.Server.API.Auth;
+using DataCollector.Server.API.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -52,10 +53,13 @@ public class DataRecordsController(
     return await dataInstanceService.Aggregate(config, command, cancellationToken);
   }
 
+  /// <summary>Запис; його версія - також у заголовку ETag.</summary>
   [HttpGet("{recordId:guid}")]
   public async Task<ActionResult<DataInstanceDto>> Get(string config, Guid recordId)
   {
-    return await dataInstanceService.Get(config, recordId);
+    var record = await dataInstanceService.Get(config, recordId);
+    ETags.Set(Response, record.Version);
+    return record;
   }
 
   [Authorize(Policy = AuthPolicies.CanEdit)]
@@ -66,19 +70,27 @@ public class DataRecordsController(
     return CreatedAtAction(nameof(Get), new { config, recordId = id }, new CreatedIdResult { Id = id });
   }
 
+  /// <summary>
+  /// Змінює передані поля. Версія, яку бачив клієнт, - у полі version або в заголовку If-Match:
+  /// якщо запис відтоді змінили, відповідь 409. Нова версія - у заголовку ETag відповіді.
+  /// </summary>
   [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpPatch("{recordId:guid}")]
   public async Task<IActionResult> Update(string config, Guid recordId, [FromBody] UpdateDataInstanceCommand command)
   {
-    await dataInstanceService.UpdateInstance(config, recordId, command);
+    command.Version ??= ETags.IfMatch(Request);
+
+    var version = await dataInstanceService.UpdateInstance(config, recordId, command);
+    ETags.Set(Response, version);
     return NoContent();
   }
 
+  /// <summary>Видаляє запис; з заголовком If-Match - лише якщо версія запису не змінилась (інакше 409).</summary>
   [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpDelete("{recordId:guid}")]
   public async Task<IActionResult> Delete(string config, Guid recordId)
   {
-    await dataInstanceService.DeleteInstance(config, recordId);
+    await dataInstanceService.DeleteInstance(config, recordId, ETags.IfMatch(Request));
     return NoContent();
   }
 }

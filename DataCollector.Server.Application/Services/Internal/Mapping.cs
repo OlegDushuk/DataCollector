@@ -64,6 +64,7 @@ internal static class Mapping
     Id = instance.Id,
     CreatedAt = instance.CreatedAt,
     UpdatedAt = instance.UpdatedAt,
+    Version = instance.Version,
     Values = instance.Properties
       .Where(p => fields is null || fields.Any(f => f.Id == p.Config.Id))
       .ToDictionary(p => p.Config.Key, p => p.Value)

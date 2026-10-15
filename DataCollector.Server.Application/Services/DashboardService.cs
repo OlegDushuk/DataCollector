@@ -28,11 +28,16 @@ public class DashboardService(IDashboardRepository dashboardRepository) : IDashb
     return dashboard.Id;
   }
 
-  public async Task Save(Guid id, SaveDashboardCommand command)
+  public async Task<long> Save(Guid id, SaveDashboardCommand command)
   {
     var dashboard = await Load(id);
+    VersionConflictException.Ensure(command.Version, dashboard.Version, VersionConflictException.Dashboard);
+
     dashboard.Change(command.Name, command.Description, command.RefreshSeconds, Widgets(command));
-    await dashboardRepository.Update(dashboard);
+
+    var version = await dashboardRepository.Update(dashboard);
+    dashboard.SetVersion(version);
+    return version;
   }
 
   public Task Delete(Guid id)
@@ -73,6 +78,7 @@ public class DashboardService(IDashboardRepository dashboardRepository) : IDashb
     RefreshSeconds = dashboard.RefreshSeconds,
     CreatedAt = dashboard.CreatedAt,
     UpdatedAt = dashboard.UpdatedAt,
+    Version = dashboard.Version,
     Widgets = dashboard.Widgets.Select(w => new DashboardWidgetDto
     {
       Id = w.Id,

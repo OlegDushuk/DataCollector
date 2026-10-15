@@ -5,6 +5,7 @@ using DataCollector.WebUI.Services;
 using DataCollector.WebUI.Views;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Threading.RateLimiting;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -46,6 +47,32 @@ try
 
   builder.Services.AddCascadingAuthenticationState();
 
+  // Перебір паролів через форму входу: спроб входу з однієї IP-адреси за хвилину (секція "LoginRateLimit").
+  // API обмежує вхід ще й сам, але воно бачить лише адресу цього сервера - справжню адресу клієнта знає інтерфейс.
+  var loginAttemptsPerMinute = builder.Configuration.GetValue("LoginRateLimit:AttemptsPerMinute", 10);
+  builder.Services.AddRateLimiter(limiter =>
+  {
+    limiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    limiter.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+      HttpMethods.IsPost(context.Request.Method) && context.Request.Path.StartsWithSegments("/login") && loginAttemptsPerMinute > 0
+        ? RateLimitPartition.GetFixedWindowLimiter(
+            "login:" + context.Connection.RemoteIpAddress,
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = loginAttemptsPerMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 })
+        : RateLimitPartition.GetNoLimiter("other"));
+    limiter.OnRejected = async (context, cancellationToken) =>
+    {
+      context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>()
+        .LogWarning("Забагато спроб входу з адреси {ClientIp}", context.HttpContext.Connection.RemoteIpAddress);
+
+      context.HttpContext.Response.ContentType = "text/html; charset=utf-8";
+      await context.HttpContext.Response.WriteAsync(
+        "<!DOCTYPE html><html lang=\"uk\"><head><meta charset=\"utf-8\"><title>Забагато спроб входу</title></head>" +
+        "<body style=\"font-family:sans-serif;padding:40px\"><h1>Забагато спроб входу</h1>" +
+        "<p>Зачекайте хвилину й спробуйте знову.</p><p><a href=\"/login\">Повернутися до входу</a></p></body></html>",
+        cancellationToken);
+    };
+  });
+
   var apiBaseUrl = builder.Configuration["ServerApi:BaseUrl"]
                    ?? throw new InvalidOperationException("ServerApi:BaseUrl is not configured");
 
@@ -67,6 +94,10 @@ try
     // Звичайні запити таблиці від цього не «зависають»: сторінка скасовує їх сама, коли користувач іде далі.
     c.Timeout = TimeSpan.FromMinutes(5);
   });
+
+  // Перевірка стану: /health/live - процес живий, /health - готовність (API і база даних доступні).
+  builder.Services.AddHttpClient(ApiHealthCheck.HttpClientName);
+  builder.Services.AddHealthChecks().AddCheck<ApiHealthCheck>("api");
 
   var app = builder.Build();
 
@@ -94,9 +125,14 @@ try
   // Невідома адреса при першому відкритті - сторінка «Не знайдено» з меню, а не порожня 404 браузера.
   app.UseStatusCodePagesWithReExecute("/not-found");
 
+  app.UseRateLimiter();
+
   app.UseAuthentication();
   app.UseAuthorization();
   app.UseAntiforgery();
+
+  app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions { Predicate = _ => false });
+  app.MapHealthChecks("/health");
 
   app.MapStaticAssets();
   app.MapRazorComponents<App>()

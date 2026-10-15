@@ -346,6 +346,13 @@
                 }
             </div>
             <Alert Message="@_formError" />
+            @if (_formConflict)
+            {
+                <div class="form__conflict">
+                    <span class="default-text">Ваші незбережені зміни буде втрачено.</span>
+                    <Button Text="Відкрити актуальну версію" Variant="ButtonVariant.Secondary" OnClick="ReloadEditing" />
+                </div>
+            }
         </ChildContent>
         <Footer>
             <Button Text="Скасувати" Variant="ButtonVariant.Secondary" OnClick="@(() => _isFormOpen = false)" />

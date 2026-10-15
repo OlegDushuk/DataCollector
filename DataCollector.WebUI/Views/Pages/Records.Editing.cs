@@ -11,12 +11,16 @@ public partial class Records
   private Dictionary<string, string?> _form = [];
   private string? _formError;
 
+  /// <summary>Запис змінив хтось інший, поки форма була відкрита: пропонуємо перечитати його.</summary>
+  private bool _formConflict;
+
   private EntityInstance? _toDelete;
   private string? _deleteError;
 
   private void OpenCreate()
   {
     _editing = null;
+    _formConflict = false;
 
     // Новий запис одразу показує значення за замовчуванням - користувач бачить, що буде збережено.
     _form = _config!.Properties.ToDictionary(
@@ -44,7 +48,15 @@ public partial class Records
     _editing = record;
     _form = config.Properties.ToDictionary(p => p.Key, p => record.GetFormValue(p));
     _formError = null;
+    _formConflict = false;
     _isFormOpen = true;
+  }
+
+  /// <summary>Після конфлікту: форма з актуальною версією запису (незбережені зміни втрачаються - про це сказано в повідомленні).</summary>
+  private async Task ReloadEditing()
+  {
+    if (_editing != null)
+      await OpenEdit(_editing);
   }
 
   private async Task Save()
@@ -64,11 +76,14 @@ public partial class Records
       if (_editing is null)
         await RecordApi.Create(_config.Id, values);
       else
-        await RecordApi.Update(_config.Id, _editing.Id, values);
+        await RecordApi.Update(_config.Id, _editing.Id, values, _editing.Version);
     }, e => _formError = e);
 
     if (!ok)
+    {
+      _formConflict = LastErrorIsConflict;
       return;
+    }
 
     var isNew = _editing is null;
     _isFormOpen = false;
@@ -81,9 +96,15 @@ public partial class Records
     if (_config is null || _toDelete is null)
       return;
 
-    var ok = await Try(() => RecordApi.Delete(_config.Id, _toDelete.Id), e => _deleteError = e);
+    var ok = await Try(() => RecordApi.Delete(_config.Id, _toDelete.Id, _toDelete.Version), e => _deleteError = e);
     if (!ok)
+    {
+      // Запис тим часом змінили: таблиця перечитується, щоб наступна спроба йшла з актуальною версією.
+      if (LastErrorIsConflict)
+        await RefreshData(toFirstPage: false);
+
       return;
+    }
 
     _toDelete = null;
     await RefreshData(toFirstPage: false);

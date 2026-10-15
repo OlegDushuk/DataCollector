@@ -30,6 +30,7 @@ public class MonitoringController(IMonitoringService monitoring) : ControllerBas
     return CreatedAtAction(nameof(GetRule), new { id }, new CreatedIdResult { Id = id });
   }
 
+  /// <summary>Нове визначення правила; поле version - версія, яку бачив редактор (змінено відтоді - 409).</summary>
   [Authorize(Policy = AuthPolicies.CanEdit)]
   [HttpPut("rules/{id:guid}")]
   public async Task<IActionResult> UpdateRule(Guid id, [FromBody] SaveMonitoringRuleCommand command)
