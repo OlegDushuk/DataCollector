@@ -1,6 +1,6 @@
 -- Видаляє модель разом з полями, записами та значеннями.
 -- Віджети дашбордів, що показували цю модель, лишаються без моделі (ConfigPkey = NULL);
--- правила моніторингу моделі видаляються разом зі сповіщеннями.
+-- правила моніторингу моделі (і правила, що порівнюють з її даними) видаляються разом зі сповіщеннями.
 -- Помилки: 50404 - модель не знайдена.
 CREATE PROCEDURE [dbo].[sp_EntityConfigs_Delete]
     @Id UNIQUEIDENTIFIER
@@ -23,7 +23,8 @@ BEGIN
 
     DELETE FROM [dbo].[EntityInstances] WHERE [ConfigPkey] = @Pkey;
     UPDATE [dbo].[DashboardWidgets] SET [ConfigPkey] = NULL WHERE [ConfigPkey] = @Pkey;
-    DELETE FROM [dbo].[MonitoringRules] WHERE [ConfigPkey] = @Pkey;
+    -- Правила моделі і правила, що порівнюють з її даними: без моделі їх неможливо порахувати.
+    DELETE FROM [dbo].[MonitoringRules] WHERE [ConfigPkey] = @Pkey OR [CompareConfigPkey] = @Pkey;
     DELETE FROM [dbo].[EntityPropertyConfigs] WHERE [ConfigPkey] = @Pkey;
     DELETE FROM [dbo].[EntityConfigs] WHERE [Pkey] = @Pkey;
 

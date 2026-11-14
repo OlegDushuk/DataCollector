@@ -1,0 +1,92 @@
+@namespace DataCollector.WebUI.Views.Components
+
+@*
+    Період показника правила моніторингу: ковзне вікно (останні N хвилин) або календарний період (день, місяць...),
+    зсув назад (поточний, попередній, той самий торік) і для зсунутого календарного - «лише до того ж моменту».
+*@
+
+<div class="form__row">
+    <label class="form__field">
+        <span class="form__label">@Label</span>
+        <select class="select" value="@Period.Window" @onchange="OnWindowChange">
+            <optgroup label="Останні (ковзне вікно)">
+                @foreach (var (window, label) in PeriodForm.Sliding)
+                {
+                    <option value="@window">@label</option>
+                }
+            </optgroup>
+            <optgroup label="Календарний період">
+                @foreach (var (window, label) in PeriodForm.Calendar)
+                {
+                    <option value="@window">@label</option>
+                }
+            </optgroup>
+        </select>
+    </label>
+
+    @* За весь час зсувати нічого - лишаємо порожнє місце, щоб рядок не стрибав. *@
+    <label class="form__field @(Period.IsAllTime ? "form__field--invisible" : "")">
+        <span class="form__label">Який саме</span>
+        <select class="select" value="@Period.Offset" @onchange="OnShiftChange">
+            @foreach (var (offset, label) in Period.Shifts())
+            {
+                <option value="@offset">@label</option>
+            }
+        </select>
+    </label>
+</div>
+
+@if (Period.IsCalendar && Period.Offset > 0)
+{
+    <label class="check" title="Наприклад, 15 числа о 10:00 - з 1 числа минулого місяця до 15 числа 10:00, а не весь минулий місяць">
+        <input type="checkbox" checked="@Period.ToDate" @onchange="OnToDateChange" />
+        <span>Лише до того ж моменту, що й зараз (чесне порівняння неповного поточного періоду)</span>
+    </label>
+}
+
+@code {
+  [Parameter, EditorRequired] public PeriodForm Period { get; set; } = new();
+
+  [Parameter] public string Label { get; set; } = "Період";
+
+  /// <summary>Період змінено (форма змінюється на місці).</summary>
+  [Parameter] public EventCallback OnChange { get; set; }
+
+  private async Task OnWindowChange(ChangeEventArgs e)
+  {
+    var window = e.Value?.ToString() ?? "m:60";
+    var wasCalendar = Period.IsCalendar;
+    Period.Window = window;
+
+    // Інший вид періоду: «той самий місяць торік» (12) не має сенсу для дня - лишається «попередній».
+    if (Period.IsAllTime)
+      Period.Offset = 0;
+    else if (Period.Offset > 2 || wasCalendar != Period.IsCalendar && Period.Offset > 1)
+      Period.Offset = 1;
+
+    if (!Period.IsCalendar)
+      Period.ToDate = false;
+
+    await OnChange.InvokeAsync();
+  }
+
+  private async Task OnShiftChange(ChangeEventArgs e)
+  {
+    var wasCurrent = Period.Offset == 0;
+    Period.Offset = int.TryParse(e.Value?.ToString(), out var offset) ? offset : 0;
+
+    // Порівняння з минулим календарним періодом найчастіше має сенс «до того ж моменту».
+    if (wasCurrent && Period.Offset > 0 && Period.IsCalendar)
+      Period.ToDate = true;
+    if (Period.Offset == 0)
+      Period.ToDate = false;
+
+    await OnChange.InvokeAsync();
+  }
+
+  private async Task OnToDateChange(ChangeEventArgs e)
+  {
+    Period.ToDate = e.Value is true;
+    await OnChange.InvokeAsync();
+  }
+}

@@ -122,6 +122,10 @@ internal static class Mapping
   public static DateInterval? ToDateInterval(this string? code)
     => string.IsNullOrWhiteSpace(code) ? null : Parse(DateIntervals, code, "Невідомий інтервал дат");
 
+  public static string ToCode(this DateInterval interval) => Code(DateIntervals, interval);
+
+  public static string ToCode(this AggregateFunction function) => Code(AggregateFunctions, function);
+
   public static AggregateOrder ToAggregateOrder(this string? code)
     => string.IsNullOrWhiteSpace(code) ? AggregateOrder.Keys : Parse(AggregateOrders, code, "Невідомий порядок груп");
 

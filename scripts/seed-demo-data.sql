@@ -433,6 +433,18 @@ BEGIN
          @Function = N'count', @FieldKey = NULL, @TimeField = N'createdAt', @WindowMinutes = 1440,
          @Operator = N'gt', @Threshold = 100, @ConsecutiveChecks = 1, @CheckIntervalSeconds = 300, @CreatedAt = @RuleNow;
 
+    -- Поріг - не число, а інший показник: виручка поточного місяця порівнюється з виручкою попереднього місяця
+    -- до того ж дня (× 0,9 - спрацьовує, якщо впала більш ніж на 10%).
+    EXEC [dbo].[sp_MonitoringRules_Create]
+         @Id = '6d0a5a1e-2f4b-4c39-9a51-0d5b6c7e8f95', @ConfigId = @Orders, @Name = N'Виручка впала порівняно з минулим місяцем',
+         @IsEnabled = 1, @Filters = N'[{"field":"paid","operator":"eq","value":true}]', @Search = NULL,
+         @Function = N'sum', @FieldKey = N'price', @TimeField = N'createdAt', @WindowMinutes = NULL,
+         @WindowUnit = N'month', @TimeZone = N'Europe/Kiev',
+         @Operator = N'lt', @Threshold = 0, @ConsecutiveChecks = 1, @CheckIntervalSeconds = 3600, @CreatedAt = @RuleNow,
+         @CompareConfigId = @Orders, @CompareFilters = N'[{"field":"paid","operator":"eq","value":true}]',
+         @CompareFunction = N'sum', @CompareFieldKey = N'price', @CompareTimeField = N'createdAt',
+         @CompareWindowUnit = N'month', @CompareWindowOffset = 1, @CompareWindowToDate = 1, @CompareMultiplier = 0.9;
+
     -------------------------------------------------------------------------------
     -- 6. Демонстраційні користувачі і API-ключ
     -------------------------------------------------------------------------------

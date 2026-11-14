@@ -100,6 +100,22 @@ internal class MonitoringRuleRow
   public int Version { get; set; }
   public DateTime CreatedAt { get; set; }
   public DateTime? UpdatedAt { get; set; }
+  public string? WindowUnit { get; set; }
+  public int WindowOffset { get; set; }
+  public bool WindowToDate { get; set; }
+  public string? TimeZone { get; set; }
+  public Guid? CompareConfigId { get; set; }
+  public string? CompareFilters { get; set; }
+  public string? CompareSearch { get; set; }
+  public string? CompareFunction { get; set; }
+  public string? CompareFieldKey { get; set; }
+  public string? CompareTimeField { get; set; }
+  public int? CompareWindowMinutes { get; set; }
+  public string? CompareWindowUnit { get; set; }
+  public int CompareWindowOffset { get; set; }
+  public bool CompareWindowToDate { get; set; }
+  public decimal? CompareMultiplier { get; set; }
+  public decimal? LastCompareValue { get; set; }
 }
 
 internal class NotificationRow

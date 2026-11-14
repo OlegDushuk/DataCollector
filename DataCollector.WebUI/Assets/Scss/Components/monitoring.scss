@@ -284,6 +284,37 @@
   &__filters {
     gap: 14px;
   }
+
+  // «Порівнювати з: числом / іншим показником з даних».
+  &__mode {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 18px;
+  }
+}
+
+// Показник порівняння (поріг - не число, а інший показник з даних).
+.rule-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid variables.$border-color;
+  border-radius: variables.$radius-md;
+  background: variables.$bg-color;
+
+  &__title {
+    font-size: 14px;
+    font-weight: 500;
+    color: variables.$title-text-color;
+  }
+
+  &__filters {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
 }
 
 .form__field--invisible {

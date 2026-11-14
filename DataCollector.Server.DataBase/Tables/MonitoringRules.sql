@@ -1,4 +1,5 @@
--- Правила моніторингу: показник за вікно часу на даних однієї моделі, порівняний з порогом.
+-- Правила моніторингу: показник за період на даних однієї моделі, порівняний з порогом - фіксованим числом
+-- або іншим показником, теж порахованим з даних (Compare*: та сама чи інша модель, свій період, коефіцієнт).
 -- Визначення правила (що рахувати) і його поточний стан (що показала остання перевірка) - в одному рядку:
 -- фоновий сервіс на кожній перевірці порівнює новий результат зі збереженим станом.
 CREATE TABLE [dbo].[MonitoringRules]
@@ -42,6 +43,29 @@ CREATE TABLE [dbo].[MonitoringRules]
     [CreatedAt] DATETIME2 NOT NULL,
     [UpdatedAt] DATETIME2 NULL,
 
+    -- Календарний період замість ковзного вікна: поточна година, день, тиждень, місяць, квартал, рік у часовому поясі
+    -- [TimeZone]; [WindowOffset] - зсув на N періодів назад (1 - попередній), [WindowToDate] - зсунутий календарний
+    -- період лише до того ж моменту, що й поточний. Колонки додано в кінець, щоб публікація не перебудовувала таблицю.
+    [WindowUnit] NVARCHAR(8) NULL,              -- hour, day, week, month, quarter, year; NULL - ковзне вікно
+    [WindowOffset] INT NOT NULL CONSTRAINT DF_MonitoringRules_WindowOffset DEFAULT (0),
+    [WindowToDate] BIT NOT NULL CONSTRAINT DF_MonitoringRules_WindowToDate DEFAULT (0),
+    [TimeZone] NVARCHAR(64) NULL,
+
+    -- Показник порівняння (NULL - фіксований поріг [Threshold]): поріг = показник × [CompareMultiplier].
+    [CompareConfigPkey] INT NULL,
+    [CompareFilters] NVARCHAR(MAX) NULL,
+    [CompareSearch] NVARCHAR(200) NULL,
+    [CompareFunction] NVARCHAR(8) NULL,
+    [CompareFieldKey] NVARCHAR(32) NULL,
+    [CompareTimeField] NVARCHAR(32) NULL,
+    [CompareWindowMinutes] INT NULL,
+    [CompareWindowUnit] NVARCHAR(8) NULL,
+    [CompareWindowOffset] INT NOT NULL CONSTRAINT DF_MonitoringRules_CompareWindowOffset DEFAULT (0),
+    [CompareWindowToDate] BIT NOT NULL CONSTRAINT DF_MonitoringRules_CompareWindowToDate DEFAULT (0),
+    [CompareMultiplier] DECIMAL(38, 10) NULL,
+    -- Значення показника порівняння на останній перевірці.
+    [LastCompareValue] DECIMAL(38, 10) NULL,
+
     CONSTRAINT PK_MonitoringRules
         PRIMARY KEY CLUSTERED ([Pkey]),
 
@@ -50,6 +74,10 @@ CREATE TABLE [dbo].[MonitoringRules]
 
     CONSTRAINT FK_MonitoringRules_EntityConfigs
         FOREIGN KEY ([ConfigPkey])
+            REFERENCES [dbo].[EntityConfigs] ([Pkey]),
+
+    CONSTRAINT FK_MonitoringRules_CompareEntityConfigs
+        FOREIGN KEY ([CompareConfigPkey])
             REFERENCES [dbo].[EntityConfigs] ([Pkey]),
 
     CONSTRAINT CK_MonitoringRules_Function
@@ -62,6 +90,25 @@ CREATE TABLE [dbo].[MonitoringRules]
         CHECK ([ConsecutiveChecks] BETWEEN 1 AND 10
            AND [CheckIntervalSeconds] BETWEEN 30 AND 86400
            AND ([WindowMinutes] IS NULL OR [WindowMinutes] BETWEEN 1 AND 525600)),
+
+    -- Вікно: або хвилини, або календарний період; зсув - до 100 періодів.
+    CONSTRAINT CK_MonitoringRules_Window
+        CHECK (([WindowMinutes] IS NULL OR [WindowUnit] IS NULL)
+           AND ([WindowUnit] IS NULL OR [WindowUnit] IN (N'hour', N'day', N'week', N'month', N'quarter', N'year'))
+           AND [WindowOffset] BETWEEN 0 AND 100),
+
+    -- Показник порівняння задано повністю (модель, функція, поле часу, коефіцієнт) або не задано зовсім.
+    CONSTRAINT CK_MonitoringRules_Compare
+        CHECK (([CompareConfigPkey] IS NULL AND [CompareFunction] IS NULL AND [CompareMultiplier] IS NULL)
+            OR ([CompareConfigPkey] IS NOT NULL
+                AND [CompareFunction] IN (N'count', N'sum', N'avg', N'min', N'max')
+                AND [CompareTimeField] IS NOT NULL
+                AND [CompareMultiplier] > 0
+                AND ([CompareWindowMinutes] IS NULL OR [CompareWindowUnit] IS NULL)
+                AND ([CompareWindowMinutes] IS NULL OR [CompareWindowMinutes] BETWEEN 1 AND 525600)
+                AND ([CompareWindowUnit] IS NULL OR [CompareWindowUnit] IN (N'hour', N'day', N'week', N'month', N'quarter', N'year'))
+                AND [CompareWindowOffset] BETWEEN 0 AND 100
+                AND ([CompareFilters] IS NULL OR ISJSON([CompareFilters]) = 1))),
 
     CONSTRAINT CK_MonitoringRules_State
         CHECK ([State] BETWEEN 0 AND 3),
@@ -79,3 +126,9 @@ GO
 
 CREATE NONCLUSTERED INDEX IX_MonitoringRules_ConfigPkey
     ON [dbo].[MonitoringRules] ([ConfigPkey])
+GO
+
+-- Видалення моделі шукає правила, що порівнюють з її даними.
+CREATE NONCLUSTERED INDEX IX_MonitoringRules_CompareConfigPkey
+    ON [dbo].[MonitoringRules] ([CompareConfigPkey])
+    WHERE [CompareConfigPkey] IS NOT NULL

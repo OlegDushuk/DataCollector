@@ -11,6 +11,8 @@ CREATE PROCEDURE [dbo].[sp_MonitoringRules_SaveCheck]
     @LastError NVARCHAR(1000),
     @PendingState TINYINT,
     @PendingCount INT,
+    -- Значення показника порівняння (NULL - фіксований поріг або порівнювати нема з чим).
+    @LastCompareValue DECIMAL(38, 10) = NULL,
     -- Сповіщення (NULL - стан не змінився).
     @NotificationId UNIQUEIDENTIFIER,
     @FromState TINYINT,
@@ -36,7 +38,8 @@ BEGIN
         [LastCheckedAt] = @LastCheckedAt,
         [LastError] = @LastError,
         [PendingState] = @PendingState,
-        [PendingCount] = @PendingCount
+        [PendingCount] = @PendingCount,
+        [LastCompareValue] = @LastCompareValue
     WHERE [Id] = @Id
       AND [Version] = @Version;
 

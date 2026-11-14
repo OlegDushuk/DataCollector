@@ -49,6 +49,7 @@ public class MonitoringRuleRepository(IConfiguration config)
     parameters.Add("LastError", rule.LastError);
     parameters.Add("PendingState", rule.PendingState is { } pending ? (byte?)pending : null);
     parameters.Add("PendingCount", rule.PendingCount);
+    parameters.Add("LastCompareValue", rule.LastCompareValue);
     parameters.Add("NotificationId", notification?.Id);
     parameters.Add("FromState", notification is null ? null : (byte?)notification.FromState);
     parameters.Add("ToState", notification is null ? null : (byte?)notification.ToState);
@@ -77,8 +78,31 @@ public class MonitoringRuleRepository(IConfiguration config)
     parameters.Add("Threshold", rule.Threshold);
     parameters.Add("ConsecutiveChecks", rule.ConsecutiveChecks);
     parameters.Add("CheckIntervalSeconds", rule.CheckIntervalSeconds);
+    parameters.Add("WindowUnit", UnitCode(rule.WindowUnit));
+    parameters.Add("WindowOffset", rule.WindowOffset);
+    parameters.Add("WindowToDate", rule.WindowToDate);
+    parameters.Add("TimeZone", rule.TimeZone);
+
+    var c = rule.Comparison;
+    parameters.Add("CompareConfigId", c?.ConfigId);
+    parameters.Add("CompareFilters", c?.Filters);
+    parameters.Add("CompareSearch", c?.Search);
+    parameters.Add("CompareFunction", c?.Function.ToString().ToLowerInvariant());
+    parameters.Add("CompareFieldKey", c?.FieldKey);
+    parameters.Add("CompareTimeField", c?.TimeField);
+    parameters.Add("CompareWindowMinutes", c?.Period.Minutes);
+    parameters.Add("CompareWindowUnit", UnitCode(c?.Period.Unit));
+    parameters.Add("CompareWindowOffset", c?.Period.Offset ?? 0);
+    parameters.Add("CompareWindowToDate", c?.Period.ToDate ?? false);
+    parameters.Add("CompareMultiplier", c?.Multiplier);
     return parameters;
   }
+
+  /// <summary>Календарний період у колонці: "hour", "day" ... (як у CHECK-обмеженні таблиці).</summary>
+  private static string? UnitCode(DateInterval? unit) => unit?.ToString().ToLowerInvariant();
+
+  private static DateInterval? ParseUnit(string? code)
+    => string.IsNullOrEmpty(code) ? null : Enum.Parse<DateInterval>(code, ignoreCase: true);
 
   private static RuleRecord ToRecord(MonitoringRuleRow row)
   {
@@ -94,7 +118,22 @@ public class MonitoringRuleRepository(IConfiguration config)
       RuleOperators.Parse(row.Operator) ?? RuleOperator.GreaterThan,
       row.Threshold,
       row.ConsecutiveChecks,
-      row.CheckIntervalSeconds);
+      row.CheckIntervalSeconds,
+      ParseUnit(row.WindowUnit),
+      row.WindowOffset,
+      row.WindowToDate,
+      row.TimeZone,
+      row.CompareConfigId is { } compareConfigId && row.CompareFunction is { } compareFunction
+        ? new RuleComparison(
+          compareConfigId,
+          row.CompareFilters,
+          row.CompareSearch,
+          Enum.Parse<AggregateFunction>(compareFunction, ignoreCase: true),
+          row.CompareFieldKey,
+          row.CompareTimeField ?? RecordField.CreatedAtKey,
+          new RulePeriod(row.CompareWindowMinutes, ParseUnit(row.CompareWindowUnit), row.CompareWindowOffset, row.CompareWindowToDate),
+          row.CompareMultiplier ?? 1)
+        : null);
 
     var state = new RuleSnapshot(
       (RuleState)row.State,
@@ -106,7 +145,8 @@ public class MonitoringRuleRepository(IConfiguration config)
       row.PendingCount,
       AsUtc(row.NextCheckAt),
       row.Version,
-      AsUtc(row.UpdatedAt));
+      AsUtc(row.UpdatedAt),
+      row.LastCompareValue);
 
     var rule = MonitoringRule.Restore(row.Id, AsUtc(row.CreatedAt), definition, row.ConfigId, state);
     return new RuleRecord(rule, row.ConfigName);

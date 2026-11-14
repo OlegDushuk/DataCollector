@@ -7,8 +7,9 @@
 @inject EntityConfigApiService ConfigApi
 
 @*
-    Редактор правила моніторингу: що рахувати (модель, умови, показник, вікно часу), коли спрацьовувати
-    (умова і поріг) і як часто перевіряти. «Порахувати зараз» показує поточне значення і стан ще до збереження.
+    Редактор правила моніторингу: що рахувати (модель, умови, показник, період), коли спрацьовувати
+    (умова і поріг - число або інший показник з даних) і як часто перевіряти.
+    «Порахувати зараз» показує поточне значення і стан ще до збереження.
 *@
 
 <PageHeader Title="@(Id is null ? "Нове правило" : _form.Name is { Length: > 0 } name ? name : "Правило")" BackHref="/monitoring" BackTitle="До моніторингу">
@@ -19,7 +20,7 @@
         }
         else
         {
-            <span>Показник за останні N хвилин, порівняний з порогом</span>
+            <span>Показник за період, порівняний з порогом або з іншим показником</span>
         }
     </Subtitle>
     <Actions>
@@ -112,28 +113,24 @@
                                 </label>
                             </div>
 
-                            <div class="form__row">
-                                <label class="form__field">
-                                    <span class="form__label">Вікно часу</span>
-                                    <select class="select" value="@_form.WindowMinutes" @onchange="@(e => Changed(() => _form.WindowMinutes = int.TryParse(e.Value?.ToString(), out var m) ? m : 60))">
-                                        @foreach (var (minutes, label) in RuleForm.Windows)
-                                        {
-                                            <option value="@minutes">@label</option>
-                                        }
-                                    </select>
-                                </label>
+                            <RulePeriodPicker Period="_form.Period" Label="Період" OnChange="@(() => Changed(() => { }))" />
 
-                                @* Без вікна поле часу не потрібне - лишаємо порожнє місце, щоб рядок не стрибав. *@
-                                <label class="form__field @(_form.WindowMinutes == 0 ? "form__field--invisible" : "")">
-                                    <span class="form__label">Час запису - за полем</span>
-                                    <select class="select" value="@_form.TimeField" @onchange="@(e => Changed(() => _form.TimeField = e.Value?.ToString() ?? FilterField.CreatedAtKey))">
-                                        @foreach (var f in RuleForm.TimeFields(_fields))
-                                        {
-                                            <option value="@f.Key">@f.Name</option>
-                                        }
-                                    </select>
-                                </label>
-                            </div>
+                            @* Без періоду (за весь час) поле часу не потрібне. *@
+                            @if (!_form.Period.IsAllTime)
+                            {
+                                <div class="form__row">
+                                    <label class="form__field">
+                                        <span class="form__label">Час запису - за полем</span>
+                                        <select class="select" value="@_form.TimeField" @onchange="@(e => Changed(() => _form.TimeField = e.Value?.ToString() ?? FilterField.CreatedAtKey))">
+                                            @foreach (var f in RuleForm.TimeFields(_fields))
+                                            {
+                                                <option value="@f.Key">@f.Name</option>
+                                            }
+                                        </select>
+                                    </label>
+                                    <span class="form__field"></span>
+                                </div>
+                            }
 
                             @if (_form.Function != "count" && !RuleForm.MetricFields(_form.Function, _fields).Any())
                             {
@@ -151,17 +148,138 @@
                         <div class="card__title">Коли спрацьовувати</div>
 
                         <div class="form">
+                            <div class="rule-editor__mode">
+                                <span class="form__label">Порівнювати з</span>
+                                <label class="check">
+                                    <input type="radio" name="threshold-mode" checked="@(_form.ThresholdMode == RuleForm.ThresholdNumber)"
+                                           @onchange="@(() => Changed(() => _form.ThresholdMode = RuleForm.ThresholdNumber))" />
+                                    <span>числом</span>
+                                </label>
+                                <label class="check">
+                                    <input type="radio" name="threshold-mode" checked="@(_form.ThresholdMode == RuleForm.ThresholdMetric)"
+                                           @onchange="SwitchToMetric" />
+                                    <span>іншим показником з даних</span>
+                                </label>
+                            </div>
+
                             <div class="rule-editor__condition">
-                                <span class="rule-editor__metric">@MetricLabel()</span>
+                                <span class="rule-editor__metric" title="@MetricLabel()">@MetricLabel()</span>
                                 <select class="select" value="@_form.Operator" @onchange="@(e => Changed(() => _form.Operator = e.Value?.ToString() ?? "gt"))">
                                     @foreach (var op in RuleForm.Operators)
                                     {
                                         <option value="@op.Code">@op.Label</option>
                                     }
                                 </select>
-                                <ValueInput DataType="PropertyDataType.Number" Value="@_form.Threshold" Placeholder="Поріг, напр. 30"
-                                            ValueChanged="@(v => Changed(() => _form.Threshold = v))" />
+                                @if (_form.ThresholdMode == RuleForm.ThresholdNumber)
+                                {
+                                    <ValueInput DataType="PropertyDataType.Number" Value="@_form.Threshold" Placeholder="Поріг, напр. 30"
+                                                ValueChanged="@(v => Changed(() => _form.Threshold = v))" />
+                                }
+                                else
+                                {
+                                    <span class="rule-editor__metric" title="@CompareLabel()">показника нижче</span>
+                                }
                             </div>
+
+                            @if (_form.ThresholdMode == RuleForm.ThresholdMetric)
+                            {
+                                var compare = _form.Compare;
+                                var sameModel = compare.ConfigId == _form.ConfigId;
+
+                                <div class="rule-compare">
+                                    <div class="rule-compare__title">Показник порівняння: @CompareLabel()</div>
+
+                                    <div class="form__row">
+                                        <label class="form__field">
+                                            <span class="form__label">Модель даних</span>
+                                            <select class="select" value="@(compare.ConfigId?.ToString() ?? "")" @onchange="OnCompareModelChange">
+                                                @foreach (var c in _configs)
+                                                {
+                                                    <option value="@c.Id">@c.Name</option>
+                                                }
+                                            </select>
+                                        </label>
+
+                                        <label class="form__field">
+                                            <span class="form__label">Показник</span>
+                                            <select class="select" value="@compare.Function" @onchange="OnCompareFunctionChange">
+                                                @foreach (var f in AggregateCatalog.Functions)
+                                                {
+                                                    <option value="@f.Code">@f.Label</option>
+                                                }
+                                            </select>
+                                        </label>
+                                    </div>
+
+                                    <div class="form__row">
+                                        <label class="form__field">
+                                            <span class="form__label">@(compare.Function == "count" ? "Що рахувати" : "Поле")</span>
+                                            <select class="select" value="@compare.Field" @onchange="@(e => Changed(() => compare.Field = e.Value?.ToString() ?? string.Empty))">
+                                                @if (compare.Function == "count")
+                                                {
+                                                    <option value="">записи</option>
+                                                }
+                                                @foreach (var f in RuleForm.MetricFields(compare.Function, _compareFields))
+                                                {
+                                                    <option value="@f.Key">@(compare.Function == "count" ? $"заповнене поле «{f.Name}»" : f.Name)</option>
+                                                }
+                                            </select>
+                                        </label>
+
+                                        <label class="form__field" title="Поріг = показник порівняння × коефіцієнт">
+                                            <span class="form__label">Коефіцієнт</span>
+                                            <ValueInput DataType="PropertyDataType.Number" Value="@compare.Multiplier" Placeholder="1"
+                                                        ValueChanged="@(v => Changed(() => compare.Multiplier = v))" />
+                                        </label>
+                                    </div>
+
+                                    <div class="default-text default-text--multiline">
+                                        Поріг = показник порівняння × коефіцієнт: 1 - просто більше / менше, 1,1 - на 10% більше, 0,9 - на 10% менше.
+                                    </div>
+
+                                    <RulePeriodPicker Period="compare.Period" Label="Період порівняння" OnChange="@(() => Changed(() => { }))" />
+
+                                    @if (!compare.Period.IsAllTime)
+                                    {
+                                        <div class="form__row">
+                                            <label class="form__field">
+                                                <span class="form__label">Час запису - за полем</span>
+                                                <select class="select" value="@compare.TimeField" @onchange="@(e => Changed(() => compare.TimeField = e.Value?.ToString() ?? FilterField.CreatedAtKey))">
+                                                    @foreach (var f in RuleForm.TimeFields(_compareFields))
+                                                    {
+                                                        <option value="@f.Key">@f.Name</option>
+                                                    }
+                                                </select>
+                                            </label>
+                                            <span class="form__field"></span>
+                                        </div>
+                                    }
+
+                                    @if (sameModel)
+                                    {
+                                        <label class="check">
+                                            <input type="checkbox" checked="@compare.SameFilters" @onchange="@(e => Changed(() => compare.SameFilters = e.Value is true))" />
+                                            <span>Ті самі умови й пошук, що й для показника правила</span>
+                                        </label>
+                                    }
+
+                                    @if (!sameModel || !compare.SameFilters)
+                                    {
+                                        <div class="rule-compare__filters">
+                                            <span class="form__label">Які записи враховувати в показнику порівняння</span>
+                                            <div class="search-input search-input--wide">
+                                                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                                                <input class="input" placeholder="Пошук у текстових полях" value="@compare.Search"
+                                                       @onchange="@(e => Changed(() => compare.Search = e.Value?.ToString()))" />
+                                            </div>
+                                            <RecordFilterPanel @key="@($"compare-{compare.ConfigId}")"
+                                                               Fields="_compareFields"
+                                                               Filters="compare.Filters"
+                                                               OnApply="@(filters => Changed(() => compare.Filters = filters))" />
+                                        </div>
+                                    }
+                                </div>
+                            }
 
                             <div class="form__row">
                                 <label class="form__field">
@@ -213,18 +331,22 @@
                             <div class="rule-preview__result">
                                 <StatePill State="@_preview.State" />
                                 <span class="rule-preview__value">
-                                    @_preview.MetricName = @(_preview.Value is { } v ? FieldValue.Display(PropertyDataType.Number, v.ToString(System.Globalization.CultureInfo.InvariantCulture)) : "—")
+                                    @_preview.MetricName = @Number(_preview.Value)
                                 </span>
                             </div>
                             <div class="default-text default-text--multiline">
                                 <div>Умова: @_preview.Condition</div>
+                                @if (_preview.CompareName != null)
+                                {
+                                    <div>Показник порівняння: @_preview.CompareName = @Number(_preview.CompareValue) → поріг @Number(_preview.Threshold)</div>
+                                }
                                 @if (_preview.Error != null)
                                 {
                                     <div>@_preview.Error</div>
                                 }
                                 else if (_preview.Value is null)
                                 {
-                                    <div>Немає записів для розрахунку у вікні часу - правило буде в стані «Немає даних».</div>
+                                    <div>Немає записів для розрахунку за період - правило буде в стані «Немає даних».</div>
                                 }
                             </div>
                             @if (_previewStale)
@@ -241,7 +363,7 @@
                 <aside class="card rule-editor__filters">
                     <div class="card__title">Які записи враховувати</div>
                     <div class="default-text default-text--multiline">
-                        Ті самі умови, що на сторінці записів. Без умов - усі записи моделі у вікні часу.
+                        Ті самі умови, що на сторінці записів. Без умов - усі записи моделі за період.
                     </div>
 
                     <div class="search-input search-input--wide">
@@ -269,6 +391,10 @@
   private List<EntityConfigListItem>? _configs;
   private EntityConfig? _config;
   private List<FilterField> _fields = [];
+
+  /// <summary>Поля моделі показника порівняння (та сама модель - ті самі поля).</summary>
+  private List<FilterField> _compareFields = [];
+
   private MonitoringRule? _rule;
   private RuleForm _form = new();
 
@@ -302,7 +428,10 @@
         return;
 
       await LoadModel(_rule.ConfigId);
-      _form = RuleForm.From(_rule, _fields);
+      if (_rule.Compare is { } compare)
+        await LoadCompareModel(compare.ConfigId);
+
+      _form = RuleForm.From(_rule, _fields, _compareFields);
     }
     else
     {
@@ -321,6 +450,79 @@
     _fields = loaded is null ? [] : FilterField.ForConfig(loaded);
   }
 
+  private async Task LoadCompareModel(Guid configId)
+  {
+    if (configId == _config?.Id)
+    {
+      _compareFields = _fields;
+      return;
+    }
+
+    EntityConfig? loaded = null;
+    await Try(async () => loaded = await ConfigApi.Get(configId.ToString()));
+    _compareFields = loaded is null ? [] : FilterField.ForConfig(loaded);
+  }
+
+  /// <summary>Порівняння з показником: за замовчуванням - той самий показник тієї ж моделі за попередній місяць.</summary>
+  private async Task SwitchToMetric()
+  {
+    var compare = _form.Compare;
+    if (compare.ConfigId is null)
+    {
+      compare.ConfigId = _form.ConfigId;
+      compare.Function = _form.Function;
+      compare.Field = _form.Field;
+      compare.TimeField = _form.TimeField;
+      if (!_form.Period.IsAllTime && _form.Period.Offset == 0)
+        compare.Period = _form.Period.Copy();
+      compare.Period.Offset = compare.Period.IsAllTime ? 0 : 1;
+      compare.Period.ToDate = compare.Period.IsCalendar;
+    }
+
+    if (compare.ConfigId is { } id)
+      await LoadCompareModel(id);
+
+    Changed(() => _form.ThresholdMode = RuleForm.ThresholdMetric);
+  }
+
+  private async Task OnCompareModelChange(ChangeEventArgs e)
+  {
+    if (!Guid.TryParse(e.Value?.ToString(), out var id) || id == _form.Compare.ConfigId)
+      return;
+
+    var compare = _form.Compare;
+    compare.ConfigId = id;
+    await LoadCompareModel(id);
+
+    // Поля іншої моделі: умови й поле показника не переносяться.
+    compare.Filters = [];
+    compare.Search = null;
+    compare.SameFilters = id == _form.ConfigId;
+    compare.Field = string.Empty;
+    compare.Function = "count";
+    compare.TimeField = FilterField.CreatedAtKey;
+    Changed(() => { });
+  }
+
+  private void OnCompareFunctionChange(ChangeEventArgs e)
+  {
+    var compare = _form.Compare;
+    var function = e.Value?.ToString() ?? "count";
+    var fields = RuleForm.MetricFields(function, _compareFields).ToList();
+
+    Changed(() =>
+    {
+      if (function != "count" && fields.Count == 0)
+        function = "count";
+
+      compare.Function = function;
+      if (function == "count")
+        compare.Field = string.Empty;
+      else if (fields.All(f => f.Key != compare.Field))
+        compare.Field = fields[0].Key;
+    });
+  }
+
   private async Task OnModelChange(ChangeEventArgs e)
   {
     if (!Guid.TryParse(e.Value?.ToString(), out var id) || id == _config?.Id)
@@ -335,6 +537,12 @@
     _form.Function = "count";
     _form.TimeField = FilterField.CreatedAtKey;
     _preview = null;
+
+    // Порівняння «з тими самими умовами» було прив'язане до старої моделі - тепер умови порівняння окремі.
+    if (_form.Compare.ConfigId != id)
+      _form.Compare.SameFilters = false;
+    if (_form.Compare.ConfigId is { } compareId)
+      await LoadCompareModel(compareId);
   }
 
   private void OnFunctionChange(ChangeEventArgs e)
@@ -363,23 +571,40 @@
       _previewStale = true;
   }
 
-  private string MetricLabel()
+  private string MetricLabel() => Label(_form.Function, _form.Field, _fields, _form.Period);
+
+  private string CompareLabel()
   {
-    var function = AggregateCatalog.Functions.FirstOrDefault(f => f.Code == _form.Function).Label ?? _form.Function;
-    var field = _fields.FirstOrDefault(f => f.Key == _form.Field)?.Name;
-    var window = RuleForm.Windows.FirstOrDefault(w => w.Minutes == _form.WindowMinutes).Label;
+    var compare = _form.Compare;
+    var multiplier = FieldValue.ParseNumber(compare.Multiplier) is { } m && m != 1
+      ? $" × {FieldValue.Display(PropertyDataType.Number, m.ToString(System.Globalization.CultureInfo.InvariantCulture))}"
+      : "";
+    var model = compare.ConfigId != _form.ConfigId && _configs?.FirstOrDefault(c => c.Id == compare.ConfigId) is { } other
+      ? $" («{other.Name}»)"
+      : "";
+
+    return Label(compare.Function, compare.Field, _compareFields, compare.Period) + model + multiplier;
+  }
+
+  private static string Label(string functionCode, string fieldKey, IReadOnlyList<FilterField> fields, PeriodForm period)
+  {
+    var function = AggregateCatalog.Functions.FirstOrDefault(f => f.Code == functionCode).Label ?? functionCode;
+    var field = fields.FirstOrDefault(f => f.Key == fieldKey)?.Name;
 
     return field is null
-      ? $"{function} записів {window}"
-      : $"{function}: {field} {window}";
+      ? $"{function} записів {period.Text()}"
+      : $"{function}: {field} {period.Text()}";
   }
+
+  private static string Number(decimal? value)
+    => value is { } v ? FieldValue.Display(PropertyDataType.Number, v.ToString(System.Globalization.CultureInfo.InvariantCulture)) : "—";
 
   private async Task Preview()
   {
     _previewing = true;
     _previewStale = false;
 
-    await Try(async () => _preview = await MonitoringApi.Preview(_form.ToApi(_fields)));
+    await Try(async () => _preview = await MonitoringApi.Preview(_form.ToApi(_fields, _compareFields)));
     _previewing = false;
   }
 
@@ -391,14 +616,20 @@
       return;
     }
 
-    if (FieldValue.ParseNumber(_form.Threshold) is null)
+    if (_form.ThresholdMode == RuleForm.ThresholdNumber && FieldValue.ParseNumber(_form.Threshold) is null)
     {
       Error = "Вкажіть поріг - число, з яким порівнюється показник";
       return;
     }
 
+    if (_form.ThresholdMode == RuleForm.ThresholdMetric && FieldValue.ParseNumber(_form.Compare.Multiplier) is not > 0)
+    {
+      Error = "Коефіцієнт порівняння - число, більше за 0 (1 - без змін)";
+      return;
+    }
+
     _saving = true;
-    var body = _form.ToApi(_fields);
+    var body = _form.ToApi(_fields, _compareFields);
 
     var ok = Id is { } id
       ? await Try(() => MonitoringApi.UpdateRule(id, body, _rule?.Version ?? 0))

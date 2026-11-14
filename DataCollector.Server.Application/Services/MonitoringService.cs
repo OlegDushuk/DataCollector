@@ -15,8 +15,9 @@ using DataCollector.Server.Domain.Querying;
 namespace DataCollector.Server.Application.Services;
 
 /// <summary>
-/// Моніторинг: правила, їх перевірка і сповіщення. Показник правила рахується тим самим рушієм агрегації,
-/// що будує зведення й діаграми (<see cref="IEntityInstanceRepository.Aggregate"/>), - лише без групувань.
+/// Моніторинг: правила, їх перевірка і сповіщення. Показник правила (і показник порівняння, якщо поріг - не число,
+/// а інший показник) рахується тим самим рушієм агрегації, що будує зведення й діаграми
+/// (<see cref="IEntityInstanceRepository.Aggregate"/>), - лише без групувань.
 /// </summary>
 public class MonitoringService(
   IMonitoringRuleRepository rules,
@@ -52,8 +53,8 @@ public class MonitoringService(
 
   public async Task<Guid> CreateRule(SaveMonitoringRuleCommand command)
   {
-    var (definition, entity) = await Definition(command);
-    var rule = MonitoringRule.Create(definition, entity);
+    var (definition, entity, compareEntity) = await Definition(command);
+    var rule = MonitoringRule.Create(definition, entity, compareEntity);
 
     await rules.Create(rule);
     return rule.Id;
@@ -64,10 +65,10 @@ public class MonitoringService(
     var record = await Load(id);
     VersionConflictException.Ensure(command.Version, record.Rule.Version, VersionConflictException.Rule);
 
-    var (definition, entity) = await Definition(command);
+    var (definition, entity, compareEntity) = await Definition(command);
     var loadedVersion = record.Rule.Version;
 
-    record.Rule.Change(definition, entity);
+    record.Rule.Change(definition, entity, compareEntity);
     await rules.Update(record.Rule, loadedVersion);
   }
 
@@ -91,21 +92,23 @@ public class MonitoringService(
 
   public async Task<MonitoringPreviewDto> Preview(SaveMonitoringRuleCommand command, CancellationToken cancellationToken = default)
   {
-    var (definition, entity) = await Definition(command);
-    var rule = MonitoringRule.Create(definition, entity);
-    var (value, error, metricName) = await Evaluate(rule, DateTime.UtcNow, cancellationToken);
+    var (definition, entity, compareEntity) = await Definition(command);
+    var rule = MonitoringRule.Create(definition, entity, compareEntity);
+    var result = await Evaluate(rule, DateTime.UtcNow, cancellationToken);
 
-    var state = error != null || value is null
-      ? RuleState.NoData
-      : rule.Operator.Matches(value.Value, rule.Threshold) ? RuleState.Alert : RuleState.Ok;
+    // Нове (незбережене) правило: перша перевірка встановлює стан одразу - це і є відповідь «який був би стан».
+    rule.ApplyCheck(result.Value, result.Error, DateTime.UtcNow, result.MetricName, result.CompareValue, result.CompareName);
 
     return new MonitoringPreviewDto
     {
-      Value = value,
-      State = StateCode(state),
-      MetricName = metricName,
-      Condition = rule.Describe(metricName),
-      Error = error
+      Value = result.Value,
+      CompareValue = result.CompareValue,
+      CompareName = result.CompareName,
+      Threshold = rule.EffectiveThreshold(result.CompareValue),
+      State = StateCode(rule.State),
+      MetricName = result.MetricName,
+      Condition = rule.Describe(result.MetricName, result.CompareName),
+      Error = rule.LastError
     };
   }
 
@@ -181,8 +184,8 @@ public class MonitoringService(
   /// <summary>Перевірка одного правила: показник -> новий стан -> запис стану і сповіщення (якщо стан змінився).</summary>
   private async Task Check(MonitoringRule rule, DateTime now, CancellationToken cancellationToken)
   {
-    var (value, error, metricName) = await Evaluate(rule, now, cancellationToken);
-    var notification = rule.ApplyCheck(value, error, now, metricName);
+    var result = await Evaluate(rule, now, cancellationToken);
+    var notification = rule.ApplyCheck(result.Value, result.Error, now, result.MetricName, result.CompareValue, result.CompareName);
     var delivery = notification != null && sender.IsConfigured ? DeliveryStatus.Pending : DeliveryStatus.NotRequired;
 
     await rules.SaveCheck(rule, notification, delivery);
@@ -192,12 +195,14 @@ public class MonitoringService(
         rule.Name, notification.FromState, notification.ToState, notification.Value);
   }
 
+  /// <summary>Результат розрахунку правила: показник і (якщо поріг - показник) значення порівняння.</summary>
+  private sealed record Evaluation(decimal? Value, string? Error, string MetricName, decimal? CompareValue = null, string? CompareName = null);
+
   /// <summary>
-  /// Показник правила на поточний момент. Помилки даних (поле видалено, модель видалено, умова вже не підходить
+  /// Показники правила на поточний момент. Помилки даних (поле видалено, модель видалено, умова вже не підходить
   /// до типу поля) не зупиняють моніторинг - вони стають станом «немає даних» з поясненням.
   /// </summary>
-  private async Task<(decimal? Value, string? Error, string MetricName)> Evaluate(
-    MonitoringRule rule, DateTime now, CancellationToken cancellationToken)
+  private async Task<Evaluation> Evaluate(MonitoringRule rule, DateTime now, CancellationToken cancellationToken)
   {
     EntityConfig entity;
     try
@@ -206,39 +211,108 @@ public class MonitoringService(
     }
     catch (NotFoundException)
     {
-      return (null, "модель правила видалено", "Показник");
+      return new Evaluation(null, "модель правила видалено", "Показник");
+    }
+
+    string metricName;
+    decimal? value;
+    try
+    {
+      var metric = rule.Metric(entity);
+      metricName = metric.Name;
+      value = await Compute(entity, metric, rule.Filters, rule.Search, rule.WindowFilters(entity, now), cancellationToken);
+    }
+    catch (DomainValidationException e)
+    {
+      return new Evaluation(null, e.Message, rule.FieldKey ?? "Показник");
+    }
+
+    if (rule.Comparison is not { } comparison)
+      return new Evaluation(value, null, metricName);
+
+    EntityConfig compareEntity;
+    try
+    {
+      compareEntity = await entityConfigs.Get(comparison.ConfigId.ToString());
+    }
+    catch (NotFoundException)
+    {
+      return new Evaluation(value, "модель показника порівняння видалено", metricName);
     }
 
     try
     {
-      var metric = rule.Metric(entity);
-      var filters = RecordQueries.Filters(entity, ParseFilters(rule.Filters));
-      if (rule.WindowFilter(entity, now) is { } window)
-        filters.Add(window);
+      var compareMetric = comparison.Metric(compareEntity);
+      var compareName = CompareName(compareMetric, compareEntity, rule.ConfigId);
+      var periodFilters = comparison.PeriodFilters(compareEntity, now, rule.Zone);
+      var compareValue = await Compute(compareEntity, compareMetric, comparison.Filters, comparison.Search, periodFilters, cancellationToken);
 
-      var query = new AggregateQuery(filters, rule.Search, [], [metric], AggregateOrder.Keys, 1, null);
-      var result = await entityInstanceRepository.Aggregate(entity, query, cancellationToken);
-
-      var raw = result.Rows.Count > 0 ? result.Rows[0].Values[0] : null;
-      return (ToDecimal(raw), null, metric.Name);
+      return new Evaluation(value, null, metricName, compareValue, compareName);
     }
     catch (DomainValidationException e)
     {
-      return (null, e.Message, rule.FieldKey ?? "Показник");
+      return new Evaluation(value, $"показник порівняння: {e.Message}", metricName);
     }
   }
+
+  /// <summary>Один показник без групувань: умови правила + умови періоду.</summary>
+  private async Task<decimal?> Compute(
+    EntityConfig entity, AggregateMetric metric, string? filtersJson, string? search, List<RecordFilter> periodFilters,
+    CancellationToken cancellationToken)
+  {
+    var filters = RecordQueries.Filters(entity, ParseFilters(filtersJson));
+    filters.AddRange(periodFilters);
+
+    var query = new AggregateQuery(filters, search, [], [metric], AggregateOrder.Keys, 1, null);
+    var result = await entityInstanceRepository.Aggregate(entity, query, cancellationToken);
+
+    var raw = result.Rows.Count > 0 ? result.Rows[0].Values[0] : null;
+    return ToDecimal(raw);
+  }
+
+  /// <summary>Назва показника порівняння; з іншої моделі - з назвою моделі: «Сума: Сума (Повернення)».</summary>
+  private static string CompareName(AggregateMetric metric, EntityConfig compareEntity, Guid ruleConfigId)
+    => compareEntity.Id == ruleConfigId ? metric.Name : $"{metric.Name} («{compareEntity.Name}»)";
 
   // ---------- Допоміжне ----------
 
   private async Task<RuleRecord> Load(Guid id)
     => await rules.GetById(id) ?? throw new NotFoundException("Правило не знайдене");
 
-  private async Task<(RuleDefinition Definition, EntityConfig Entity)> Definition(SaveMonitoringRuleCommand command)
+  private async Task<(RuleDefinition Definition, EntityConfig Entity, EntityConfig? CompareEntity)> Definition(
+    SaveMonitoringRuleCommand command)
   {
     var entity = await entityConfigs.Get(command.Config);
 
     // Умови перевіряються одразу (як у запиті записів), щоб помилка була відповіддю 400, а не станом «немає даних».
     _ = RecordQueries.Filters(entity, command.Filters);
+
+    EntityConfig? compareEntity = null;
+    RuleComparison? comparison = null;
+
+    if (command.Compare is { } compare)
+    {
+      try
+      {
+        compareEntity = await entityConfigs.Get(compare.Config);
+      }
+      catch (NotFoundException)
+      {
+        throw new DomainValidationException("Модель показника порівняння не знайдена");
+      }
+
+      _ = RecordQueries.Filters(compareEntity, compare.Filters);
+
+      comparison = new RuleComparison(
+        compareEntity.Id,
+        compare.Filters is { Count: > 0 } compareFilters ? JsonSerializer.Serialize(compareFilters, JsonOptions) : null,
+        compare.Search,
+        compare.Function.ToAggregateFunction(),
+        compare.Field,
+        compare.TimeField ?? RecordField.CreatedAtKey,
+        new RulePeriod(compare.WindowMinutes, compare.WindowUnit.ToDateInterval(), compare.WindowOffset, compare.WindowToDate),
+        compare.Multiplier);
+    }
 
     var definition = new RuleDefinition(
       command.Name,
@@ -252,9 +326,14 @@ public class MonitoringService(
       RuleOperators.Parse(command.Operator) ?? throw new DomainValidationException($"Невідома умова '{command.Operator}'. Доступні: gt, gte, lt, lte, eq, neq"),
       command.Threshold,
       command.ConsecutiveChecks,
-      command.CheckIntervalSeconds);
+      command.CheckIntervalSeconds,
+      command.WindowUnit.ToDateInterval(),
+      command.WindowOffset,
+      command.WindowToDate,
+      command.TimeZone,
+      comparison);
 
-    return (definition, entity);
+    return (definition, entity, compareEntity);
   }
 
   private static List<RecordFilterDto>? ParseFilters(string? json)
@@ -284,6 +363,40 @@ public class MonitoringService(
       metricName = rule.FieldKey ?? "Показник";
     }
 
+    MonitoringCompareDto? compareDto = null;
+    string? compareName = null;
+
+    if (rule.Comparison is { } c)
+    {
+      var compareConfigName = "";
+      try
+      {
+        var compareEntity = await entityConfigs.Get(c.ConfigId.ToString());
+        compareConfigName = compareEntity.Name;
+        compareName = CompareName(c.Metric(compareEntity), compareEntity, rule.ConfigId);
+      }
+      catch (Exception e) when (e is DomainValidationException or NotFoundException)
+      {
+        compareName = c.FieldKey ?? "Показник порівняння";
+      }
+
+      compareDto = new MonitoringCompareDto
+      {
+        ConfigId = c.ConfigId,
+        ConfigName = compareConfigName,
+        Filters = ParseFilters(c.Filters) ?? [],
+        Search = c.Search,
+        Function = c.Function.ToCode(),
+        Field = c.FieldKey,
+        TimeField = c.TimeField,
+        WindowMinutes = c.Period.Minutes,
+        WindowUnit = c.Period.Unit?.ToCode(),
+        WindowOffset = c.Period.Offset,
+        WindowToDate = c.Period.ToDate,
+        Multiplier = Trim(c.Multiplier)
+      };
+    }
+
     return new MonitoringRuleDto
     {
       Id = rule.Id,
@@ -297,14 +410,21 @@ public class MonitoringService(
       Field = rule.FieldKey,
       TimeField = rule.TimeField,
       WindowMinutes = rule.WindowMinutes,
+      WindowUnit = rule.WindowUnit?.ToCode(),
+      WindowOffset = rule.WindowOffset,
+      WindowToDate = rule.WindowToDate,
+      TimeZone = rule.TimeZone,
       Operator = rule.Operator.Code(),
       Threshold = Trim(rule.Threshold),
+      Compare = compareDto,
       ConsecutiveChecks = rule.ConsecutiveChecks,
       CheckIntervalSeconds = rule.CheckIntervalSeconds,
-      Condition = rule.Describe(metricName),
+      Condition = rule.Describe(metricName, compareName),
       State = StateCode(rule.State),
       StateSince = rule.StateSince,
       LastValue = rule.LastValue is { } v ? Trim(v) : null,
+      LastCompareValue = rule.LastCompareValue is { } cv ? Trim(cv) : null,
+      LastThreshold = rule.EffectiveThreshold(rule.LastCompareValue) is { } t ? Trim(t) : null,
       LastCheckedAt = rule.LastCheckedAt,
       LastError = rule.LastError,
       NextCheckAt = rule.NextCheckAt,

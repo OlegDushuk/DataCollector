@@ -99,6 +99,10 @@
 
                         <div class="rule-card__value">
                             <div class="rule-card__number" title="Значення на останній перевірці">@Value(rule)</div>
+                            @if (rule.Compare != null && rule.LastThreshold is { } threshold)
+                            {
+                                <div class="default-text" title="Поріг на останній перевірці: показник порівняння × коефіцієнт">поріг @FieldValue.Display(PropertyDataType.Number, threshold.ToString(System.Globalization.CultureInfo.InvariantCulture))</div>
+                            }
                             <div class="default-text">
                                 @(rule.LastCheckedAt is { } at ? $"перевірено {Format.Date(at)}" : "ще не перевірялось")
                             </div>

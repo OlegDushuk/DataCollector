@@ -35,10 +35,21 @@
     gap: 6px;
   }
 
+  // «Від» і «до» поруч. minmax(0, 1fr) не дає полю розтягнути колонку ширше за панель.
   &__range {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 8px;
+
+    > * {
+      min-width: 0;
+      width: 100%;
+    }
+
+    // Поле дати з часом ширше за половину панелі - межі одна під одною.
+    &--stacked {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 }
 
