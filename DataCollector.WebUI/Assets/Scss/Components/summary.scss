@@ -46,9 +46,11 @@
       white-space: nowrap;
     }
 
+    // Заголовок закріплений угорі: шар вище за рядки, інакше смуга й число (позиціоновані) проступають поверх нього.
     th {
       position: sticky;
       top: 0;
+      z-index: 2;
       background: variables.$bg-color;
       color: variables.$subtitle-text-color;
       font-size: 12px;

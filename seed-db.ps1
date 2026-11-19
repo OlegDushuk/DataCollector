@@ -1,6 +1,8 @@
-﻿# Заповнює БД тестовими даними: 10 моделей різної структури (від 4 до 13 полів, усі типи полів і правила) по 100 000 записів.
-# Потрібен sqlcmd (йде разом з SQL Server / SSMS або: winget install Microsoft.Sqlcmd).
-# Кількість записів змінюється в scripts\seed-demo-data.sql (@RecordsPerModel), моделі й поля - у #Models / #Props.
+﻿# Демонстраційні дані інтернет-магазину: моделі «Замовлення», «Товари», «Повернення», «Відгуки» (≈ 14 місяців історії),
+# два дашборди, правила моніторингу, демо-користувачі й API-ключ сайту магазину.
+# УВАГА: спочатку видаляє з бази всі моделі з записами, дашборди, правила й сповіщення (користувачі лишаються).
+# Дані будуються відносно моменту запуску - запускайте в день демонстрації.
+# Потрібен sqlcmd (йде разом з SQL Server / SSMS або: winget install Microsoft.Sqlcmd). Сам скрипт - scripts\seed-demo-data.sql.
 
 param(
   [string]$Server = "localhost",
@@ -8,6 +10,9 @@ param(
 )
 
 $script = Join-Path $PSScriptRoot "scripts\seed-demo-data.sql"
+
+# Повідомлення скрипту - українською: вивід sqlcmd у UTF-8.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # -f 65001 - читати скрипт як UTF-8 (українські назви), -b - завершитись з помилкою при збої
 sqlcmd -S $Server -d $Database -E -C -f 65001 -b -i $script

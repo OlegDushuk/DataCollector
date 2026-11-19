@@ -1,0 +1,43 @@
+### Демонстрація: сайт магазину надсилає нове замовлення через REST API (ключ створює seed-db.ps1).
+### Відкрийте файл у Rider / VS Code (REST Client) і натисніть «Run» біля запиту.
+### Не передані поля отримають значення за замовчуванням: канал «Сайт», кількість 1, знижка 0, статус «Нове».
+
+@api = http://localhost:5054
+@key = dc_demo_shop_site_key_2026_000000000000000
+
+POST {{api}}/api/data-configs/orders/records
+X-Api-Key: {{key}}
+Content-Type: application/json
+
+{
+  "values": {
+    "number": "ORD-DEMO-01",
+    "customer": "Олег Душук",
+    "newCustomer": true,
+    "city": "Луцьк",
+    "category": "Смартфони",
+    "product": "Смартфон Samsung Galaxy A56, синій",
+    "amount": 22639,
+    "payment": "Картка онлайн",
+    "paid": true,
+    "delivery": "Нова пошта"
+  }
+}
+
+### Помилка перевірки: невідомий варіант переліку і відʼємна сума - відповідь 400 з описом полів.
+
+POST {{api}}/api/data-configs/orders/records
+X-Api-Key: {{key}}
+Content-Type: application/json
+
+{
+  "values": {
+    "number": "ORD-DEMO-02",
+    "customer": "Тест",
+    "category": "Смартфони",
+    "product": "Смартфон",
+    "amount": -5,
+    "payment": "Біткоїн",
+    "delivery": "Нова пошта"
+  }
+}
